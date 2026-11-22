@@ -32,6 +32,7 @@ import { net, watchOnline } from "#lib/core/online.svelte.ts";
 import { activeToast, toast } from "#lib/core/toast.svelte.ts";
 import { nowPlaying, stop, toFull } from "#lib/core/playback/now-playing.svelte.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import { keyboardUp } from "#lib/platform/keyboard.svelte.ts";
 import { adminPort } from "#lib/screens/admin/port.ts";
 import { downloadsPort } from "#lib/screens/downloads-port.ts";
 import CardLangPopover from "#lib/screens/CardLangPopover.svelte";
@@ -92,14 +93,20 @@ const onboarding = $derived(
 	route === "/welcome" || route === "/pair" || route.startsWith("/signin"),
 );
 const inPlayer = $derived(route.startsWith("/player"));
-const showTabs = $derived(!hidesTabs(route));
+// The keyboard takes the tabs' place, and the mini player's: a page being typed into keeps the
+// room for itself. Read first, so the watch holds on every route and the tabs never come back on
+// a stale value.
+const typing = $derived(keyboardUp());
+const showTabs = $derived(!typing && !hidesTabs(route));
 
 let pip = $state<HTMLElement>();
 let pipArt = $state<HTMLElement>();
 let hole = $state<{ x: number; y: number; width: number; height: number } | null>(null);
 const launch = $derived(nowPlaying.launch);
+// The mini player gives way to the keyboard too: above it, it would cover what is typed for. The
+// film keeps playing under the page.
 const showMini = $derived(
-	!!nowPlaying.pb && nowPlaying.mini && !!launch && !inPlayer && !onboarding,
+	!typing && !!nowPlaying.pb && nowPlaying.mini && !!launch && !inPlayer && !onboarding,
 );
 const pictureReady = $derived((nowPlaying.pb?.position ?? 0) > 0);
 const holed = $derived(showMini && pictureReady);
@@ -123,6 +130,8 @@ $effect(() => {
 		hole = null;
 		return;
 	}
+	// The tab bar coming or going moves the mini player without resizing it.
+	void showTabs;
 	const wrap = pip;
 	const art = pipArt;
 	const measure = () => {
@@ -516,6 +525,8 @@ const toastNow = $derived(activeToast());
 	--tabs-h: calc(58px + env(safe-area-inset-bottom));
 	position: fixed;
 	inset: 0;
+	/* Where the window does not shrink for the keyboard (iOS), the shell stops above it. */
+	bottom: var(--keyboard-inset, 0px);
 	overflow: hidden;
 	background: var(--bg-deep);
 	color: var(--fg);

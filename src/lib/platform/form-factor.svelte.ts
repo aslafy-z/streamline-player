@@ -1,5 +1,6 @@
 import { createSubscriber } from "svelte/reactivity";
 import { isPhoneSize } from "#lib/platform/form-factor.ts";
+import { pageSize } from "#lib/platform/keyboard.svelte.ts";
 import { FORM_FACTOR, type FormFactor, IS_WEB, TARGET } from "#lib/platform/target.ts";
 
 export { isPhoneSize };
@@ -38,7 +39,14 @@ export function formFactor(): FormFactor {
 	if (forced) return forced;
 	const touch = !IS_WEB || matchMedia("(pointer: coarse)").matches;
 	if (!touch) return "desktop";
-	return isPhoneSize(window.innerWidth, window.innerHeight) ? "phone" : "tablet";
+	// The page's size without the on-screen keyboard: on a landscape tablet the keyboard leaves
+	// less than a phone's short side, and the phone layout would take the field being typed into
+	// away, and the keyboard with it. It comes from the visual viewport times its scale, so a
+	// pinch zoom is no smaller screen either.
+	const page = pageSize();
+	return isPhoneSize(page?.width ?? window.innerWidth, page?.height ?? window.innerHeight)
+		? "phone"
+		: "tablet";
 }
 
 export const isTablet = () => formFactor() === "tablet";
