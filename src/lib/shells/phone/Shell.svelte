@@ -93,17 +93,18 @@ const onboarding = $derived(
 	route === "/welcome" || route === "/pair" || route.startsWith("/signin"),
 );
 const inPlayer = $derived(route.startsWith("/player"));
-// The keyboard takes the tabs' place: a page being typed into keeps the room for itself. Read on
-// every route, so the tabs never come back on a stale value.
+// The keyboard takes the tabs' place, and the mini player's: a page being typed into keeps the
+// room for itself. Read first, so the watch holds on every route and the tabs never come back on
+// a stale value.
 const typing = $derived(keyboardUp());
-const showTabs = $derived(!hidesTabs(route) && !typing);
+const showTabs = $derived(!typing && !hidesTabs(route));
 
 let pip = $state<HTMLElement>();
 let pipArt = $state<HTMLElement>();
 let hole = $state<{ x: number; y: number; width: number; height: number } | null>(null);
 const launch = $derived(nowPlaying.launch);
 const showMini = $derived(
-	!!nowPlaying.pb && nowPlaying.mini && !!launch && !inPlayer && !onboarding,
+	!typing && !!nowPlaying.pb && nowPlaying.mini && !!launch && !inPlayer && !onboarding,
 );
 const pictureReady = $derived((nowPlaying.pb?.position ?? 0) > 0);
 const holed = $derived(showMini && pictureReady);
@@ -522,6 +523,8 @@ const toastNow = $derived(activeToast());
 	--tabs-h: calc(58px + env(safe-area-inset-bottom));
 	position: fixed;
 	inset: 0;
+	/* Where the window does not shrink for the keyboard (iOS), the shell stops above it. */
+	bottom: var(--keyboard-inset, 0px);
 	overflow: hidden;
 	background: var(--bg-deep);
 	color: var(--fg);

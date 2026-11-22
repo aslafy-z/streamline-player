@@ -36,6 +36,7 @@ import { net, watchOnline } from "#lib/core/online.svelte.ts";
 import { activeToast, toast } from "#lib/core/toast.svelte.ts";
 import { nowPlaying, stop, toFull } from "#lib/core/playback/now-playing.svelte.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import { keyboardUp } from "#lib/platform/keyboard.svelte.ts";
 import { adminPort } from "#lib/screens/admin/port.ts";
 import { downloadsPort } from "#lib/screens/downloads-port.ts";
 import DownloadPicker from "#lib/ui/DownloadPicker.svelte";
@@ -207,8 +208,10 @@ const onboarding = $derived(
 const inPlayer = $derived(route.startsWith("/player"));
 const showBar = $derived(!onboarding && !inPlayer);
 const launch = $derived(nowPlaying.launch);
+// The keyboard takes the mini player's place: a page being typed into keeps the room for itself.
+const typing = $derived(keyboardUp());
 const showMini = $derived(
-	!!nowPlaying.pb && nowPlaying.mini && !!launch && !inPlayer && !onboarding,
+	!typing && !!nowPlaying.pb && nowPlaying.mini && !!launch && !inPlayer && !onboarding,
 );
 const pictureReady = $derived((nowPlaying.pb?.position ?? 0) > 0);
 const holed = $derived(showMini && pictureReady);
@@ -695,6 +698,8 @@ if (import.meta.env.DEV)
 .shell {
 	position: fixed;
 	inset: 0;
+	/* Where the window does not shrink for the keyboard (iOS), the shell stops above it. */
+	bottom: var(--keyboard-inset, 0px);
 	overflow: hidden;
 	background: var(--bg-deep);
 	color: var(--fg);

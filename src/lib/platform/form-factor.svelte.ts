@@ -1,5 +1,6 @@
 import { createSubscriber } from "svelte/reactivity";
-import { isPhoneSize, phoneSizeByWidth } from "#lib/platform/form-factor.ts";
+import { isPhoneSize } from "#lib/platform/form-factor.ts";
+import { pageSize } from "#lib/platform/keyboard.svelte.ts";
 import { FORM_FACTOR, type FormFactor, IS_WEB, TARGET } from "#lib/platform/target.ts";
 
 export { isPhoneSize };
@@ -31,8 +32,6 @@ const subscribe = createSubscriber((update) => {
 	};
 });
 
-const phoneSized = phoneSizeByWidth();
-
 export function formFactor(): FormFactor {
 	if (FORM_FACTOR === "tv") return "tv";
 	if (TARGET === "darwin" || TARGET === "linux" || TARGET === "windows") return "desktop";
@@ -40,7 +39,11 @@ export function formFactor(): FormFactor {
 	if (forced) return forced;
 	const touch = !IS_WEB || matchMedia("(pointer: coarse)").matches;
 	if (!touch) return "desktop";
-	return phoneSized(window.innerWidth, window.innerHeight) ? "phone" : "tablet";
+	// The size without the keyboard: on a landscape tablet the keyboard leaves less than a phone's
+	// short side, and the phone layout would take the field being typed into away, and the
+	// keyboard with it. A split screen or a smaller window does change it.
+	const { width, height } = pageSize();
+	return isPhoneSize(width, height) ? "phone" : "tablet";
 }
 
 export const isTablet = () => formFactor() === "tablet";
