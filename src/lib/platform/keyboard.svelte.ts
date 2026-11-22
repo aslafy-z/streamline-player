@@ -1,45 +1,62 @@
 import { createSubscriber } from "svelte/reactivity";
 import { keyboardWatch, typesText } from "#lib/platform/keyboard.ts";
 
+// Whether the on-screen keyboard is up, for the phone shell's tab bar, which the page shrinking
+// above the keyboard (app.html's `interactive-widget=resizes-content`, MainActivity's inset on
+// Android) would otherwise lift above it. No platform says so directly: keyboard.ts tells it from
+// the page's size.
+
+const watch = keyboardWatch();
 let up = false;
 
-// The visual viewport is what the keyboard shrinks everywhere: on iOS, and in a browser that
-// keeps the layout viewport, it is the only one. Times its scale, so a pinch is not a keyboard;
-// the width is the layout's, which a zoom (iOS zooms into a small field on focus) leaves alone.
+// Only a touch screen brings an on-screen keyboard up: with a mouse alone, a field keeping focus
+// while the window is made shorter is just that. Both sides come from the visual viewport, which
+// the keyboard shrinks everywhere (on iOS it is the only one), times its scale, so a pinch, or
+// iOS zooming in on a focused field, is neither a keyboard nor a rotation.
+function measure(): boolean {
+	if (!matchMedia("(any-pointer: coarse)").matches) return false;
+	const vv = window.visualViewport;
+	const width = Math.round(vv ? vv.width * vv.scale : window.innerWidth);
+	const height = vv ? vv.height * vv.scale : window.innerHeight;
+	return watch(width, height, typesText(document.activeElement));
+}
+
 const subscribe = createSubscriber((update) => {
 	const vv = window.visualViewport;
-	const watch = keyboardWatch();
 	let frame = 0;
-	// A frame late: moving from one field to the next blurs the first before focusing the second.
-	const check = () => {
-		cancelAnimationFrame(frame);
-		frame = requestAnimationFrame(() => {
-			const height = vv ? vv.height * vv.scale : window.innerHeight;
-			const width = document.documentElement.clientWidth;
-			const next = watch(width, height, typesText(document.activeElement)).up;
-			if (next === up) return;
-			up = next;
-			update();
-		});
+	const set = (next: boolean) => {
+		if (next === up) return;
+		up = next;
+		update();
 	};
-	check();
-	vv?.addEventListener("resize", check);
-	window.addEventListener("resize", check);
-	document.addEventListener("focusin", check);
-	document.addEventListener("focusout", check);
+	// A resize is read at once, before anything that lays out by the page's size reads it. A blur
+	// waits a frame: moving from one field to the next blurs the first before it focuses the second.
+	const now = () => {
+		cancelAnimationFrame(frame);
+		set(measure());
+	};
+	const later = () => {
+		cancelAnimationFrame(frame);
+		frame = requestAnimationFrame(() => set(measure()));
+	};
+	// Read on subscribing too: with no reader left the listeners stop, and the value would be
+	// whatever they last saw.
+	up = measure();
+	vv?.addEventListener("resize", now);
+	window.addEventListener("resize", now);
+	document.addEventListener("focusin", now);
+	document.addEventListener("focusout", later);
 	return () => {
 		cancelAnimationFrame(frame);
-		// Unwatched, the keyboard is unknown: the next subscriber starts from down, not from stale.
-		up = false;
-		vv?.removeEventListener("resize", check);
-		window.removeEventListener("resize", check);
-		document.removeEventListener("focusin", check);
-		document.removeEventListener("focusout", check);
+		vv?.removeEventListener("resize", now);
+		window.removeEventListener("resize", now);
+		document.removeEventListener("focusin", now);
+		document.removeEventListener("focusout", later);
 	};
 });
 
 /** Whether the on-screen keyboard is up. */
-export function keyboardUp() {
+export function keyboardUp(): boolean {
 	subscribe();
 	return up;
 }

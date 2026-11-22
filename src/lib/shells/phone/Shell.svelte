@@ -93,9 +93,10 @@ const onboarding = $derived(
 	route === "/welcome" || route === "/pair" || route.startsWith("/signin"),
 );
 const inPlayer = $derived(route.startsWith("/player"));
-// The keyboard takes the tabs' place: a page being typed into keeps the room for itself. Read
-// first, so the watch holds on every route and a tabbed one never starts from a stale reading.
-const showTabs = $derived(!keyboardUp() && !hidesTabs(route));
+// The keyboard takes the tabs' place: a page being typed into keeps the room for itself. Read on
+// every route, so the tabs never come back on a stale value.
+const typing = $derived(keyboardUp());
+const showTabs = $derived(!hidesTabs(route) && !typing);
 
 let pip = $state<HTMLElement>();
 let pipArt = $state<HTMLElement>();
@@ -126,7 +127,7 @@ $effect(() => {
 		hole = null;
 		return;
 	}
-	// The tabs coming and going move the pip without resizing anything: measure it again then.
+	// The tab bar coming or going moves the mini player without resizing it.
 	void showTabs;
 	const wrap = pip;
 	const art = pipArt;
