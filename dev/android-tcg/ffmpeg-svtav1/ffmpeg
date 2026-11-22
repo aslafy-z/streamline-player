@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+# Ubuntu 24.04's ffmpeg 6.1 links an SVT-AV1 that refuses -maxrate/-bufsize ("Nothing was written
+# into output file"), and the engine caps AV1 transcodes with both. Drops them for libsvtav1 only.
+# The stack finds this directory first on PATH (README, "Boot the stack").
+import os
+import sys
+
+REAL = os.environ.get("REAL_FFMPEG", "/usr/bin/ffmpeg")
+argv = sys.argv[1:]
+if "libsvtav1" in argv:
+    kept, i = [], 0
+    while i < len(argv):
+        if argv[i] in ("-maxrate", "-bufsize"):
+            i += 2
+            continue
+        kept.append(argv[i])
+        i += 1
+    argv = kept
+os.execv(REAL, [REAL, *argv])
