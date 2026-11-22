@@ -525,6 +525,8 @@ const toastNow = $derived(activeToast());
 	--tabs-h: calc(58px + env(safe-area-inset-bottom));
 	position: fixed;
 	inset: 0;
+	/* Where the window does not shrink for the keyboard (iOS), the shell stops above it. */
+	bottom: var(--keyboard-inset, 0px);
 	overflow: hidden;
 	background: var(--bg-deep);
 	color: var(--fg);

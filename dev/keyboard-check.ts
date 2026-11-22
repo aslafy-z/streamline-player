@@ -4,11 +4,14 @@ import { isPhoneSize } from "../src/lib/platform/form-factor.ts";
 import { KEYBOARD_MIN_PX, keyboardWatch } from "../src/lib/platform/keyboard.ts";
 
 let watch = keyboardWatch();
-// A resize (the page's size changed) and a focus change (only the focused element did).
+// A resize (the page's size changed), a focus change (only the focused element did), and focus
+// out of every field for a while.
 const size = (width: number, height: number, typing: boolean) =>
-	watch({ width, height, typing, resized: true });
+	watch({ width, height, typing, kind: "resize" });
 const focus = (width: number, height: number, typing: boolean) =>
-	watch({ width, height, typing, resized: false });
+	watch({ width, height, typing, kind: "focus" });
+const idle = (width: number, height: number) =>
+	watch({ width, height, typing: false, kind: "idle" });
 const up = (state: { up: boolean }) => state.up;
 
 // Focus, then the keyboard comes up and goes down again (Back, the field still focused).
@@ -73,6 +76,38 @@ same(size(892, 190, true), { up: true, page: undefined });
 same(size(892, 412, true), { up: false, page: 412 });
 eq(up(size(892, 180, true)), true);
 
+// At a width met with the keyboard up, focus moving (to the next field, through <body>) keeps it
+// up and the keyboard's height is never taken for the page's.
+watch = keyboardWatch();
+size(412, 892, false);
+focus(412, 892, true);
+size(412, 572, true);
+size(892, 180, true);
+same(focus(892, 180, false), { up: true, page: undefined });
+same(focus(892, 180, true), { up: true, page: undefined });
+same(size(892, 170, true), { up: true, page: undefined });
+same(size(892, 412, true), { up: false, page: 412 });
+
+// A split screen made while typing reads as the keyboard; focus out of every field for a while
+// with the page not grown back says it was not, and the page's height is the split one.
+watch = keyboardWatch();
+size(412, 892, false);
+focus(412, 892, true);
+eq(up(size(412, 400, true)), true);
+eq(up(focus(412, 400, false)), true);
+eq(up(size(412, 400, false)), true);
+same(idle(412, 400), { up: false, page: 400 });
+eq(up(focus(412, 400, true)), false);
+eq(up(size(412, 200, true)), true);
+
+// The same idle at a width met with the keyboard up.
+watch = keyboardWatch();
+size(412, 892, false);
+focus(412, 892, true);
+size(412, 572, true);
+size(892, 180, true);
+same(idle(892, 180), { up: false, page: 180 });
+
 // A width first met with a field focused and the keyboard down: the page's height is that one.
 watch = keyboardWatch();
 same(size(412, 892, true), { up: false, page: 892 });
@@ -92,9 +127,14 @@ eq(split.up, false);
 eq(isPhoneSize(1280, split.page ?? 0), true);
 
 // A window dragged by its edge passes through many widths; only the last ones are kept, and an
-// old one is measured afresh.
+// old one is measured afresh. The width in use is never the one dropped.
 watch = keyboardWatch();
-for (let width = 400; width < 1400; width++) size(width, 800, false);
-same(focus(400, 600, false), { up: false, page: undefined });
+size(412, 892, false);
+for (let width = 1000; width < 2000; width++) {
+	size(width, 800, false);
+	focus(412, 892, false);
+}
+same(focus(412, 892, false), { up: false, page: 892 });
+same(focus(1000, 600, false), { up: false, page: undefined });
 
 console.log("keyboard-check: ok");
