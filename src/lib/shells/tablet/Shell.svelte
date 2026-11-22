@@ -208,7 +208,8 @@ const onboarding = $derived(
 const inPlayer = $derived(route.startsWith("/player"));
 const showBar = $derived(!onboarding && !inPlayer);
 const launch = $derived(nowPlaying.launch);
-// The keyboard takes the mini player's place: a page being typed into keeps the room for itself.
+// The mini player gives way to the on-screen keyboard: the page ends at the keyboard, and above
+// it the mini player would cover what is typed for. The film keeps playing under the page.
 const typing = $derived(keyboardUp());
 const showMini = $derived(
 	!typing && !!nowPlaying.pb && nowPlaying.mini && !!launch && !inPlayer && !onboarding,
@@ -698,8 +699,6 @@ if (import.meta.env.DEV)
 .shell {
 	position: fixed;
 	inset: 0;
-	/* Where the window does not shrink for the keyboard (iOS), the shell stops above it. */
-	bottom: var(--keyboard-inset, 0px);
 	overflow: hidden;
 	background: var(--bg-deep);
 	color: var(--fg);

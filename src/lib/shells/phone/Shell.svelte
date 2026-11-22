@@ -103,6 +103,8 @@ let pip = $state<HTMLElement>();
 let pipArt = $state<HTMLElement>();
 let hole = $state<{ x: number; y: number; width: number; height: number } | null>(null);
 const launch = $derived(nowPlaying.launch);
+// The mini player gives way to the keyboard too: above it, it would cover what is typed for. The
+// film keeps playing under the page.
 const showMini = $derived(
 	!typing && !!nowPlaying.pb && nowPlaying.mini && !!launch && !inPlayer && !onboarding,
 );
@@ -523,8 +525,6 @@ const toastNow = $derived(activeToast());
 	--tabs-h: calc(58px + env(safe-area-inset-bottom));
 	position: fixed;
 	inset: 0;
-	/* Where the window does not shrink for the keyboard (iOS), the shell stops above it. */
-	bottom: var(--keyboard-inset, 0px);
 	overflow: hidden;
 	background: var(--bg-deep);
 	color: var(--fg);

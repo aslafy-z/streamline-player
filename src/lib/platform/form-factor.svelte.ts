@@ -39,11 +39,14 @@ export function formFactor(): FormFactor {
 	if (forced) return forced;
 	const touch = !IS_WEB || matchMedia("(pointer: coarse)").matches;
 	if (!touch) return "desktop";
-	// The size without the keyboard: on a landscape tablet the keyboard leaves less than a phone's
-	// short side, and the phone layout would take the field being typed into away, and the
-	// keyboard with it. A split screen or a smaller window does change it.
-	const { width, height } = pageSize();
-	return isPhoneSize(width, height) ? "phone" : "tablet";
+	// The page's size without the on-screen keyboard: on a landscape tablet the keyboard leaves
+	// less than a phone's short side, and the phone layout would take the field being typed into
+	// away, and the keyboard with it. It comes from the visual viewport times its scale, so a
+	// pinch zoom is no smaller screen either.
+	const page = pageSize();
+	return isPhoneSize(page?.width ?? window.innerWidth, page?.height ?? window.innerHeight)
+		? "phone"
+		: "tablet";
 }
 
 export const isTablet = () => formFactor() === "tablet";
