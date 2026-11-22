@@ -39,6 +39,7 @@ tasks:
       - node dev/downloads-view-check.ts
       - node --import ./dev/controller-check/register.mjs dev/downloads-store-check.ts
       - node dev/halt-check.ts
+      - node dev/keyboard-check.ts
       - node dev/library-check.ts
       - node --import ./dev/controller-check/register.mjs dev/library-store-check.ts
       - node dev/reconcile-check.ts

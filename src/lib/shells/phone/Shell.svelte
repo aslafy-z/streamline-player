@@ -32,6 +32,7 @@ import { net, watchOnline } from "#lib/core/online.svelte.ts";
 import { activeToast, toast } from "#lib/core/toast.svelte.ts";
 import { nowPlaying, stop, toFull } from "#lib/core/playback/now-playing.svelte.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import { keyboardUp } from "#lib/platform/keyboard.svelte.ts";
 import { adminPort } from "#lib/screens/admin/port.ts";
 import { downloadsPort } from "#lib/screens/downloads-port.ts";
 import CardLangPopover from "#lib/screens/CardLangPopover.svelte";
@@ -92,7 +93,9 @@ const onboarding = $derived(
 	route === "/welcome" || route === "/pair" || route.startsWith("/signin"),
 );
 const inPlayer = $derived(route.startsWith("/player"));
-const showTabs = $derived(!hidesTabs(route));
+// The keyboard takes the tabs' place: a page being typed into keeps the room for itself. Read
+// first, so the watch holds on every route and a tabbed one never starts from a stale reading.
+const showTabs = $derived(!keyboardUp() && !hidesTabs(route));
 
 let pip = $state<HTMLElement>();
 let pipArt = $state<HTMLElement>();
@@ -123,6 +126,8 @@ $effect(() => {
 		hole = null;
 		return;
 	}
+	// The tabs coming and going move the pip without resizing anything: measure it again then.
+	void showTabs;
 	const wrap = pip;
 	const art = pipArt;
 	const measure = () => {
