@@ -76,4 +76,64 @@ WebKitGTK: `nocomp` `WEBKIT_DISABLE_COMPOSITING_MODE=1`, `-t1`/`-t4`
 
 ## Wayland (headless Weston)
 
-Pending.
+Weston 13 on its headless backend with the GL renderer (llvmpipe) and XWayland, one rep per
+variant, a fresh Weston for each run. WebKitGTK and Qt run as native Wayland clients; Tauri's CEF
+runtime is X11 only and runs on XWayland, as it would on a Wayland desktop. The same variants as
+above, plus `wry-nodmabuf` (`WEBKIT_DISABLE_DMABUF_RENDERER=1`, the workaround Tauri's docs give)
+and `nocomp` combined with `-reduce`.
+
+| variant | n | Home idle | Home scroll | Library scroll | Detail ↔ back | Search typing | Player, controls | Player, watching | PSS MB (nav) |
+|---|---|---|---|---|---|---|---|---|---|
+| `cef` | 1 | 189 % | 210 %, 46 fps | 255 %, 44 fps | 136 %, 57 fps | 120 % | 121 %, 60 fps | 101 % | 882 |
+| `cef-1proc` | 1 | 188 % | 208 %, 48 fps | 256 %, 44 fps | 136 %, 57 fps | 118 % | 120 %, 60 fps | 102 % | 871 |
+| `cef-lowend` | 1 | 191 % | 209 %, 46 fps | 257 %, 43 fps | 137 %, 57 fps | 120 % | 120 %, 60 fps | 101 % | 855 |
+| `cef-nosmooth` | 1 | 189 % | 209 %, 49 fps | 259 %, 46 fps | 136 %, 57 fps | 119 % | 121 %, 60 fps | 101 % | 898 |
+| `cef-raster1` | 1 | 191 % | 200 %, 45 fps | 234 %, 38 fps | 136 %, 56 fps | 118 % | 120 %, 60 fps | 102 % | 876 |
+| `cef-raster4` | 1 | 191 % | 214 %, 45 fps | 257 %, 44 fps | 136 %, 56 fps | 118 % | 119 %, 60 fps | 101 % | 873 |
+| `cef-reduce` | 1 | 108 % | 266 %, 32 fps | 258 %, 45 fps | 128 %, 58 fps | 121 % | 122 %, 60 fps | 101 % | 895 |
+| `cef-swiftshader` | 1 | 190 % | 210 %, 46 fps | 256 %, 44 fps | 137 %, 57 fps | 121 % | 119 %, 60 fps | 100 % | 851 |
+| `qt` | 1 | 240 % | 244 %, 28 fps | 258 %, 24 fps | 85 %, 50 fps | 51 % | 217 %, 36 fps | 5 % | 852 |
+| `qt-reduce` | 1 | 67 % | 283 %, 21 fps | 262 %, 24 fps | 54 %, 56 fps | 53 % | 210 %, 36 fps | 5 % | 831 |
+| `wry` | 1 | 286 % | 259 %, 6 fps | 227 %, 12 fps | 107 %, 37 fps | 71 % | 275 %, 20 fps | 4 % | 960 |
+| `wry-fps30` | 1 | 289 % | 260 %, 7 fps | 228 %, 12 fps | 106 %, 21 fps | 67 % | 268 %, 20 fps | 5 % | 954 |
+| `wry-msaa0` | 1 | 285 % | 257 %, 10 fps | 228 %, 12 fps | 109 %, 37 fps | 70 % | 273 %, 20 fps | 5 % | 984 |
+| `wry-nocomp` | 1 | 103 % | 110 %, 21 fps | 110 %, 21 fps | 34 %, 52 fps | 18 % | 16 %, 63 fps | 2 % | 438 |
+| `wry-nocomp-reduce` | 1 | 5 % | 110 %, 24 fps | 110 %, 20 fps | 29 %, 54 fps | 18 % | 17 %, 63 fps | 2 % | 442 |
+| `wry-nocomp-t4` | 1 | 103 % | 110 %, 21 fps | 110 %, 21 fps | 35 %, 52 fps | 18 % | 18 %, 63 fps | 2 % | 435 |
+| `wry-nocomp-t4-reduce` | 1 | 5 % | 110 %, 23 fps | 111 %, 22 fps | 26 %, 55 fps | 17 % | 16 %, 64 fps | 2 % | 442 |
+| `wry-nodmabuf` | 1 | 100 % | 110 %, 22 fps | 112 %, 22 fps | 31 %, 54 fps | 18 % | 17 %, 63 fps | 2 % | 431 |
+| `wry-reduce` | 1 | 143 % | 248 %, 14 fps | 229 %, 13 fps | 93 %, 41 fps | 68 % | 278 %, 22 fps | 4 % | 956 |
+| `wry-shm` | 1 | 289 % | 262 %, 10 fps | 229 %, 12 fps | 101 %, 40 fps | 70 % | 278 %, 21 fps | 4 % | 976 |
+| `wry-skiacpu` | 1 | 283 % | 253 %, 11 fps | 228 %, 14 fps | 101 %, 41 fps | 59 % | 274 %, 23 fps | 4 % | 689 |
+| `wry-skiacpu-t1` | 1 | 283 % | 254 %, 11 fps | 226 %, 13 fps | 90 %, 42 fps | 57 % | 265 %, 20 fps | 4 % | 677 |
+| `wry-skiacpu-t4` | 1 | 284 % | 255 %, 11 fps | 224 %, 12 fps | 95 %, 42 fps | 58 % | 274 %, 22 fps | 4 % | 687 |
+| `wry-vblank` | 1 | 286 % | 256 %, 8 fps | 229 %, 12 fps | 102 %, 39 fps | 69 % | 272 %, 22 fps | 4 % | 975 |
+
+The display server's own CPU (Weston, plus XWayland for CEF), which the table above leaves out:
+
+| variant | Home idle | Home scroll | Library scroll | Player, controls | Player, watching |
+|---|---|---|---|---|---|
+| `wry` | 22 % | 18 % | 19 % | 31 % | 1 % |
+| `wry-nocomp` | 24 % | 32 % | 32 % | 2 % | 0 % |
+| `wry-nodmabuf` | 24 % | 34 % | 35 % | 2 % | 0 % |
+| `wry-nocomp-reduce` | 1 % | 36 % | 31 % | 2 % | 0 % |
+| `cef` | 91 % | 99 % | 102 % | 3 % | 0 % |
+| `cef-reduce` | 1 % | 83 % | 103 % | 3 % | 0 % |
+| `qt` | 44 % | 43 % | 36 % | 58 % | 1 % |
+| `qt-reduce` | 16 % | 34 % | 37 % | 57 % | 1 % |
+
+- **Wayland is harder on WebKitGTK's composited path than X11**: home scroll at 6 fps (13 on X11),
+  the player's controls at 20 fps (33), for the same CPU.
+- **Without compositing it is the same win as on X11**: about 110 % and 21–24 fps while scrolling,
+  16–18 % and 63 fps with the player's controls. `WEBKIT_DISABLE_DMABUF_RENDERER=1` lands on the
+  same profile here: with no GPU to hand buffers to, it drops to the same CPU path.
+- **The home page's idle floor is the billboard**: compositing off and motion cut,
+  `wry-nocomp-reduce` idles at 5 %, Weston at 1 %. Neither alone goes under 100 %.
+- **CEF on XWayland**: the player holds 60 fps and scrolling drops to 44–49 fps (60 on X11), but the
+  copy through XWayland costs Weston and XWayland 90–100 % on top whenever the page moves, and the
+  one-core floor of CEF's own main thread is there as on X11 (101 % while watching). No switch
+  moves either.
+- **Qt native on Wayland** scrolls at 24–28 fps and shows the player's controls at 36 fps (37–43 and
+  60 on X11), with Weston at 35–58 %; motion cut, its home idles at 67 % (44 % on X11).
+- `skiacpu`, `fps30`, `msaa0`, `shm` and `vblank` behave as on X11: memory for the first, nothing
+  measurable for the others without a GPU.
