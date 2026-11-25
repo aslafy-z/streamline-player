@@ -31,6 +31,7 @@ import Mark from "#lib/ui/Mark.svelte";
 import { goto } from "#lib/ui/nav.ts";
 import PosterCard from "#lib/ui/PosterCard.svelte";
 import ResumeCard from "#lib/ui/ResumeCard.svelte";
+import { HERO_MS, heroRotation, ZOOM_MS } from "#lib/ui/hero-rotation.svelte.ts";
 import { useScroll } from "#lib/ui/scroll.ts";
 import {
 	activity,
@@ -56,11 +57,6 @@ type Slide = {
 };
 
 const ROW_LIMIT = 12;
-const HERO_MS = 8000;
-const TICK_MS = 100;
-const SWAP_MS = 260;
-const SCROLLED_PAST = 320;
-const KEN_BURNS = 1.08;
 const SWIPE_MIN = 40;
 const SWIPE_SLANT = 1.5;
 const port = { library, watchState, home, title };
@@ -166,29 +162,10 @@ const slides = $derived.by(() => {
 	return out;
 });
 
-let index = $state(0);
-let progress = $state(0);
-let phase = $state<"pre" | "in" | "out">("pre");
-let reduceMotion = false;
-let swap: ReturnType<typeof setTimeout>;
+const hero = heroRotation(() => slides.length);
 let down: { x: number; y: number } | null = null;
 
-const at = $derived(slides.length ? index % slides.length : 0);
-const slide = $derived(slides[at]);
-
-const settle = () => requestAnimationFrame(() => requestAnimationFrame(() => (phase = "in")));
-
-function go(i: number) {
-	if (i === at || phase === "out") return;
-	clearTimeout(swap);
-	phase = "out";
-	swap = setTimeout(() => {
-		index = i;
-		progress = 0;
-		phase = "pre";
-		settle();
-	}, SWAP_MS);
-}
+const slide = $derived(slides[hero.at]);
 
 function swipe(el: HTMLElement) {
 	const press = (e: PointerEvent) => (down = { x: e.clientX, y: e.clientY });
@@ -211,27 +188,16 @@ function release(e: PointerEvent) {
 	const dy = e.clientY - down.y;
 	down = null;
 	if (Math.abs(dx) > SWIPE_MIN && Math.abs(dx) > Math.abs(dy) * SWIPE_SLANT)
-		go((at + (dx < 0 ? 1 : slides.length - 1)) % slides.length);
+		hero.go((hero.at + (dx < 0 ? 1 : slides.length - 1)) % slides.length);
 }
 
 const text = $derived(
-	phase === "out"
+	hero.phase === "out"
 		? "opacity:0;transform:translateY(-10px);transition:opacity 240ms var(--ease-in), transform 240ms var(--ease-in)"
-		: phase === "pre"
+		: hero.phase === "pre"
 			? "opacity:0;transform:translateY(18px);transition:none"
 			: "opacity:1;transform:translateY(0);transition:opacity 600ms var(--ease) 80ms, transform 700ms var(--ease) 80ms",
 );
-const frameStyle = (i: number) => {
-	const on = i === at;
-	const zoom = on && !reduceMotion && phase !== "pre";
-	return [
-		`opacity:${on ? 1 : 0}`,
-		`transform:${zoom ? `scale(${KEN_BURNS})` : "scale(1)"}`,
-		"transform-origin:50% 35%",
-		`transition:${on ? `opacity 1100ms var(--ease), transform ${HERO_MS + 1500}ms linear` : "opacity 1100ms var(--ease), transform 0ms linear 1100ms"}`,
-	].join(";");
-};
-
 const recentMovies = $derived(recentlyAdded(lib.movies, ROW_LIMIT));
 const recentShows = $derived(recentlyAdded(lib.shows, ROW_LIMIT));
 const genre = $derived(topGenre([...lib.movies, ...lib.shows]));
@@ -263,20 +229,6 @@ $effect(() => {
 onMount(() => {
 	loadLibrary(port, lib.loaded);
 	untrack(() => loadActivity(activityPort));
-	reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-	settle();
-	const timer = setInterval(() => {
-		if (phase !== "in" || slides.length < 2) return;
-		if ((scroller?.()?.scrollTop ?? 0) > SCROLLED_PAST) return;
-		if (document.hidden) return;
-		const next = progress + TICK_MS / HERO_MS;
-		if (next >= 1) go((at + 1) % slides.length);
-		else progress = next;
-	}, TICK_MS);
-	return () => {
-		clearInterval(timer);
-		clearTimeout(swap);
-	};
 });
 
 // The header stays at the top of the page and takes a background once the hero starts to leave.
@@ -336,9 +288,22 @@ $effect(() => {
 			</div>
 		</div>
 		{#if slide}
-			<section class="hero" use:swipe>
+			<section
+				class="hero"
+				class:reduced={hero.reduced}
+				style:--hero-ms="{HERO_MS}ms"
+				style:--zoom-ms="{ZOOM_MS}ms"
+				use:swipe
+				use:hero.watch
+			>
 				{#each slides as s, i (s.key)}
-					<div class="frame" style={frameStyle(i)}>
+					<div
+						class="frame"
+						class:on={i === hero.at}
+						class:zoom={hero.zooms(i)}
+						class:zooming={hero.zooming(i)}
+						onanimationend={hero.zoomEnded}
+					>
 						<Art src={s.img} position="50% 50%" />
 					</div>
 				{/each}
@@ -373,17 +338,12 @@ $effect(() => {
 							<button
 								type="button"
 								class="dot"
-								style:width="{i === at ? 26 : 10}px"
+								style:width="{i === hero.at ? 26 : 10}px"
 								aria-label={i18n.home_show_title({ title: s.title })}
-								onclick={() => go(i)}
+								onclick={() => hero.go(i)}
 							>
 								<span class="track"
-									><span
-										class="fill"
-										style:width="{i === at ? Math.round(progress * 1000) / 10 : 0}%"
-										style:transition={i === at && progress > 0
-											? `width ${TICK_MS}ms linear`
-											: "none"}
+									><span class="fill" class:run={hero.fills(i)} class:ticking={hero.rotating}
 									></span></span
 								>
 							</button>
@@ -527,6 +487,34 @@ $effect(() => {
 .frame {
 	position: absolute;
 	inset: 0;
+	opacity: 0;
+	transform-origin: 50% 35%;
+	transition: opacity 1100ms var(--ease);
+}
+
+.frame.on {
+	opacity: 1;
+}
+
+/* A paused animation keeps its frame: the backdrop stands still at the scale it had reached. */
+.frame.zoom {
+	animation: zoom var(--zoom-ms) linear forwards paused;
+}
+
+/* A layer of its own while it zooms, so the scrim and the text above it are not drawn again on every frame. */
+.frame.zooming {
+	will-change: transform;
+	animation-play-state: running;
+}
+
+.reduced .frame {
+	transition: none;
+}
+
+@keyframes zoom {
+	to {
+		transform: scale(1.08);
+	}
 }
 
 .scrim {
@@ -759,10 +747,25 @@ h1 {
 
 .fill {
 	position: absolute;
-	left: 0;
-	top: 0;
-	bottom: 0;
+	inset: 0;
+	/* A width here lays the page out on every frame; a transform stays on the compositor. */
+	transform: scaleX(0);
+	transform-origin: left;
 	background: var(--player-ink);
+}
+
+.fill.run {
+	animation: fill var(--hero-ms) linear forwards paused;
+}
+
+.fill.run.ticking {
+	animation-play-state: running;
+}
+
+@keyframes fill {
+	to {
+		transform: scaleX(1);
+	}
 }
 
 .rows {
