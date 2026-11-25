@@ -343,7 +343,10 @@ $effect(() => {
 								onclick={() => hero.go(i)}
 							>
 								<span class="track"
-									><span class="fill" class:run={hero.fills(i)} class:ticking={hero.rotating}
+									><span
+										class="fill"
+										class:run={hero.fills(i)}
+										class:ticking={hero.rotating}
 									></span></span
 								>
 							</button>

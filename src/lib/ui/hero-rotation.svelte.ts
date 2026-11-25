@@ -122,7 +122,7 @@ export function heroRotation(count: () => number) {
 		 */
 		zooms: (i: number) => !reduced && (i === at ? phase !== "pre" : i === previous),
 		/** Slide `i` is zooming right now, and only then worth a compositing layer of its own. */
-		zooming: (i: number) => i === at && moving && !zoomed,
+		zooming: (i: number) => !reduced && i === at && phase !== "pre" && moving && !zoomed,
 		/** Call when the current slide's zoom animation ends. */
 		zoomEnded: () => (zoomed = true),
 		/** Slide `i` carries the progress animation. */
