@@ -1,8 +1,7 @@
 <script lang="ts">
 import Art from "#lib/ui/Art.svelte";
 import Icon from "#lib/ui/Icon.svelte";
-import { useScroll } from "#lib/ui/scroll.ts";
-import { onMount } from "svelte";
+import { HERO_MS, heroRotation, ZOOM_MS } from "#lib/ui/hero-rotation.svelte.ts";
 
 export type Slide = {
 	key: string;
@@ -17,12 +16,6 @@ export type Slide = {
 	onprimary: () => void;
 	oninfo: () => void;
 };
-
-const HERO_MS = 8000;
-const TICK_MS = 100;
-const SWAP_MS = 260;
-const SCROLLED_PAST = 320;
-const KEN_BURNS = 1.08;
 
 let {
 	slides,
@@ -40,70 +33,36 @@ let {
 	dotLabel: (title: string) => string;
 } = $props();
 
-const scroller = useScroll();
-let index = $state(0);
-let progress = $state(0);
-let phase = $state<"pre" | "in" | "out">("pre");
-let reduceMotion = false;
-let swap: ReturnType<typeof setTimeout>;
-
-const at = $derived(slides.length ? index % slides.length : 0);
-const slide = $derived(slides[at]);
-
-const settle = () => requestAnimationFrame(() => requestAnimationFrame(() => (phase = "in")));
-
-function go(i: number) {
-	if (i === at || phase === "out") return;
-	clearTimeout(swap);
-	phase = "out";
-	swap = setTimeout(() => {
-		index = i;
-		progress = 0;
-		phase = "pre";
-		settle();
-	}, SWAP_MS);
-}
-
-onMount(() => {
-	reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-	settle();
-	const timer = setInterval(() => {
-		if (phase !== "in" || slides.length < 2) return;
-		if ((scroller?.()?.scrollTop ?? 0) > SCROLLED_PAST) return;
-		if (document.hidden) return;
-		const next = progress + TICK_MS / HERO_MS;
-		if (next >= 1) go((at + 1) % slides.length);
-		else progress = next;
-	}, TICK_MS);
-	return () => {
-		clearInterval(timer);
-		clearTimeout(swap);
-	};
-});
+const hero = heroRotation(() => slides.length);
+const slide = $derived(slides[hero.at]);
 
 const text = $derived(
-	phase === "out"
+	hero.phase === "out"
 		? "opacity:0;transform:translateY(-10px);transition:opacity 240ms var(--ease-in), transform 240ms var(--ease-in)"
-		: phase === "pre"
+		: hero.phase === "pre"
 			? "opacity:0;transform:translateY(18px);transition:none"
 			: "opacity:1;transform:translateY(0);transition:opacity 600ms var(--ease) 80ms, transform 700ms var(--ease) 80ms",
 );
-const frameStyle = (i: number) => {
-	const on = i === at;
-	const zoom = on && !reduceMotion && phase !== "pre";
-	return [
-		`opacity:${on ? 1 : 0}`,
-		`transform:${zoom ? `scale(${KEN_BURNS})` : "scale(1)"}`,
-		`transform-origin:${i % 2 ? "30% 40%" : "70% 35%"}`,
-		`transition:${on ? `opacity 1100ms var(--ease), transform ${HERO_MS + 1500}ms linear` : "opacity 1100ms var(--ease), transform 0ms linear 1100ms"}`,
-	].join(";");
-};
 </script>
 
 {#if slide}
-	<section class="hero" style:height="{height}px">
+	<section
+		class="hero"
+		class:reduced={hero.reduced}
+		style:height="{height}px"
+		style:--hero-ms="{HERO_MS}ms"
+		style:--zoom-ms="{ZOOM_MS}ms"
+		use:hero.watch
+	>
 		{#each slides as s, i (s.key)}
-			<div class="frame" style={frameStyle(i)}>
+			<div
+				class="frame"
+				class:on={i === hero.at}
+				class:zoom={hero.zooms(i)}
+				class:zooming={hero.zooming(i)}
+				style:transform-origin={i % 2 ? "30% 40%" : "70% 35%"}
+				onanimationend={hero.zoomEnded}
+			>
 				<Art src={s.img} position="50% 30%" />
 			</div>
 		{/each}
@@ -139,17 +98,12 @@ const frameStyle = (i: number) => {
 					<button
 						type="button"
 						class="dot"
-						style:width="{i === at ? 44 : 18}px"
+						style:width="{i === hero.at ? 44 : 18}px"
 						aria-label={dotLabel(s.title)}
-						onclick={() => go(i)}
+						onclick={() => hero.go(i)}
 					>
 						<span class="track"
-							><span
-								class="fill"
-								style:transform="scaleX({i === at ? progress : 0})"
-								style:transition={i === at && progress > 0
-									? `transform ${TICK_MS}ms linear`
-									: "none"}
+							><span class="fill" class:run={hero.fills(i)} class:ticking={hero.rotating}
 							></span></span
 						>
 					</button>
@@ -169,6 +123,33 @@ const frameStyle = (i: number) => {
 .frame {
 	position: absolute;
 	inset: 0;
+	opacity: 0;
+	transition: opacity 1100ms var(--ease);
+}
+
+.frame.on {
+	opacity: 1;
+}
+
+/* A paused animation keeps its frame: the backdrop stands still at the scale it had reached. */
+.frame.zoom {
+	animation: zoom var(--zoom-ms) linear forwards paused;
+}
+
+/* A layer of its own while it zooms, so the scrims and the text above it are not drawn again on every frame. */
+.frame.zooming {
+	will-change: transform;
+	animation-play-state: running;
+}
+
+.reduced .frame {
+	transition: none;
+}
+
+@keyframes zoom {
+	to {
+		transform: scale(1.08);
+	}
 }
 
 .side {
@@ -399,7 +380,22 @@ p {
 	position: absolute;
 	inset: 0;
 	/* A width here lays the page out on every frame; a transform stays on the compositor. */
+	transform: scaleX(0);
 	transform-origin: left;
 	background: var(--player-ink);
+}
+
+.fill.run {
+	animation: fill var(--hero-ms) linear forwards paused;
+}
+
+.fill.run.ticking {
+	animation-play-state: running;
+}
+
+@keyframes fill {
+	to {
+		transform: scaleX(1);
+	}
 }
 </style>
