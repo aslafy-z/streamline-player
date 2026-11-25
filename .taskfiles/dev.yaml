@@ -39,6 +39,10 @@ tasks:
         go run ./e2e/cmd/stack --library {{.ROOT_DIR}}/dev/mock-library.json {{.CLI_ARGS}}'
     interactive: true
 
+  bench:
+    desc: Bench the desktop UI's CPU on each webview runtime (dev/bench/README.md; pass x11|wayland [reps] [regex] after --)
+    cmd: dev/bench/matrix.sh {{.CLI_ARGS}}
+
   desktop:
     desc: Run the desktop app with live reload
     cmd: cargo tauri dev

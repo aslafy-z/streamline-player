@@ -60,6 +60,9 @@ devshell (direnv), or `nix develop .#android` for the Android ones.
   `dev:android` — run the app (Vite on :1420), the web build (Vite on :1430),
   the TV build in a browser (Vite on :1420, for the compare harness), the
   engine (:8097), the mock Streamline (:8081), the TV emulator
+- `task dev:bench -- x11|wayland [reps] [regex]` — the webview bench: CPU, frame rate and
+  memory of the desktop UI on WebKitGTK, CEF and Qt, and their workarounds
+  (`dev/bench/README.md`, results in `dev/bench/RESULTS.md`)
 - `task build:<target>` — `engine`, `desktop:linux`, `desktop:windows`,
   `android`, `web`, `image:engine`, `image:web`, `images` (both, with Docker),
   … (`desktop:appimage` refuses to run on NixOS)
