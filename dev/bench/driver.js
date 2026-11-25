@@ -53,7 +53,7 @@
 			return { frames: n, long, worst: Math.round(worst) };
 		};
 	};
-	const dom = () => ({ path: location.pathname, hero: !!document.querySelector(".hero"), imgs: [...document.images].filter((i) => i.complete && i.naturalWidth).length, hidden: document.hidden, vis: document.visibilityState, text: (document.body?.innerText ?? "").slice(0, 80).replace(/\s+/g, " ") });
+	const dom = () => ({ path: location.pathname, hero: !!document.querySelector(".hero"), imgs: [...document.images].filter((i) => i.complete && i.naturalWidth).length, hidden: document.hidden, focus: document.hasFocus(), vis: document.visibilityState, text: (document.body?.innerText ?? "").slice(0, 80).replace(/\s+/g, " ") });
 	const phase = async (name, ms, body, { measureFrames = true } = {}) => {
 		await post({ ev: "start", phase: name, dom: dom() });
 		const t0 = performance.now();
@@ -90,8 +90,17 @@
 	const scenarios = {
 		async nav() {
 			await until(() => document.querySelector(".hero"));
+			// The billboard stands still in a window without focus, and a bare X server (Xvfb, no
+			// window manager) never gives the window any: home-idle measures the billboard moving.
+			window.dispatchEvent(new Event("focus"));
 			await sleep(3000);
 			await phase("home-idle", 20000, idle, { measureFrames: false });
+			// The same page once its window lost focus: the billboard is paused.
+			window.dispatchEvent(new Event("blur"));
+			await sleep(2000);
+			await phase("home-paused", 20000, idle, { measureFrames: false });
+			window.dispatchEvent(new Event("focus"));
+			await sleep(1000);
 			await phase("home-scroll", 15000, scrollLoop(() => document.querySelector(".hero")?.closest(".content") ?? scroller()));
 			document.querySelector(".hero")?.closest(".content")?.scrollTo(0, 0);
 			go("/library/movies");

@@ -20,8 +20,9 @@ ways.
     nixpkgs.
 - **The script** (`driver.js`): runs inside the page, identical in every engine, no WebDriver or
   CDP. Two scenarios:
-  - `nav`: home idle 20 s, home scroll 15 s, library scroll 15 s, detail and back 24 s, search
-    typing 12 s;
+  - `nav`: home idle 20 s (the billboard rotating), home with its window out of focus 20 s (the
+    billboard paused), home scroll 15 s, library scroll 15 s, detail and back 24 s, search typing
+    12 s;
   - `player`: controls shown (pointer moving) 15 s, watching with controls hidden 25 s, scrubber
     hover 15 s.
 - **The measure** (`runner.mjs`): at each phase boundary the driver posts a mark; the runner reads

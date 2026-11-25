@@ -14,6 +14,7 @@ import sys
 
 PHASES = [
     "home-idle",
+    "home-paused",
     "home-scroll",
     "library-scroll",
     "detail-cycle",
