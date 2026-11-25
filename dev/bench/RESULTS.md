@@ -137,3 +137,42 @@ The display server's own CPU (Weston, plus XWayland for CEF), which the table ab
   60 on X11), with Weston at 35–58 %; motion cut, its home idles at 67 % (44 % on X11).
 - `skiacpu`, `fps30`, `msaa0`, `shm` and `vblank` behave as on X11: memory for the first, nothing
   measurable for the others without a GPU.
+
+## The billboard, paused when nobody can see it
+
+Measured 2026-11-25 on the same kind of container (4 vCPU, no GPU), `wry` and `wry-nocomp`, 3 reps,
+before and after the billboard change (`perf/home-billboard-idle`: the progress bar and the zoom
+as CSS animations with one timeout per slide in place of a 100 ms tick, and everything paused
+while the window has no focus, the page is hidden or less than half of the billboard is on
+screen). "Home idle" is the billboard rotating in a focused window, as in the tables above; "Home,
+out of focus" is the new `home-paused` phase, the same page after its window lost focus. Median
+CPU in % of one core, with the range over the 3 reps.
+
+| display | variant | Home idle, before | Home idle, after | Home, out of focus, before | Home, out of focus, after |
+|---|---|---|---|---|---|
+| X11 | `wry` | 282 % (281–283) | 282 % (277–285) | 286 % (282–286) | 0 % (0–0) |
+| X11 | `wry-nocomp` | 104 % (104–105) | 105 % (104–106) | 105 % (104–105) | 0 % (0–0) |
+| Wayland | `wry` | 289 % (286–294) | 286 % (286–289) | 294 % (293–294) | 0 % (0–0) |
+| Wayland | `wry-nocomp` | 103 % (101–103) | 108 % (108–108) | 101 % (100–104) | 0 % (0–0) |
+
+The display server follows: Xvfb from 19 % (`wry`) and 7 % (`wry-nocomp`) to 0 %, Weston from 23 %
+to 0 %.
+
+- **A billboard nobody can see costs nothing**: under 1 % on both variants and both display
+  servers, where it cost as much out of focus as in focus.
+- **A billboard in use costs what it did**: the zoom over the full-screen backdrop is the cost, and
+  it is still drawn on every frame while the window has focus. Removing the 100 ms tick alone does
+  not show without a GPU.
+- **One regression, 5 points**: `wry-nocomp` on Wayland idles at 108 % where it idled at 103 %, and
+  draws fewer frames (19.5 fps against 24 with a frame counter running). Rebuilding the old page
+  the same day gives 102 % again, so it is the change and not the machine. It is not the
+  `will-change` layer, the progress bar, the zoom being an animation instead of a transition, the
+  frame that fades out, or the `IntersectionObserver`: taking each one out leaves 108 %. Not found.
+- Every other phase is where it was, within the spread between reps:
+
+| display | variant | Home scroll | Library scroll | Detail ↔ back | Search typing | Player, controls | Player, watching |
+|---|---|---|---|---|---|---|---|
+| X11 | `wry` | 243 → 254 %, 13 fps | 215 → 213 % | 95 → 93 % | 57 → 56 % | 284 → 280 % | 4 → 4 % |
+| X11 | `wry-nocomp` | 106 → 106 %, 32 → 33 fps | 107 → 107 % | 29 → 29 % | 16 → 16 % | 17 → 18 % | 2 → 2 % |
+| Wayland | `wry` | 260 → 261 %, 10 fps | 231 → 230 % | 104 → 104 % | 68 → 68 % | 278 → 275 % | 4 → 4 % |
+| Wayland | `wry-nocomp` | 110 → 110 %, 22 → 23 fps | 111 → 111 % | 33 → 30 % | 17 → 18 % | 16 → 16 % | 2 → 2 % |
