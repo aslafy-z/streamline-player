@@ -11,6 +11,7 @@ mod android_service;
 mod auth;
 #[cfg(downloads)]
 mod downloads;
+mod rendering;
 
 #[derive(Clone, Default)]
 struct Conn {
@@ -926,6 +927,7 @@ pub fn run() {
             let http = with_roots(http);
             #[cfg(target_os = "android")]
             app.manage(Pictures::default());
+            app.manage(rendering::detect());
             app.manage(Api {
                 http: http.build().expect("the default TLS backend builds"),
                 app: app.handle().clone(),
@@ -1039,6 +1041,7 @@ pub fn run() {
             stop_session,
             heartbeat,
             reachable,
+            rendering::software_rendering,
             #[cfg(target_os = "android")]
             metered,
             #[cfg(downloads)]

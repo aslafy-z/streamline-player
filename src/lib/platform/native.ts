@@ -73,6 +73,9 @@ export const windowControls = {
 export const setFullscreen = (on: boolean): Promise<unknown> =>
 	getCurrentWindow().setFullscreen(on);
 export const isFullscreen = (): Promise<boolean> => getCurrentWindow().isFullscreen();
+/** Whether the webview draws on the CPU: Rust reads the OpenGL renderer, which WebKitGTK hides from the page. */
+export const softwareRendering = (): Promise<boolean> =>
+	rawInvoke<boolean>("software_rendering").catch(() => false);
 
 let capabilities: { decode: string; value: Promise<unknown> } | null = null;
 // ponytail: mpv is the only desktop backend so far (Linux); macOS and Windows will need their own name.

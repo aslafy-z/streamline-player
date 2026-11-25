@@ -26,7 +26,7 @@ import { goto } from "#lib/ui/nav.ts";
 import PosterCard from "#lib/ui/PosterCard.svelte";
 import ResumeCard from "#lib/ui/ResumeCard.svelte";
 import Row from "#lib/ui/Row.svelte";
-import { artwork, home, library, title, watchState } from "#platform";
+import { artwork, home, library, softwareRendering, title, watchState } from "#platform";
 
 const PAD_X = $derived(isTablet() ? 44 : 56);
 const HERO_TITLE = $derived(isTablet() ? 54 : 58);
@@ -194,6 +194,7 @@ onMount(() => {
 				titleSize={HERO_TITLE}
 				infoLabel={i18n.common_more_info()}
 				dotLabel={(name) => i18n.home_show_title({ title: name })}
+				drawnOnCpu={softwareRendering}
 			/>
 		{/if}
 		<div

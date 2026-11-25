@@ -24,6 +24,7 @@ let {
 	titleSize = 58,
 	infoLabel,
 	dotLabel,
+	drawnOnCpu,
 }: {
 	slides: Slide[];
 	height: number;
@@ -31,9 +32,13 @@ let {
 	titleSize?: number;
 	infoLabel: string;
 	dotLabel: (title: string) => string;
+	drawnOnCpu: () => Promise<boolean>;
 } = $props();
 
-const hero = heroRotation(() => slides.length);
+const hero = heroRotation(
+	() => slides.length,
+	() => drawnOnCpu(),
+);
 const slide = $derived(slides[hero.at]);
 
 const text = $derived(

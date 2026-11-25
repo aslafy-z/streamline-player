@@ -109,6 +109,7 @@
   }, window.__signInMs ?? 1200));
   const cmds = {
     server_host: () => "127.0.0.1:8081",
+    software_rendering: () => window.__softwareRendering === true,
     auth_state: () => ({ server: null, paired: true, keystore: "Android Keystore", ...(window.__auth || {}) }),
     connect: ({ url }) => (/bad/.test(url) ? Promise.reject(`Can’t reach ${url}`) : new Promise((r) => setTimeout(() => r(38), 600))),
     pair_start: () => fakePairStart(),

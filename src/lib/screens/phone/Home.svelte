@@ -40,6 +40,7 @@ import {
 	library,
 	markActivityRead,
 	myPicture,
+	softwareRendering,
 	title,
 	watchState,
 } from "#platform";
@@ -162,7 +163,7 @@ const slides = $derived.by(() => {
 	return out;
 });
 
-const hero = heroRotation(() => slides.length);
+const hero = heroRotation(() => slides.length, softwareRendering);
 let down: { x: number; y: number } | null = null;
 
 const slide = $derived(slides[hero.at]);

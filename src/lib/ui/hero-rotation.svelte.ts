@@ -7,16 +7,6 @@ export const ZOOM_MS = HERO_MS + 1500;
 const SWAP_MS = 260;
 /** The share of the hero that must be on screen for it to keep moving. */
 const ON_SCREEN = 0.5;
-/**
- * The zoom is counted for PROBE_MS, PROBE_AFTER_MS into a slide. Under SMOOTH_FPS frames a second
- * the webview is drawing it on the CPU (no GPU, or a driver it does not use), where a full-screen
- * zoom takes whole cores: the backdrop then stays still and the progress bar moves in steps.
- * WebKitGTK names no renderer to the page (WebGL answers "Apple GPU" on llvmpipe too), so the
- * frame rate is the only sign of it the page can read.
- */
-const PROBE_AFTER_MS = 1000;
-const PROBE_MS = 2000;
-const SMOOTH_FPS = 40;
 
 /**
  * The rotation of a home hero: which slide shows, the phase of its text, and whether anything
@@ -25,8 +15,12 @@ const SMOOTH_FPS = 40;
  *
  * The hero stands still, where it is, while its window has no focus, the page is hidden or less
  * than half of it is on screen. With `prefers-reduced-motion` it does not rotate or zoom at all.
+ *
+ * `drawnOnCpu` says whether the webview has no GPU to draw with. There any animation that
+ * runs on every frame has the whole window composed again on the CPU, whole cores of it: the
+ * backdrop then stays still and the progress bar moves in steps.
  */
-export function heroRotation(count: () => number) {
+export function heroRotation(count: () => number, drawnOnCpu: () => Promise<boolean>) {
 	let index = $state(0);
 	let phase = $state<"pre" | "in" | "out">("pre");
 	let previous = $state(-1);
@@ -37,7 +31,6 @@ export function heroRotation(count: () => number) {
 	let onScreen = $state(true);
 	let smooth = $state(true);
 	let frozen = $state(-1);
-	let probed = false;
 	let left = HERO_MS;
 	let swap: ReturnType<typeof setTimeout>;
 
@@ -74,32 +67,6 @@ export function heroRotation(count: () => number) {
 		};
 	});
 
-	// One count per page, while the zoom runs undisturbed. A pause starts it over.
-	$effect(() => {
-		if (probed || reduced || phase !== "in" || !moving) return;
-		let frame = 0;
-		let frames = 0;
-		let start = 0;
-		const tick = (now: number) => {
-			start ||= now;
-			if (now - start >= PROBE_MS) {
-				probed = true;
-				if ((frames * 1000) / (now - start) < SMOOTH_FPS) {
-					frozen = at;
-					smooth = false;
-				}
-				return;
-			}
-			frames++;
-			frame = requestAnimationFrame(tick);
-		};
-		const wait = setTimeout(() => (frame = requestAnimationFrame(tick)), PROBE_AFTER_MS);
-		return () => {
-			clearTimeout(wait);
-			cancelAnimationFrame(frame);
-		};
-	});
-
 	onMount(() => {
 		const motion = matchMedia("(prefers-reduced-motion: reduce)");
 		const onMotion = () => (reduced = motion.matches);
@@ -114,6 +81,11 @@ export function heroRotation(count: () => number) {
 		window.addEventListener("blur", onBlur);
 		document.addEventListener("visibilitychange", onShown);
 		settle();
+		void drawnOnCpu().then((cpu) => {
+			if (!cpu) return;
+			frozen = at;
+			smooth = false;
+		});
 		return () => {
 			motion.removeEventListener("change", onMotion);
 			window.removeEventListener("focus", onFocus);
@@ -133,7 +105,7 @@ export function heroRotation(count: () => number) {
 		get reduced() {
 			return reduced;
 		},
-		/** False once the webview was seen drawing the zoom on the CPU. */
+		/** False when the webview draws on the CPU. */
 		get smooth() {
 			return smooth;
 		},

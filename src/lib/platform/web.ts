@@ -503,6 +503,8 @@ export const setFullscreen = (on: boolean): Promise<unknown> =>
 			? document.exitFullscreen()
 			: Promise.resolve();
 export const isFullscreen = (): Promise<boolean> => Promise.resolve(!!document.fullscreenElement);
+// ponytail: a browser is taken to have a GPU; nothing tells a page reliably that it has not.
+export const softwareRendering = (): Promise<boolean> => Promise.resolve(false);
 
 export const canDownload: boolean = false;
 export const downloads = (): Promise<DownloadEntry[]> => Promise.resolve([]);
