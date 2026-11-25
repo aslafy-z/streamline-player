@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Runs variants × scenarios × reps: dev/bench/matrix.sh x11|wayland [reps] [variant-regex]
+# SCENARIOS="nav player" (the default) narrows the scenarios.
 # Needs stack.sh up, display.sh <same display> started and runtimes.sh built. Results go to
 # $BENCH_OUT/results/<display>/<variant>-<scenario>-<rep>.json; aggregate.py makes the tables.
 # Reps are interleaved (every variant once, then again) so drift spreads across variants.
@@ -53,8 +54,9 @@ x11)
 	QPA=xcb
 	;;
 wayland)
-	wl=$("$here/display.sh" wayland)
-	xw=$(echo "$wl" | grep -o "XWAYLAND_DISPLAY=:[0-9]*" | cut -d= -f2)
+	# A client that crashes XWayland takes Weston down with it: each run gets a fresh one.
+	fresh() { "$here/display.sh" wayland | grep -o "XWAYLAND_DISPLAY=:[0-9]*" | cut -d= -f2; }
+	xw=$(fresh)
 	base="WAYLAND_DISPLAY=wayland-bench XDG_RUNTIME_DIR=$out/xdg XDG_SESSION_TYPE=wayland COMPOSITOR=weston|Xwayland"
 	DISP="$base GDK_BACKEND=wayland"
 	DISP_CEF="$base DISPLAY=$xw"
@@ -66,7 +68,7 @@ esac
 SILENT="GST_PLUGIN_FEATURE_RANK=pulsesink:NONE,pipewiresink:NONE,alsasink:NONE"
 
 for rep in $(seq 1 "$reps"); do
-	for sc in nav player; do
+	for sc in ${SCENARIOS:-nav player}; do
 		for name in $ORDER; do
 			[[ $name =~ $only ]] || continue
 			red=""
@@ -74,6 +76,10 @@ for rep in $(seq 1 "$reps"); do
 			shot=""
 			[ "$display" = x11 ] && [ "$rep" = 1 ] && shot="SHOT=$out/shots/$display"
 			args="$here/runner.mjs --name $name --scenario $sc --out $res/$name-$sc-$rep.json --timeout 220 $red"
+			if [ "$display" = wayland ]; then
+				xw=$(fresh)
+				DISP_CEF="$base DISPLAY=$xw"
+			fi
 			echo "== $display $name $sc rep$rep"
 			case $name in
 			qt*)

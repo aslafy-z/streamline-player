@@ -18,6 +18,9 @@ wayland)
 	export XDG_RUNTIME_DIR=$out/xdg
 	mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
 	pkill -x weston || true
+	pkill -x Xwayland || true
+	sleep 0.5
+	rm -f "$XDG_RUNTIME_DIR/wayland-bench" "$XDG_RUNTIME_DIR/wayland-bench.lock"
 	weston --backend=headless --renderer=gl --width=1920 --height=1080 --socket=wayland-bench \
 		--idle-time=0 --shell=kiosk --xwayland >"$out/logs/weston.log" 2>&1 &
 	for _ in $(seq 1 50); do [ -S "$XDG_RUNTIME_DIR/wayland-bench" ] && break; sleep 0.2; done
