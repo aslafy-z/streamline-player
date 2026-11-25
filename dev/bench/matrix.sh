@@ -14,13 +14,16 @@ bin=$out/bin
 res=$out/results/$display
 mkdir -p "$res"
 
-# variant -> environment. A name ending in -reduce adds --reduce (animations and transitions off).
+# variant -> environment. A name ending in -reduce adds --reduce (animations and transitions off);
+# one ending in -soft adds --soft (the page is told it is drawn on the CPU, as the real app tells it).
 declare -A ENVS=(
 	[wry]=""
 	[wry-reduce]=""
+	[wry-soft]=""
 	[wry-nocomp]="WEBKIT_DISABLE_COMPOSITING_MODE=1"
 	[wry-nocomp-t4]="WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_SKIA_CPU_PAINTING_THREADS=4"
 	[wry-nocomp-reduce]="WEBKIT_DISABLE_COMPOSITING_MODE=1"
+	[wry-nocomp-soft]="WEBKIT_DISABLE_COMPOSITING_MODE=1"
 	[wry-nocomp-t4-reduce]="WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_SKIA_CPU_PAINTING_THREADS=4"
 	[wry-nodmabuf]="WEBKIT_DISABLE_DMABUF_RENDERER=1"
 	[wry-skiacpu]="WEBKIT_SKIA_ENABLE_CPU_RENDERING=1"
@@ -41,7 +44,7 @@ declare -A ENVS=(
 	[qt]=""
 	[qt-reduce]=""
 )
-ORDER="wry wry-reduce wry-nocomp wry-nocomp-t4 wry-nocomp-reduce wry-nocomp-t4-reduce wry-nodmabuf
+ORDER="wry wry-reduce wry-soft wry-nocomp wry-nocomp-soft wry-nocomp-t4 wry-nocomp-reduce wry-nocomp-t4-reduce wry-nodmabuf
 wry-skiacpu wry-skiacpu-t1 wry-skiacpu-t4 wry-fps30 wry-vblank wry-shm wry-msaa0
 cef cef-reduce cef-swiftshader cef-raster1 cef-raster4 cef-1proc cef-lowend cef-nosmooth qt qt-reduce"
 
@@ -73,6 +76,7 @@ for rep in $(seq 1 "$reps"); do
 			[[ $name =~ $only ]] || continue
 			red=""
 			[[ $name == *-reduce ]] && red="--reduce"
+			[[ $name == *-soft ]] && red="--soft"
 			shot=""
 			[ "$display" = x11 ] && [ "$rep" = 1 ] && shot="SHOT=$out/shots/$display"
 			args="$here/runner.mjs --name $name --scenario $sc --out $res/$name-$sc-$rep.json --timeout 220 $red"

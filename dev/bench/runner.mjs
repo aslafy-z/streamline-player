@@ -1,5 +1,5 @@
 // One bench run: node dev/bench/runner.mjs --name <variant> --bin <app> --scenario nav|player
-//   [--reduce] [--out file.json] [--timeout s] [--url page]
+//   [--reduce] [--soft] [--out file.json] [--timeout s] [--url page]
 // Starts the bench app on the served desktop build with the compare shim and driver.js as its
 // init script, and samples the CPU and PSS of the app's whole process tree (and of the display
 // server, COMPOSITOR) at each mark the driver posts. SHOT=<dir> also grabs an X11 screenshot at
@@ -18,6 +18,7 @@ const name = arg("name");
 const bin = arg("bin");
 const scenario = arg("scenario", "nav");
 const reduce = process.argv.includes("--reduce");
+const soft = process.argv.includes("--soft");
 const out = arg("out", `${OUT}/results/${name}-${scenario}.json`);
 const PORT = 8200;
 const HZ = 100;
@@ -43,6 +44,9 @@ const shim = readFileSync(new URL("../compare/shim.js", import.meta.url), "utf8"
 const init = [
 	`window.__BENCH = ${JSON.stringify({ scenario, collector: `http://127.0.0.1:${PORT}` })};`,
 	reduce ? REDUCE : "",
+	// --soft: the shim answers the app's software_rendering command with true, as the real app
+	// does on a machine without a GPU, which is what this bench runs on.
+	soft ? "window.__softwareRendering = true;" : "",
 	shim,
 	readFileSync(new URL("./driver.js", import.meta.url), "utf8"),
 ]

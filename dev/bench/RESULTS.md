@@ -63,7 +63,7 @@ WebKitGTK: `nocomp` `WEBKIT_DISABLE_COMPOSITING_MODE=1`, `-t1`/`-t4`
   times less CPU, scroll at twice the frame rate and use half the memory. Its scroll stays near
   30 fps, one painting thread saturated (≈ 105 %). Four painting threads (`-t4`) add a few frames
   and fewer long ones at the same CPU.
-- **Only the home page pays for motion when idle**: the billboard's continuous zoom over a
+- **Only the home page pays for motion when idle, and only without a GPU** (see "With a GPU" below): the billboard's continuous zoom over a
   full-screen backdrop and its 100 ms progress tick. Cutting motion takes home idle from 284 % to
   106 % (WebKitGTK) and 231 % to 44 % (Qt); scrolling and the player do not change.
 - `skiacpu` saves about a quarter of the memory and little else; `fps30` helps only the player
@@ -176,3 +176,51 @@ to 0 %.
 | X11 | `wry-nocomp` | 106 → 106 %, 32 → 33 fps | 107 → 107 % | 29 → 29 % | 16 → 16 % | 17 → 18 % | 2 → 2 % |
 | Wayland | `wry` | 260 → 261 %, 10 fps | 231 → 230 % | 104 → 104 % | 68 → 68 % | 278 → 275 % | 4 → 4 % |
 | Wayland | `wry-nocomp` | 110 → 110 %, 22 → 23 fps | 111 → 111 % | 33 → 30 % | 17 → 18 % | 16 → 16 % | 2 → 2 % |
+
+## With a GPU
+
+Everything above is drawn by the CPU. The same home phases on a laptop with a GPU, measured
+2026-11-25 by hand with `runner.mjs` on the session's own display: Arch Linux, Ryzen 7 7840U
+(16 threads), Radeon 780M (radeonsi, Mesa 26.2.7), GNOME Shell 51 on Wayland, 1920×1080 at 60 Hz,
+WebKitGTK 2.54.2, the host's libraries, 2 reps. The page is the billboard change with the
+software-rendering path (`perf/home-billboard-software`); `-soft` tells it that it is drawn on the
+CPU (`--soft`), which the real app reads from the OpenGL renderer. Another machine, another
+WebKitGTK and a runner extended to read the GPU: compare the columns with each other, not with
+the tables above.
+
+| variant | Home idle | GPU | Home, out of focus | Home scroll |
+|---|---|---|---|---|
+| `wry` | 23 % | 7 % | 0 % | 42 %, 60 fps |
+| `wry-soft` | 18 % | 3 % | 0 % | 43 %, 60 fps |
+| `wry-nocomp` | 34 % | 10 % | 0 % | 58 %, 60 fps |
+| `wry-nocomp-soft` | 6 % | 2 % | 0 % | 60 %, 60 fps |
+
+GNOME Shell and XWayland add about 11 % while the page moves (2 % for `wry-nocomp-soft`).
+
+- **The billboard is cheap with a GPU**: 23 % of one core where llvmpipe took 282 %, and scrolling
+  holds 60 fps where it reached 13. The numbers above measure software rendering far more than
+  they measure the page.
+- **Compositing off is the wrong default with a GPU**: 34 % against 23 % idle, 58 % against 42 %
+  scrolling. It is a workaround for machines that draw on the CPU, not a setting to ship.
+- **The software-rendering path buys nothing there** (18 % against 23 %), for a backdrop that no
+  longer zooms: it stays for machines without a GPU.
+- **A build from the nix devshell does not start on that machine** (not NixOS): `Could not create
+  default EGL display: EGL_BAD_PARAMETER. Aborting...`. Not looked into.
+
+## Drawn on the CPU: a still backdrop and a stepped bar
+
+Back on the container without a GPU, X11, 2 reps, which animation costs what while the billboard
+is in use (`home-idle`):
+
+| page | `wry` | `wry-nocomp` |
+|---|---|---|
+| zoom and progress bar (the billboard change) | 282 % | 105 % |
+| zoom, no bar animation | 287 % | 105 % |
+| bar, no zoom | 277 % | 33 % |
+| no zoom, bar in steps of one second (`-soft`) | 81 % | 15 % |
+
+- **With compositing, one running animation costs the whole window on every frame**: the 44 px
+  bar alone takes what the full-screen zoom takes, and the two together take no more. Without
+  compositing the cost follows the surface drawn.
+- **Told it is drawn on the CPU, the page goes from 282 % to 81 %** (88 % on Wayland with a first
+  version of the same page). What is left is mostly the change of slide every 8 s.
