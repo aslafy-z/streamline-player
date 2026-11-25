@@ -7,6 +7,16 @@ export const ZOOM_MS = HERO_MS + 1500;
 const SWAP_MS = 260;
 /** The share of the hero that must be on screen for it to keep moving. */
 const ON_SCREEN = 0.5;
+/**
+ * The zoom is counted for PROBE_MS, PROBE_AFTER_MS into a slide. Under SMOOTH_FPS frames a second
+ * the webview is drawing it on the CPU (no GPU, or a driver it does not use), where a full-screen
+ * zoom takes whole cores: the backdrop then stays still and the progress bar moves in steps.
+ * WebKitGTK names no renderer to the page (WebGL answers "Apple GPU" on llvmpipe too), so the
+ * frame rate is the only sign of it the page can read.
+ */
+const PROBE_AFTER_MS = 1000;
+const PROBE_MS = 2000;
+const SMOOTH_FPS = 40;
 
 /**
  * The rotation of a home hero: which slide shows, the phase of its text, and whether anything
@@ -25,6 +35,9 @@ export function heroRotation(count: () => number) {
 	let focused = $state(true);
 	let shown = $state(true);
 	let onScreen = $state(true);
+	let smooth = $state(true);
+	let frozen = $state(-1);
+	let probed = false;
 	let left = HERO_MS;
 	let swap: ReturnType<typeof setTimeout>;
 
@@ -39,6 +52,7 @@ export function heroRotation(count: () => number) {
 		clearTimeout(swap);
 		phase = "out";
 		swap = setTimeout(() => {
+			if (frozen !== at) frozen = -1;
 			previous = at;
 			index = i;
 			left = HERO_MS;
@@ -57,6 +71,32 @@ export function heroRotation(count: () => number) {
 		return () => {
 			clearTimeout(next);
 			left -= performance.now() - started;
+		};
+	});
+
+	// One count per page, while the zoom runs undisturbed. A pause starts it over.
+	$effect(() => {
+		if (probed || reduced || phase !== "in" || !moving) return;
+		let frame = 0;
+		let frames = 0;
+		let start = 0;
+		const tick = (now: number) => {
+			start ||= now;
+			if (now - start >= PROBE_MS) {
+				probed = true;
+				if ((frames * 1000) / (now - start) < SMOOTH_FPS) {
+					frozen = at;
+					smooth = false;
+				}
+				return;
+			}
+			frames++;
+			frame = requestAnimationFrame(tick);
+		};
+		const wait = setTimeout(() => (frame = requestAnimationFrame(tick)), PROBE_AFTER_MS);
+		return () => {
+			clearTimeout(wait);
+			cancelAnimationFrame(frame);
 		};
 	});
 
@@ -93,6 +133,10 @@ export function heroRotation(count: () => number) {
 		get reduced() {
 			return reduced;
 		},
+		/** False once the webview was seen drawing the zoom on the CPU. */
+		get smooth() {
+			return smooth;
+		},
 		/** False while the hero must stand still: the component pauses its animations on it. */
 		get moving() {
 			return moving;
@@ -120,9 +164,10 @@ export function heroRotation(count: () => number) {
 		 * Slide `i` carries the zoom animation: the current one once its text comes in, and the
 		 * one that just left, which keeps the scale it had reached while it fades out.
 		 */
-		zooms: (i: number) => !reduced && (i === at ? phase !== "pre" : i === previous),
+		zooms: (i: number) =>
+			!reduced && (i === frozen || (smooth && (i === at ? phase !== "pre" : i === previous))),
 		/** Slide `i` is zooming right now, and only then worth a compositing layer of its own. */
-		zooming: (i: number) => !reduced && i === at && phase !== "pre" && moving && !zoomed,
+		zooming: (i: number) => !reduced && smooth && i === at && phase !== "pre" && moving && !zoomed,
 		/** Call when the current slide's zoom animation ends. */
 		zoomEnded: () => (zoomed = true),
 		/** Slide `i` carries the progress animation. */

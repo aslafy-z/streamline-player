@@ -49,6 +49,7 @@ const text = $derived(
 	<section
 		class="hero"
 		class:reduced={hero.reduced}
+		class:coarse={!hero.smooth}
 		style:height="{height}px"
 		style:--hero-ms="{HERO_MS}ms"
 		style:--zoom-ms="{ZOOM_MS}ms"
@@ -394,6 +395,11 @@ p {
 
 .fill.run.ticking {
 	animation-play-state: running;
+}
+
+/* Drawn on the CPU, every step of the bar is a whole window composed again: one a second. */
+.coarse .fill.run {
+	animation-timing-function: steps(8, end);
 }
 
 @keyframes fill {
