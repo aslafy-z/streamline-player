@@ -40,6 +40,9 @@ up)
 		--user "$(id -u):$(id -g)" -e HOME=/bench/home -e BENCH_OUT=/bench/out \
 		-e BENCH_RESULTS="$results" -e CARGO_HOME=/bench/home/.cargo \
 		-v "$common:$common" -v "$cache:/bench" -w "$top" "$image" sleep infinity
+	# dbus-run-session refuses a user the image does not know.
+	"$engine" exec -u 0 "$name" sh -c \
+		"getent passwd $(id -u) >/dev/null || echo 'bench:x:$(id -u):$(id -g)::/bench/home:/bin/bash' >>/etc/passwd"
 	;;
 run)
 	shift

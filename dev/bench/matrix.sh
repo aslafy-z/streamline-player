@@ -22,7 +22,8 @@ mkdir -p "$res"
 # Beside WebKitGTK's own variables: BENCH_ACCEL and BENCH_FEATURES are what the bench app sets on
 # the web view's settings (never: hardware acceleration policy NEVER; damage: composition limited
 # to the damaged region, off by default in 2.52 and on in 2.54), LP_NUM_THREADS is llvmpipe's
-# rasterizer thread count, BENCH_SIZE the window.
+# rasterizer thread count, BENCH_SIZE the window. texmap: WebKitGTK 2.54 composites with Skia,
+# this takes it back to the TextureMapper compositor of 2.52.
 declare -A ENVS=(
 	[wry]=""
 	[wry-reduce]=""
@@ -45,6 +46,7 @@ declare -A ENVS=(
 	[wry-damage-skiacpu]="BENCH_FEATURES=UseDamagingInformationForCompositing=1 WEBKIT_SKIA_ENABLE_CPU_RENDERING=1"
 	[wry-damage-lp1]="BENCH_FEATURES=UseDamagingInformationForCompositing=1 LP_NUM_THREADS=1"
 	[wry-nodamage]="BENCH_FEATURES=UseDamagingInformationForCompositing=0"
+	[wry-texmap]="WEBKIT_USE_SKIA_FOR_COMPOSITION=0"
 	[wry-lp0]="LP_NUM_THREADS=0"
 	[wry-lp1]="LP_NUM_THREADS=1"
 	[wry-lp2]="LP_NUM_THREADS=2"
@@ -66,7 +68,7 @@ declare -A ENVS=(
 )
 ORDER="wry wry-reduce wry-soft wry-nocomp wry-nocomp-soft wry-nocomp-t4 wry-nocomp-reduce wry-nocomp-t4-reduce wry-nodmabuf
 wry-skiacpu wry-skiacpu-t1 wry-skiacpu-t4 wry-fps30 wry-vblank wry-shm wry-msaa0
-wry-never wry-damage wry-damage-skiacpu wry-damage-lp1 wry-nodamage wry-lp0 wry-lp1 wry-lp2 wry-gpupaint0
+wry-never wry-damage wry-damage-skiacpu wry-damage-lp1 wry-nodamage wry-texmap wry-lp0 wry-lp1 wry-lp2 wry-gpupaint0
 wry-s720 wry-s1920 wry-nocomp-s720 wry-nocomp-s1920
 cef cef-reduce cef-swiftshader cef-raster1 cef-raster4 cef-1proc cef-lowend cef-nosmooth qt qt-reduce"
 
