@@ -1,0 +1,74 @@
+{
+  "name": "wry-never-reload",
+  "scenario": "home",
+  "reduce": false,
+  "phases": [
+    {
+      "phase": "home-idle",
+      "wall_s": 20,
+      "cpu_pct": 105.6,
+      "x_pct": 4.7,
+      "by_process": {
+        "wry": 9.6,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 96
+      },
+      "pss_mb": 378,
+      "procs": 3,
+      "ms": 20008
+    },
+    {
+      "phase": "home-scroll",
+      "wall_s": 15,
+      "cpu_pct": 107.3,
+      "x_pct": 7.9,
+      "by_process": {
+        "wry": 13.1,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 94.2
+      },
+      "pss_mb": 392,
+      "procs": 3,
+      "ms": 15008,
+      "frames": 766,
+      "long": 1,
+      "worst": 38,
+      "fps": 51
+    }
+  ],
+  "errors": [],
+  "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+  "ready": {
+    "ev": "ready",
+    "gl": "Apple GPU",
+    "dpr": 1,
+    "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+    "url": "http://127.0.0.1:1440/",
+    "shimActive": true,
+    "internals": [
+      "plugins"
+    ]
+  },
+  "dom": {
+    "home-idle": {
+      "path": "/",
+      "hero": true,
+      "imgs": 34,
+      "hidden": false,
+      "focus": true,
+      "vis": "visible",
+      "text": " CONTINUE WATCHING Severance 2022– · 2 seasons · Apple TV+ · ★ 8.4 4K Dolby Vi"
+    },
+    "home-scroll": {
+      "path": "/",
+      "hero": true,
+      "imgs": 34,
+      "hidden": false,
+      "focus": true,
+      "vis": "visible",
+      "text": " RECENTLY ADDED Furiosa: A Mad Max Saga 2024 · 2h 29m · R · ★ 7.5 4K HDR Dolby"
+    }
+  },
+  "end": "done",
+  "app_log": "\n(wry:12056): dbind-WARNING **: 02:25:14.016: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files\nlibEGL warning: DRI3 error: Could not get DRI3 device\nlibEGL warning: Ensure your X server supports DRI3 to get accelerated rendering\n"
+}

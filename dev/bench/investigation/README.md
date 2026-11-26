@@ -27,11 +27,12 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | WebKitGTK 2.52 and 2.54 render path, read from source | done, `notes/webkit-render-path.md` |
 | What wry and Tauri set, what the app can reach | done, `notes/wry-tauri.md` |
 | What upstream knows | done, `notes/upstream-research.md` |
-| Candidate settings measured on 2.52 | done but for the damage flag (first run invalid, see below) |
-| The same on WebKitGTK 2.54.3 (Arch image) | first series done |
+| Candidate settings measured on 2.52 | done |
+| The same on WebKitGTK 2.54.3 (Arch image) | done on X11, Wayland pending |
+| The player's window (a GL area under the web view) | running |
 | WebKitGTK 2.52.6 built from source, to try patches | building |
 | Patch drafts for WebKitGTK | written, not compiled: `patch-drafts/2.52.6/` |
-| Fix in the app | pending |
+| Fix in the app | written, being built and checked |
 | Report (French) and upstream bug draft | pending |
 
 ## Findings so far
@@ -106,18 +107,24 @@ core for the app's process tree.
 | `wry` | nothing | 269 % | 264 %, 26 fps | 693 |
 | `wry-nocomp` | `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 106 % | 107 %, 52 fps | 370 |
 | `wry-never` | policy `NEVER` set by the app through `with_webview`, after the view exists | 107 % | 106 %, 53 fps | 395 |
+| `wry-nodmabuf` | `WEBKIT_DISABLE_DMABUF_RENDERER=1` | 106 % | 107 %, 50 fps | 358 |
+| `wry-never-reload` | policy `NEVER`, then the web process restarted | 106 % | 107 %, 51 fps | 378 |
+| `wry-damage` | `UseDamagingInformationForCompositing` on, web process restarted | 271 % | 257 %, 22 fps | 674 |
 | `wry-lp2` | `LP_NUM_THREADS=2` | 187 % | 184 %, 18 fps | 673 |
 | `wry-lp1` | `LP_NUM_THREADS=1` | 105 % | 107 %, 12 fps | 674 |
 
 - **Policy `NEVER` set by the application is the environment variable**, to the point: same CPU,
   same frame rate, same memory. In 2.52 it does not have to be set before the web view is
   created. That does not hold in 2.54 (below).
-- **The damage flag is not measured yet.** A first run showed no change with
-  `UseDamagingInformationForCompositing` on, and was wrong: the web process reads that feature
-  once, when it creates the page (`LayerTreeHost.cpp:100-110`, read), and a feature set after
-  wry's first `load_uri` arrives too late, so the run compared off with off
-  (`notes/webkit-render-path.md`, section 10). The bench now restarts the web process after
-  setting features; the numbers come with the next series.
+- **`WEBKIT_DISABLE_DMABUF_RENDERER=1` lands on the same CPU path** on X11 as it does on
+  Wayland (`RESULTS.md`): with no buffer type left to hand to the UI process, 2.52 leaves
+  compositing off.
+- **Limiting composition to the damaged region does nothing for this page**: its animation is a
+  full-window zoom, so the damaged region is the window. It does a lot when little changes
+  (below). A first run of this variant was invalid and is withdrawn: the web process reads the
+  feature once, when it creates the page (`LayerTreeHost.cpp:100-110`, read), and a feature set
+  after wry's first `load_uri` arrives too late (`notes/webkit-render-path.md`, section 10). The
+  bench now restarts the web process after setting features.
 - **Fewer llvmpipe threads buy CPU with frames**: one thread costs what compositing off costs
   (105 %) and scrolls at 12 fps where compositing off scrolls at 52. The work per frame is the
   same, there is only less of the machine to do it on. Composited mode takes whatever cores it is
@@ -129,13 +136,13 @@ core for the app's process tree.
 X11, one rep, 60 fps reached in every cell. CPU of the app's process tree, in % of one core; the
 X server's own share comes on top (26 % composited, under 1 % not, 9 % for the zoom).
 
-| page | `wry` | `wry-never` | `wry-nocomp` |
-|---|---|---|---|
-| nothing moves | 0 % | 0 % | 0 % |
-| 32 px spinner (`transform`) | 85 % | 14 % | 11 % |
-| 44 px bar (`transform`) | 84 % | 11 % | 14 % |
-| 44 px bar (`width`, repainted by the main thread) | 91 % | 10 % | 14 % |
-| full-window zoom (`transform`) | 148 % | 65 % | 70 % |
+| page | `wry` | `wry-damage` | `wry-never` | `wry-nocomp` | `wry-nodmabuf` |
+|---|---|---|---|---|---|
+| nothing moves | 0 % | | 0 % | 0 % | |
+| 32 px spinner (`transform`) | 85 % | | 14 % | 11 % | |
+| 44 px bar (`transform`) | 84 % | 20 % | 11 % | 14 % | 12 % |
+| 44 px bar (`width`, repainted by the main thread) | 91 % | | 10 % | 14 % | |
+| full-window zoom (`transform`) | 148 % | | 65 % | 70 % | |
 
 The bar at three window sizes:
 
@@ -152,9 +159,14 @@ And the zoom: 48 %, 148 %, 230 % composited; 27 %, 70 %, 104 % not.
   not matter, a spinner costs what a bar costs.
 - **Not composited, the cost is what is repainted**: 10 to 14 % for the small ones whatever the
   window, and the full-window zoom costs half of what it costs composited.
-- **On this page llvmpipe's thread count changes nothing**: `LP_NUM_THREADS=1` gives 82 % at
-  60 fps (84 % with four). The home page needs the four threads because its layer tree is much
-  heavier to composite; here the per-frame floor is elsewhere (profile pending).
+- **Composited, the bar's 76 % in the web process are 67 % llvmpipe and 7 % the compositor
+  thread** (`profiles/2.52.6-x11/wry-anim-bar-1.anim-bar.threads.txt`): four rasterizer threads
+  at 17 % each. `LP_NUM_THREADS=1` gives the same 82 % at 60 fps on one thread. The whole window
+  is composited for each frame even on a page of three layers; the home page takes four times
+  that because its layer tree is that much heavier.
+- **Composition limited to the damaged region takes the bar from 84 % to 20 %** in 2.52
+  (`wry-damage`), and leaves the X server at 17 %: the readback and the UI process's redraw are
+  still the whole window. This is what 2.54 does by default (22 %).
 - `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` is worse here (97 %), `WEBKIT_SKIA_GPU_PAINTING_THREADS=0`
   no different (84 %).
 
@@ -172,6 +184,8 @@ every release up to 26.10.
 | `wry-nodmabuf` (`WEBKIT_DISABLE_DMABUF_RENDERER=1`) | 103 % | 107 %, 45 fps | 14 % | 40 % |
 | `wry-lp1` | 107 % | 108 %, 18 fps | | |
 | `wry-never` (policy set once the view exists) | blank page | blank page | blank | blank |
+| `wry-never-reload` (policy, then the web process restarted) | 105 % | 106 %, 45 fps | | |
+| `wry-nocomp-nodmabuf` (both variables) | 105 % | 107 %, 45 fps | | |
 
 The X server adds 13 to 25 % in every row that draws, the non-composited ones included: GTK 3
 still redraws the whole widget for each frame.
@@ -190,8 +204,22 @@ still redraws the whole widget for each frame.
   (`shots/2.54.3-wry-never-home-idle.png`, against `shots/2.54.3-wry-nodmabuf-home-idle.png`);
   the 8 % the bench reported for it measured nothing. In 2.52 the same call works. The policy
   has to be in place before the page's web process is created, and wry loads the page before an
-  application can reach the settings. Being measured: restarting the web process once the
-  policy is set.
+  application can reach the settings. Restarting the web process once the policy is set
+  (`wry-never-reload`) gives the CPU path on both versions.
+
+## What works on both versions
+
+| | 2.52.6 | 2.54.3 |
+|---|---|---|
+| nothing | 269 % | 217 % |
+| `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 106 % | 252 % |
+| `WEBKIT_DISABLE_DMABUF_RENDERER=1` | 106 % | 103 % |
+| policy `NEVER` set once the view exists | 107 % | blank window |
+| policy `NEVER`, web process restarted | 106 % | 105 % |
+
+Home idle, X11, no GPU. Only the DMABuf switch and a policy the page starts with are safe on
+both, and both must be decided before the page exists: an environment variable before the first
+web view, or the policy before the web process is created.
 
 ## Candidates still to measure
 
