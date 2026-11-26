@@ -5,7 +5,9 @@
        zoom   a full-window backdrop, scaled by a CSS animation (same, over every pixel)
        spin   a 32 px spinner, rotated by a CSS animation
        width  the 44 px bar animated through its width: no layer, repainted by the main thread
-       still  nothing moves -->
+       still  nothing moves
+     &bg=none leaves the page transparent but for the moving part, as the player's page is over
+     the video. -->
 <meta charset="utf-8" />
 <title>bench: one animation</title>
 <style>
@@ -24,6 +26,8 @@
 	.kind-spin .spinner { animation: turn 1s linear infinite; }
 	.kind-still .spinner, .kind-bar .spinner, .kind-width .spinner, .kind-zoom .spinner { display: none; }
 	.kind-still .bar, .kind-zoom .bar, .kind-spin .bar { display: none; }
+	.bg-none, .bg-none body { background: transparent; }
+	.bg-none .backdrop { display: none; }
 </style>
 <div class="backdrop"></div>
 <p class="text">One animation on a still page. The rest of this window never changes: a webview that
@@ -31,5 +35,6 @@ tracks what changed has only the moving part to draw.</p>
 <div class="bar"></div>
 <div class="spinner"></div>
 <script>
-	document.documentElement.className = "kind-" + (new URLSearchParams(location.search).get("kind") ?? "bar");
+	const query = new URLSearchParams(location.search);
+	document.documentElement.className = `kind-${query.get("kind") ?? "bar"} bg-${query.get("bg") ?? "page"}`;
 </script>

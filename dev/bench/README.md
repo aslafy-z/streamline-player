@@ -102,7 +102,18 @@ node dev/bench/runner.mjs --name wry --bin $BENCH_OUT/bin/wry --scenario hold \
 `BENCH_SIZE=1440x900` sets the window's inner size. On wry, `BENCH_ACCEL=never|always` sets
 WebKitGTK's hardware acceleration policy and `BENCH_FEATURES=Name=1,Other=0` its runtime features
 (`BENCH_FEATURES=list` prints them), both through the web view's settings once Tauri has created
-it, which is where an application can reach them.
+it, which is where an application can reach them. That is after wry loaded the page, too late
+for what the web process reads once when it creates the page (the features; from WebKitGTK 2.54
+the policy too, which then leaves a blank window): with features, or with `BENCH_RELOAD=1`, the
+bench ends the web process and loads the page again, so the next one starts with the settings.
+
+`BENCH_UNDERLAY=opaque|seethrough` puts a `GtkGLArea` under the web view, as the player does for
+mpv's picture (`plugins/tauri-plugin-player/src/view.rs`); `seethrough` also makes the web
+view's background transparent, as the player does while it plays, and `anim.html?…&bg=none` is
+the page to put over it. `BENCH_UNDERLAY_FPS` redraws the area that often, as a video would.
+
+Check a screenshot (`<results>/x11-shots`) before trusting a variant that changes how the page
+is drawn: a blank window costs nothing and measures nothing.
 
 Variants are the table at the top of `matrix.sh`: WebKitGTK environment variables (the names
 WebKitGTK 2.52 reads, from `strings` on the library), what the bench app sets on the web view

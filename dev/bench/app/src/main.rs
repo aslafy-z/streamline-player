@@ -4,7 +4,14 @@
 // BENCH_ACCEL (wry): never|always sets WebKitGTK's hardware acceleration policy on the web view
 // the way an application can, through its settings once Tauri has created it.
 // BENCH_FEATURES (wry): WebKit runtime features to set the same way, "Name=1,Other=0"; "list"
-// prints every feature the library knows with its default and status, and sets none.
+// prints every feature the library knows with its default and status, and sets none. The web
+// process reads some of them once, when it creates the page, and wry has loaded the page by the
+// time an application sees the web view: the bench ends that web process and loads the page
+// again, so the next one starts with the features set. BENCH_RELOAD=1 does the same without
+// features, for a policy the page has to start with (WebKitGTK 2.54 picks its renderer once).
+// BENCH_UNDERLAY (wry): opaque|seethrough puts a GtkGLArea under the web view, as the player
+// does for mpv's picture; seethrough also makes the web view's background transparent, as the
+// player does while it plays. BENCH_UNDERLAY_FPS redraws the area that often, as a video would.
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(feature = "qt")]
@@ -69,8 +76,76 @@ mod features {
     }
 }
 
+// The player's window (plugins/tauri-plugin-player/src/view.rs): the web view over a GtkGLArea
+// in a GtkOverlay, GTK's own backgrounds off. The area is cleared to one colour, where the
+// player has mpv draw.
 #[cfg(feature = "wry")]
-fn tune(window: &tauri::WebviewWindow) {
+mod underlay {
+    use gtk::prelude::*;
+    use webkit2gtk::WebViewExt;
+
+    #[link(name = "GL")]
+    extern "C" {
+        fn glClearColor(red: f32, green: f32, blue: f32, alpha: f32);
+        fn glClear(mask: u32);
+    }
+    const GL_COLOR_BUFFER_BIT: u32 = 0x4000;
+
+    pub fn attach(webview: &webkit2gtk::WebView, see_through: bool, fps: Option<u32>) {
+        let Some(parent) = webview.parent().and_downcast::<gtk::Container>() else {
+            eprintln!("the webview has no container; no underlay");
+            return;
+        };
+        parent.remove(webview);
+        let overlay = gtk::Overlay::new();
+        let area = gtk::GLArea::new();
+        let frame = std::cell::Cell::new(0u32);
+        area.connect_render(move |_, _| {
+            // The colour moves with each frame, so a redraw is a different picture.
+            frame.set(frame.get().wrapping_add(1));
+            let level = (frame.get() % 64) as f32 / 255.0;
+            // SAFETY: GTK made the area's GL context current before this signal.
+            unsafe {
+                glClearColor(level, 0.6, 0.2, 1.0);
+                glClear(GL_COLOR_BUFFER_BIT);
+            }
+            gtk::glib::Propagation::Stop
+        });
+        overlay.add(&area);
+        overlay.add_overlay(webview);
+        match parent.downcast_ref::<gtk::Box>() {
+            Some(b) => b.pack_start(&overlay, true, true, 0),
+            None => parent.add(&overlay),
+        }
+        let css = gtk::CssProvider::new();
+        if css
+            .load_from_data(b"window, window.background, box, overlay { background: none; }")
+            .is_ok()
+        {
+            if let Some(screen) = gtk::gdk::Screen::default() {
+                gtk::StyleContext::add_provider_for_screen(
+                    &screen,
+                    &css,
+                    gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+                );
+            }
+        }
+        if see_through {
+            webview.set_background_color(&gtk::gdk::RGBA::new(0.0, 0.0, 0.0, 0.0));
+        }
+        overlay.show_all();
+        if let Some(fps) = fps.filter(|fps| *fps > 0) {
+            let period = std::time::Duration::from_micros(1_000_000 / u64::from(fps));
+            gtk::glib::timeout_add_local(period, move || {
+                area.queue_render();
+                gtk::glib::ControlFlow::Continue
+            });
+        }
+    }
+}
+
+#[cfg(feature = "wry")]
+fn tune(window: &tauri::WebviewWindow, url: String) {
     use webkit2gtk::{HardwareAccelerationPolicy, SettingsExt, WebViewExt};
     let policy = match std::env::var("BENCH_ACCEL").as_deref() {
         Ok("never") => Some(HardwareAccelerationPolicy::Never),
@@ -78,12 +153,19 @@ fn tune(window: &tauri::WebviewWindow) {
         _ => None,
     };
     let features = std::env::var("BENCH_FEATURES").ok();
-    if policy.is_none() && features.is_none() {
+    let underlay = std::env::var("BENCH_UNDERLAY").ok();
+    let reload = std::env::var("BENCH_RELOAD").is_ok();
+    let fps = std::env::var("BENCH_UNDERLAY_FPS").ok().and_then(|fps| fps.parse().ok());
+    if policy.is_none() && features.is_none() && underlay.is_none() {
         return;
     }
     window
         .with_webview(move |webview| {
-            let Some(settings) = webview.inner().settings() else {
+            let webview = webview.inner();
+            if let Some(kind) = &underlay {
+                underlay::attach(&webview, kind == "seethrough", fps);
+            }
+            let Some(settings) = webview.settings() else {
                 return;
             };
             if let Some(features) = &features {
@@ -91,6 +173,13 @@ fn tune(window: &tauri::WebviewWindow) {
             }
             if let Some(policy) = policy {
                 settings.set_hardware_acceleration_policy(policy);
+            }
+            if reload || features.as_deref().is_some_and(|spec| spec != "list") {
+                let (page, url) = (webview.clone(), url.clone());
+                gtk::glib::timeout_add_local_once(std::time::Duration::from_millis(300), move || {
+                    page.terminate_web_process();
+                    page.load_uri(&url);
+                });
             }
         })
         .expect("with_webview");
@@ -140,7 +229,7 @@ fn main() {
                     .initialization_script(&init)
                     .build()?;
             #[cfg(feature = "wry")]
-            tune(&window);
+            tune(&window, url.clone());
             #[cfg(not(feature = "wry"))]
             let _ = window;
             Ok(())

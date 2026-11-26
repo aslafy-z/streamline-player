@@ -22,7 +22,9 @@ mkdir -p "$res"
 # Beside WebKitGTK's own variables: BENCH_ACCEL and BENCH_FEATURES are what the bench app sets on
 # the web view's settings (never: hardware acceleration policy NEVER; damage: composition limited
 # to the damaged region, off by default in 2.52 and on in 2.54), LP_NUM_THREADS is llvmpipe's
-# rasterizer thread count, BENCH_SIZE the window. texmap: WebKitGTK 2.54 composites with Skia,
+# rasterizer thread count, BENCH_SIZE the window. reload: the web process is restarted once the
+# settings are in, so the page starts with them (the damage variants always do). underlay: a
+# GtkGLArea under the web view, as in the player; see: the web view's background transparent. texmap: WebKitGTK 2.54 composites with Skia,
 # this takes it back to the TextureMapper compositor of 2.52.
 declare -A ENVS=(
 	[wry]=""
@@ -42,6 +44,14 @@ declare -A ENVS=(
 	[wry-shm]="WEBKIT_DMABUF_RENDERER_FORCE_SHM=1"
 	[wry-msaa0]="WEBKIT_SKIA_MSAA_SAMPLE_COUNT=0"
 	[wry-never]="BENCH_ACCEL=never"
+	[wry-never-reload]="BENCH_ACCEL=never BENCH_RELOAD=1"
+	[wry-nocomp-nodmabuf]="WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1"
+	[wry-underlay]="BENCH_UNDERLAY=opaque"
+	[wry-underlay-see]="BENCH_UNDERLAY=seethrough"
+	[wry-underlay-never-reload]="BENCH_UNDERLAY=opaque BENCH_ACCEL=never BENCH_RELOAD=1"
+	[wry-underlay-see-never-reload]="BENCH_UNDERLAY=seethrough BENCH_ACCEL=never BENCH_RELOAD=1"
+	[wry-underlay-see-nodmabuf]="BENCH_UNDERLAY=seethrough WEBKIT_DISABLE_DMABUF_RENDERER=1"
+	[wry-underlay-see-nocomp]="BENCH_UNDERLAY=seethrough WEBKIT_DISABLE_COMPOSITING_MODE=1"
 	[wry-damage]="BENCH_FEATURES=UseDamagingInformationForCompositing=1"
 	[wry-damage-skiacpu]="BENCH_FEATURES=UseDamagingInformationForCompositing=1 WEBKIT_SKIA_ENABLE_CPU_RENDERING=1"
 	[wry-damage-lp1]="BENCH_FEATURES=UseDamagingInformationForCompositing=1 LP_NUM_THREADS=1"
@@ -68,8 +78,9 @@ declare -A ENVS=(
 )
 ORDER="wry wry-reduce wry-soft wry-nocomp wry-nocomp-soft wry-nocomp-t4 wry-nocomp-reduce wry-nocomp-t4-reduce wry-nodmabuf
 wry-skiacpu wry-skiacpu-t1 wry-skiacpu-t4 wry-fps30 wry-vblank wry-shm wry-msaa0
-wry-never wry-damage wry-damage-skiacpu wry-damage-lp1 wry-nodamage wry-texmap wry-lp0 wry-lp1 wry-lp2 wry-gpupaint0
+wry-never wry-never-reload wry-nocomp-nodmabuf wry-damage wry-damage-skiacpu wry-damage-lp1 wry-nodamage wry-texmap wry-lp0 wry-lp1 wry-lp2 wry-gpupaint0
 wry-s720 wry-s1920 wry-nocomp-s720 wry-nocomp-s1920
+wry-underlay wry-underlay-see wry-underlay-never-reload wry-underlay-see-never-reload wry-underlay-see-nodmabuf wry-underlay-see-nocomp
 cef cef-reduce cef-swiftshader cef-raster1 cef-raster4 cef-1proc cef-lowend cef-nosmooth qt qt-reduce"
 
 # The display each runtime gets. Under Wayland, wry and Qt go native; CEF has no Wayland path in
@@ -102,9 +113,11 @@ for rep in $(seq 1 "$reps"); do
 			[[ $name == *-reduce ]] && red="--reduce"
 			[[ $name == *-soft ]] && red="--soft"
 			shot=""
-			[ "$display" = x11 ] && [ "$rep" = 1 ] && shot="SHOT=$out/shots/$display"
+			[ "$display" = x11 ] && [ "$rep" = 1 ] && shot="SHOT=$res-shots"
 			scenario="--scenario $sc"
 			[[ $sc == anim-* ]] && scenario="--scenario hold --label $sc --url http://127.0.0.1:1440/_bench/anim.html?kind=${sc#anim-}"
+			# Over the underlay the page is the player's: transparent but for what moves.
+			[[ $sc == anim-* && $name == *-underlay-see* ]] && scenario="$scenario&bg=none"
 			hook=""
 			[ -n "${HOOK:-}" ] && hook="--hook $HOOK"
 			args="$here/runner.mjs --name $name $scenario --out $res/$name-$sc-$rep.json --timeout 220 $red $hook"
