@@ -1,9 +1,10 @@
 // One bench run: node dev/bench/runner.mjs --name <variant> --bin <app> --scenario nav|player
-//   [--reduce] [--soft] [--out file.json] [--timeout s] [--url page]
+//   [--reduce] [--soft] [--out file.json] [--timeout s] [--url page] [--hook phase:command]
 // Starts the bench app on the served desktop build with the compare shim and driver.js as its
 // init script, and samples the CPU and PSS of the app's whole process tree (and of the display
 // server, COMPOSITOR) at each mark the driver posts. SHOT=<dir> also grabs an X11 screenshot at
-// each phase start.
+// each phase start. --hook runs `command <app pid> <out without .json>.<phase>` when that phase
+// starts (profile.sh: threads and perf over the phase).
 import { spawn } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -20,6 +21,7 @@ const scenario = arg("scenario", "nav");
 const reduce = process.argv.includes("--reduce");
 const soft = process.argv.includes("--soft");
 const out = arg("out", `${OUT}/results/${name}-${scenario}.json`);
+const [hookPhase, hookCmd] = (arg("hook", "") ?? "").split(/:(.*)/);
 const PORT = 8200;
 const HZ = 100;
 
@@ -161,6 +163,8 @@ const onMark = (m) => {
 		result.dom ??= {};
 		result.dom[m.phase] = m.dom;
 		shot(m.phase);
+		if (hookCmd && m.phase === hookPhase)
+			spawn(hookCmd, [String(child.pid), `${out.replace(/\.json$/, "")}.${m.phase}`], { stdio: "inherit" });
 	} else if (m.ev === "end") {
 		const a = open.get(m.phase);
 		const b = sample();
