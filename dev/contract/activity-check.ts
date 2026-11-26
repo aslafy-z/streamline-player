@@ -10,7 +10,6 @@ const KINDS: ActivityKind[] = [
 	"season",
 	"movie",
 	"upgrade",
-	"removed",
 	"download",
 	"device",
 	"server",
@@ -47,7 +46,7 @@ try {
 	if (kind === "mock") {
 		const demo = await start("demo", "--demo-activity");
 		const items = await feed(demo);
-		eq(items.length, 12);
+		eq(items.length, 11);
 		eq(items[0].id, "a1");
 		for (let i = 1; i < items.length; i++)
 			ok(items[i - 1].at > items[i].at, `${items[i].id} is older`);
@@ -65,7 +64,7 @@ try {
 
 		const lean = await start("lean", "--demo-activity=no-downloads");
 		const leanItems = await feed(lean);
-		eq(leanItems.length, 11);
+		eq(leanItems.length, 10);
 		ok(leanItems.every((e) => e.kind !== "download"));
 		await clean(lean.t);
 

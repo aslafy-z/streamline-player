@@ -1,8 +1,10 @@
 <script lang="ts">
 import {
+	AudioLines,
 	Captions,
 	CaptionsOff,
 	ChevronLeft,
+	Gauge,
 	Pause,
 	PictureInPicture2,
 	Play,
@@ -11,14 +13,15 @@ import {
 	Settings,
 	SkipForward,
 } from "@lucide/svelte";
+import { onMount } from "svelte";
+import { fade } from "svelte/transition";
+import { account } from "#lib/core/me.svelte.ts";
 import { rememberedThroughput } from "#lib/core/playback/auto.ts";
-import { digits, modeName, resBadge, subInfo } from "#lib/core/playback/names.ts";
-import { fmtOffset, panelWords } from "#lib/core/playback/panel-words.ts";
+import { modeName, resBadge, subInfo } from "#lib/core/playback/names.ts";
 import type { Launch } from "#lib/core/playback/now-playing.svelte.ts";
+import { fmtOffset, panelWords } from "#lib/core/playback/panel-words.ts";
 import { type Playback, UP_NEXT_SECS } from "#lib/core/playback/playback.svelte.ts";
 import { DEFAULT_SIZE_PX, SIZE_PX } from "#lib/core/playback/rules.ts";
-import { account } from "#lib/core/me.svelte.ts";
-import { clock, type SeekFlash, seekFlash, segments } from "#lib/core/player-view.ts";
 import {
 	audioRows,
 	haltView,
@@ -27,7 +30,9 @@ import {
 	statsRows,
 	subtitleRows,
 } from "#lib/core/player-panels.ts";
+import { clock, SEEK_STEP, type SeekFlash, seekFlash, segments } from "#lib/core/player-view.ts";
 import { prefs, setPref as savePref } from "#lib/core/prefs.svelte.ts";
+import { toast } from "#lib/core/toast.svelte.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
 import BufferingSpinner from "#lib/ui/BufferingSpinner.svelte";
 import EndScreen from "#lib/ui/EndScreen.svelte";
@@ -40,9 +45,7 @@ import StatsPanel from "#lib/ui/StatsPanel.svelte";
 import Stepper from "#lib/ui/Stepper.svelte";
 import SubtitleStyle from "#lib/ui/SubtitleStyle.svelte";
 import UpNextCard from "#lib/ui/UpNextCard.svelte";
-import { canDownload, playbackPort } from "#platform";
-import { onMount } from "svelte";
-import { fade } from "svelte/transition";
+import { adminScan, canDownload, playbackPort } from "#platform";
 
 type Tab = "subs" | "audio" | "quality" | "speed";
 type Flash = { ph: "idle" | "in" | "out"; amt: number; rot: number };
@@ -66,13 +69,11 @@ let {
 const HIDE_MS = 3200;
 const OSD_MS = 900;
 const MAX_EXTRAPOLATION = 1.5;
-const SEEK_STEP = 10;
 const SUB_STEP = 0.1;
 const AUDIO_STEP = 10;
 const CUE_SCALE = 0.72;
 const CUE_BOTTOM = { shown: 96, hidden: 30 };
 const CARD_BOTTOM = { shown: 86, hidden: 24 };
-const SETTINGS_TABS: Tab[] = ["audio", "quality", "speed"];
 const TONE = {
 	ok: "var(--status-available)",
 	conv: "var(--status-downloading)",
@@ -96,7 +97,6 @@ const words = panelWords(playbackPort.playerName);
 
 let controls = $state(true);
 let menu = $state<Tab | null>(null);
-let group = $state<Tab[] | null>(null);
 let styleOpen = $state(false);
 let osd = $state<string | null>(null);
 let skL = $state<Flash>({ ph: "idle", amt: 0, rot: 0 });
@@ -126,7 +126,7 @@ const at = $derived(drag !== null ? drag * duration : shown);
 const pct = $derived(duration > 0 ? Math.min(100, (at / duration) * 100) : 0);
 const segs = $derived(segments(duration, pb.tracks?.chapters ?? []));
 const upNextFrac = $derived(
-	pb.creditsAt === null ? 0 : Math.min(1, Math.max(0, (pb.position - pb.creditsAt) / UP_NEXT_SECS)),
+	pb.creditsAt === null ? 0 : Math.min(1, Math.max(0, (shown - pb.creditsAt) / UP_NEXT_SECS)),
 );
 const skipOn = $derived(((pb.introOn && !prefs.autoSkip) || pb.creditsOn) && !pb.ended && !pb.halt);
 const cardBottom = $derived(showBar ? CARD_BOTTOM.shown : CARD_BOTTOM.hidden);
@@ -156,7 +156,7 @@ onMount(() => {
 });
 
 $effect(() => {
-	if (!pb.playing || !controlsOn) return;
+	if (!pb.playing || !(controlsOn || pb.upNextOn)) return;
 	let raf = requestAnimationFrame(function tick(t) {
 		frameAt = t;
 		raf = requestAnimationFrame(tick);
@@ -173,8 +173,25 @@ $effect(() => {
 	if (pb.halt) closeMenu();
 });
 
-function tap() {
+// A second tap on the same side within this long is that side's skip button, and so is each tap after it.
+const DOUBLE_TAP_MS = 320;
+const SIDE = 0.4;
+let lastTap = { side: 0, at: 0, running: false, controls: true };
+
+function tap(e: MouseEvent) {
 	if (menu) return closeMenu();
+	const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	const x = (e.clientX - r.left) / r.width;
+	const side = x < SIDE ? -1 : x > 1 - SIDE ? 1 : 0;
+	const now = Date.now();
+	if (side !== 0 && lastTap.side === side && now - lastTap.at < DOUBLE_TAP_MS && !pb.ended) {
+		// The pair's first tap toggled the controls: put them back as they were.
+		if (!lastTap.running) controls = lastTap.controls;
+		lastTap = { ...lastTap, at: now, running: true };
+		seek(side * SEEK_STEP);
+		return;
+	}
+	lastTap = { side, at: now, running: false, controls };
 	controls = !controlsOn || !pb.playing ? true : !controls;
 	lastMove = Date.now();
 }
@@ -216,15 +233,25 @@ function seek(delta: number) {
 	show();
 }
 
-function openMenu(tab: Tab, tabs: Tab[] | null = null) {
+function openMenu(tab: Tab) {
 	show();
 	if (menu === tab) return closeMenu();
 	menu = tab;
-	group = tabs;
 }
 
 function closeMenu() {
 	menu = null;
+}
+
+// A tap beside an open panel also lands on the control under it, so one tap is enough to pause or leave.
+function catchTap(e: MouseEvent) {
+	const el = e.currentTarget as HTMLElement;
+	el.style.pointerEvents = "none";
+	const under = document.elementFromPoint(e.clientX, e.clientY)?.closest("button");
+	el.style.pointerEvents = "";
+	const was = menu;
+	if (under && !under.classList.contains("surface")) under.click();
+	if (menu === was) closeMenu();
 }
 
 const ratio = (e: PointerEvent) => {
@@ -250,8 +277,10 @@ const modeLabel = $derived.by(() => {
 	if (!s) return "";
 	const { width, height, hdr, dv_profile } = s.video;
 	const size = resBadge(width, height);
-	if (prefs.techDetails)
-		return `${modeName(s.mode)} · ${s.video.action === "copy" ? size : i18n.player_mbit({ value: digits(s.bandwidth / 1_000_000, 1) })}`;
+	if (prefs.techDetails) {
+		const range = dv_profile !== undefined ? " DV" : hdr === "sdr" ? "" : " HDR";
+		return `${size}${range} · ${modeName(s.mode).toLowerCase()}`;
+	}
 	const range = dv_profile !== undefined ? " · Dolby Vision" : hdr === "sdr" ? "" : " · HDR";
 	return `${size}${range}`;
 });
@@ -278,7 +307,9 @@ const cue = $derived.by(() => {
 	};
 });
 
-const audioList = $derived(audioRows(pb.tracks, pb.selectedAudio, pb.preview, pb.session, words));
+const audioList = $derived(
+	audioRows(pb.tracks, pb.selectedAudio, pb.preview, pb.session, words, pb.passthrough),
+);
 const subList = $derived(subtitleRows(pb.tracks, pb.subPick, words));
 const qualityList = $derived(
 	qualityRows(
@@ -287,6 +318,7 @@ const qualityList = $derived(
 			autoPick: pb.autoPick,
 			measuredOnce: pb.measuredOnce,
 			originalPlays: pb.originalPlays,
+			mobileLimit: pb.mobileLimit,
 			preview: pb.preview,
 			tracks: pb.tracks,
 		},
@@ -303,7 +335,6 @@ const menuRows = $derived(
 				? qualityList
 				: speedList,
 );
-const menuTabs = $derived(group?.map((id) => ({ id, label: TAB_TITLES[id](), on: menu === id })));
 const menuNote = $derived.by(() => {
 	const session = pb.session;
 	if (!session) return undefined;
@@ -335,7 +366,9 @@ const menuNote = $derived.by(() => {
 		const asIs = session.audio.action === "copy";
 		return {
 			text: asIs
-				? i18n.player_audio_note_as_is({ player: playbackPort.playerName, name })
+				? pb.passthrough.includes(session.audio.codec)
+					? i18n.player_audio_note_pass({ name })
+					: i18n.player_audio_note_as_is({ player: playbackPort.playerName, name })
 				: i18n.player_audio_note_convert({
 						player: playbackPort.playerName,
 						name,
@@ -443,6 +476,9 @@ const statList = $derived.by(() => {
 			audioDelay: pb.audioDelay,
 			measured: pb.measured,
 			throughput: pb.network ? rememberedThroughput(pb.network) : null,
+			away: pb.network === "away",
+			passAudio:
+				pb.session?.audio.action === "copy" && pb.passthrough.includes(pb.session.audio.codec),
 			host: URL.canParse(pb.session.url) ? new URL(pb.session.url).host : "",
 			playerName: playbackPort.playerName,
 			full: pb.full,
@@ -461,7 +497,7 @@ const haltModel = $derived(
 					host: pb.host,
 					position: pb.position,
 					isAdmin: account.me?.role === "Admin",
-					routes: { serverSettings: false },
+					routes: { serverSettings: true },
 					canDownload,
 				},
 				words,
@@ -473,6 +509,14 @@ function haltAction(id: string) {
 	if (id === "retry") pb.retry();
 	else if (id === "back") onexit();
 	else if (id === "downloads") goto("/downloads");
+	else if (id === "server-settings") goto("/admin");
+	else if (id === "scan") {
+		adminScan().then(
+			() => toast(i18n.halt_toast_scan_started()),
+			() => {},
+		);
+		onexit();
+	}
 }
 
 const labels = $derived({
@@ -520,27 +564,43 @@ const labels = $derived({
 		<Osd text={osd} />
 	{/if}
 
-	{#each [
-		{ f: skL, side: "left" },
-		{ f: skR, side: "right" },
-	] as s (s.side)}
-		<div class="sk {s.side}" aria-hidden="true">
-			<div class="disc {s.f.ph}" style:--dir={s.side === "left" ? -14 : 14}>
-				<span
-					class="sk-ico"
-					style:transform="rotate({s.f.rot}deg)"
-					style:transition={s.f.ph === "idle" ? "none" : "transform 450ms var(--ease)"}
+	<div class="center" class:live={showBar}>
+		{#each [
+			{ f: skL, step: -SEEK_STEP, label: i18n.player_back_10(), icon: RotateCcw },
+			{ f: skR, step: SEEK_STEP, label: i18n.player_forward_10(), icon: RotateCw },
+		] as k, i (k.step)}
+			{#if i === 1}
+				<button
+					type="button"
+					class="toggle"
+					class:shown={showBar}
+					aria-label={labels.toggle}
+					onclick={togglePlay}
 				>
-					{#if s.side === "left"}
-						<RotateCcw size={46} strokeWidth={1.5} />
+					{#if pb.playing}
+						<Pause size={32} fill="currentColor" strokeWidth={0} />
 					{:else}
-						<RotateCw size={46} strokeWidth={1.5} />
+						<Play size={32} fill="currentColor" strokeWidth={0} />
 					{/if}
-				</span>
-				<span class="sk-amt">{s.f.amt}</span>
-			</div>
-		</div>
-	{/each}
+				</button>
+			{/if}
+			<button
+				type="button"
+				class="seek"
+				class:shown={showBar || k.f.ph === "in"}
+				class:hit={k.f.ph === "in"}
+				aria-label={k.label}
+				onclick={() => seek(k.step)}
+			>
+				<span
+					class="turn"
+					style:transform="rotate({k.f.rot}deg)"
+					style:transition={k.f.ph === "idle" ? "none" : "transform 450ms var(--ease)"}
+					><k.icon size={28} strokeWidth={1.6} /></span
+				><span>{k.f.ph !== "idle" && k.f.amt ? k.f.amt : SEEK_STEP}</span>
+			</button>
+		{/each}
+	</div>
 
 	<div class="chrome" class:off={!showBar} style:opacity={showBar ? 1 : 0}>
 		<div class="top" class:live={showBar}>
@@ -555,7 +615,7 @@ const labels = $derived({
 			<button
 				type="button"
 				class="round"
-				class:on={pb.subPick !== null}
+				class:on={pb.subPick !== null || menu === "subs"}
 				aria-label={i18n.player_subtitles()}
 				onclick={() => openMenu("subs")}
 			>
@@ -565,6 +625,21 @@ const labels = $derived({
 					<Captions size={22} strokeWidth={1.75} />
 				{/if}
 			</button>
+			{#each [
+				{ tab: "audio", label: i18n.player_audio(), icon: AudioLines },
+				{ tab: "quality", label: i18n.player_quality(), icon: Settings },
+				{ tab: "speed", label: i18n.player_speed(), icon: Gauge },
+			] as const as b (b.tab)}
+				<button
+					type="button"
+					class="round"
+					class:on={menu === b.tab}
+					aria-label={b.label}
+					onclick={() => openMenu(b.tab)}
+				>
+					<b.icon size={22} strokeWidth={1.75} />
+				</button>
+			{/each}
 			<button
 				type="button"
 				class="round"
@@ -573,40 +648,6 @@ const labels = $derived({
 				onclick={onpip}
 			>
 				<PictureInPicture2 size={22} strokeWidth={1.75} />
-			</button>
-			<button
-				type="button"
-				class="round"
-				aria-label={i18n.player_settings()}
-				onclick={() => openMenu("quality", SETTINGS_TABS)}
-			>
-				<Settings size={22} strokeWidth={1.75} />
-			</button>
-		</div>
-
-		<div class="center" class:live={showBar}>
-			<button
-				type="button"
-				class="seek"
-				aria-label={i18n.player_back_10()}
-				onclick={() => seek(-SEEK_STEP)}
-			>
-				<RotateCcw size={28} strokeWidth={1.6} /><span>10</span>
-			</button>
-			<button type="button" class="toggle" aria-label={labels.toggle} onclick={togglePlay}>
-				{#if pb.playing}
-					<Pause size={32} fill="currentColor" strokeWidth={0} />
-				{:else}
-					<Play size={32} fill="currentColor" strokeWidth={0} />
-				{/if}
-			</button>
-			<button
-				type="button"
-				class="seek"
-				aria-label={i18n.player_forward_10()}
-				onclick={() => seek(SEEK_STEP)}
-			>
-				<RotateCw size={28} strokeWidth={1.6} /><span>10</span>
 			</button>
 		</div>
 
@@ -718,13 +759,11 @@ const labels = $derived({
 			tabindex="-1"
 			aria-label={i18n.player_close()}
 			transition:fade={{ duration: 180 }}
-			onclick={closeMenu}
+			onclick={catchTap}
 		></button>
 		<PlayerMenu
 			sheet
 			title={TAB_TITLES[menu]()}
-			tabs={menuTabs}
-			ontab={(id) => (menu = id as Tab)}
 			rows={menuRows}
 			note={menuNote}
 			night={menu === "audio"}
@@ -892,64 +931,6 @@ const labels = $derived({
 	white-space: pre-line;
 }
 
-.sk {
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	width: 50%;
-	display: grid;
-	place-items: center;
-	pointer-events: none;
-}
-
-.sk.left {
-	left: 0;
-}
-
-.sk.right {
-	right: 0;
-}
-
-.disc {
-	zoom: 0.85;
-	width: 92px;
-	height: 92px;
-	display: grid;
-	place-items: center;
-	border-radius: 50%;
-	background: rgba(0, 0, 0, 0.6);
-	backdrop-filter: blur(12px);
-	color: var(--player-ink);
-	opacity: 0;
-	transform: scale(0.85);
-}
-
-.disc.in {
-	opacity: 1;
-	transform: none;
-	transition:
-		opacity 120ms var(--ease),
-		transform var(--dur-base) var(--ease);
-}
-
-.disc.out {
-	transition:
-		opacity var(--dur-exit) var(--ease-in),
-		transform var(--dur-exit) var(--ease-in);
-	transform: translateX(calc(var(--dir) * 1px));
-}
-
-.sk-ico {
-	grid-area: 1 / 1;
-	display: grid;
-}
-
-.sk-amt {
-	grid-area: 1 / 1;
-	font: 700 13px var(--font-mono);
-	font-variant-numeric: tabular-nums;
-}
-
 .chrome {
 	position: absolute;
 	inset: 0;
@@ -1027,6 +1008,7 @@ const labels = $derived({
 }
 
 .center {
+	pointer-events: none;
 	position: absolute;
 	left: 50%;
 	top: 50%;
@@ -1043,6 +1025,16 @@ const labels = $derived({
 	border: 0;
 	border-radius: 50%;
 	color: var(--player-ink);
+	opacity: 0;
+	transition:
+		opacity var(--dur-slow),
+		background 150ms,
+		transform 150ms var(--ease);
+}
+
+.seek.shown,
+.toggle.shown {
+	opacity: 1;
 }
 
 .seek {
@@ -1051,9 +1043,15 @@ const labels = $derived({
 	background: rgba(0, 0, 0, 0.3);
 }
 
-.seek :global(svg),
+/* A skip shows on its own button, which stays up while the rest of the controls are hidden. */
+.seek.hit {
+	background: rgba(0, 0, 0, 0.6);
+	transform: scale(1.12);
+}
+
 .seek span {
 	grid-area: 1 / 1;
+	display: grid;
 }
 
 .seek span {
@@ -1227,7 +1225,7 @@ const labels = $derived({
 	transform-origin: 0 0;
 }
 
-.overlay :global(.body),
+.overlay :global(div.body),
 .overlay :global(.zoom) {
 	padding: 0 70px;
 }

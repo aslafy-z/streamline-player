@@ -137,7 +137,6 @@ let {
 	height: 100%;
 	background: var(--player-accent);
 	transform-origin: 0 50%;
-	transition: transform 250ms linear;
 	will-change: transform;
 }
 

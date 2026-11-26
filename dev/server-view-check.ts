@@ -74,6 +74,7 @@ const EN: Record<TextId, string> = {
 	btn_scan: "Scan",
 	btn_scanning: "Scanning…",
 	btn_revoke: "Revoke",
+	btn_end: "End",
 	btn_open: "Open in Streamline",
 	btn_make_secret: "Make a secret",
 	tile_streams: "Streams",
@@ -89,7 +90,8 @@ const EN: Record<TextId, string> = {
 	tile_waiting_secret: "Waiting for a secret",
 	tile_cache: "Transcode cache",
 	tile_nobody: "Nobody is watching",
-	tile_no_requests: "No requests waiting",
+	tile_no_requests: "No TV waiting",
+	tile_nothing_kept: "Nothing kept",
 	tile_empty: "Empty",
 	tile_ffmpeg_missing: "ffmpeg not found",
 	tile_engine_down: "Engine unreachable",
@@ -99,6 +101,8 @@ const EN: Record<TextId, string> = {
 	hw_software: "Software encoding",
 	hw_status_desc: "Checked with a short test encode after every change.",
 	kv_version: "Player extension",
+	kv_location: "Location",
+	on_engine: "On the engine",
 	kv_status: "Status",
 	kv_ffmpeg: "ffmpeg",
 	kv_analysis: "File analysis",
@@ -171,6 +175,19 @@ const words: Words = {
 	engineBuild: (v, api) => (api === undefined ? v : `${v} · API ${api}`),
 	analysisVersion: (n) => `version ${n}`,
 	secretSince: (date) => `Set ${date}`,
+	pairWaiting: (device, code) => `${device} · code ${code}`,
+	sumOverview: (version, ok) => `${version} · ${ok ? "all good" : "no engine secret"}`,
+	sumStreams: (n, video, audio) =>
+		n
+			? `${plural(n, "stream")} · ${video} video · ${audio} audio transcoding`
+			: "Nobody is watching",
+	sumDevices: (n, waiting) =>
+		`${plural(n, "device")} paired${waiting ? ` · ${waiting} waiting` : ""}`,
+	sumTranscoding: (software, n) => `${software ? "Software" : "VAAPI"} · ${n} at once`,
+	sumLibrary: (n, day) => plural(n, "folder") + (day ? ` · checked ${day}` : ""),
+	sumEngine: (version) => `connected · ${version}`,
+	sumAccess: (origins, networks) =>
+		`${plural(origins, "web origin")} · ${plural(networks, "home network")}`,
 	t: (id) => EN[id],
 	label: (k) => LABELS[k] ?? k,
 	desc: (k) => DESCS[k],
@@ -441,6 +458,10 @@ same(
 	["", "Streaming", "Streaming", "Streaming", "Library", "System", "System"],
 );
 eq(section(all, "streams").count, 3);
+eq(
+	all.map((x) => x.sum).join(" | "),
+	"0.1.0 · all good | 3 streams · 1 video · 1 audio transcoding | 3 devices paired · 1 waiting | VAAPI · 2 at once | 2 folders · checked Tue | connected · 0.4.2 | 1 web origin · 2 home networks",
+);
 eq(section(all, "devices").badge, 1);
 eq(section(all, "overview").badge, undefined);
 
@@ -449,7 +470,7 @@ const tile = (label: string) => must(tiles.find((t) => t.label === label));
 eq(tile("Streams").value, "3");
 eq(tile("Streams").sub, "1 video · 1 audio transcoding · 29.9 Mbps out");
 eq(tile("Pairing").value, "1");
-eq(tile("Pairing").sub, "iPad mini");
+eq(tile("Pairing").sub, "iPad mini · code R4W-X9P");
 eq(tile("Library").value, "70");
 eq(tile("Library").sub, "42 movies · 28 shows · 3.5 TB");
 eq(tile("Library").go, "library");
@@ -508,6 +529,7 @@ eq(
 	false,
 );
 same(titled(section(build(noEngine), "transcoding"), "Cache").rows, [
+	{ t: "kv", label: "Location", value: "On the engine" },
 	{ t: "note", tone: "warn", text: "Engine unreachable" },
 ]);
 const soft0 = build(noEngine);
@@ -640,7 +662,7 @@ eq(
 			.flatMap((t) => t.tiles)
 			.find((t) => t.label === "Pairing"),
 	).sub,
-	"No requests waiting",
+	"No TV waiting",
 );
 
 const apps = titled(devices, "Apps and TVs");
@@ -680,7 +702,7 @@ eq(safari.meta, "Hugo Bernard · expires in 2 days");
 eq(safari.aside, "5 days ago");
 eq(item(sessions, "Chrome on Linux").meta, "Camille Roux · expires in 6 days");
 same(safari.buttons, [
-	{ label: "Revoke", act: { do: "end", id: "w2" }, tone: "danger", disabled: false },
+	{ label: "End", act: { do: "end", id: "w2" }, tone: "danger", disabled: false },
 ]);
 
 const empty = demo();
@@ -754,10 +776,10 @@ same(titled(section(build(softMode), "transcoding"), "Hardware acceleration").ro
 eq(setting(all, "stream.max_live").min, 1);
 eq(setting(all, "stream.max_live").max, 8);
 const cache = titled(tr, "Cache").rows;
-eq((cache[0] as { desc: string }).desc, "3.2 GB used by 3 streams.");
+eq((cache[1] as { desc: string }).desc, "3.2 GB used by 3 streams.");
 const cleared = demo();
 cleared.cacheCleared = true;
-same(titled(section(build(cleared), "transcoding"), "Cache").rows[0], {
+same(titled(section(build(cleared), "transcoding"), "Cache").rows[1], {
 	t: "note",
 	tone: "ok",
 	text: EN.note_cache_cleared,

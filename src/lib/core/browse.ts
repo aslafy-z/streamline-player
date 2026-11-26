@@ -19,6 +19,8 @@ export type ResumeItem = Ref & {
 	episode?: number;
 	episodeId?: number;
 	mediaId: string;
+	/** The episode after a finished one, not started yet. */
+	next?: boolean;
 };
 /** What the screen's language does to a number: the one thing a meta line cannot decide in `core`. */
 export type MetaFormat = {
@@ -32,12 +34,15 @@ const addedMs = (t: Title) => Date.parse(t.added_at);
 const ageDays = (t: Title, now: Date) => (now.getTime() - addedMs(t)) / DAY_MS;
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
-/** One entry per title, in the order of `watch` (newest first); a series whose episode is not loaded is skipped. */
+/**
+ * One entry per title, in the order of `watch` (newest first); a series whose episode is not loaded is skipped.
+ * A series is decided by its newest play: unfinished, it resumes; finished, the next episode with a file not
+ * watched yet is up next.
+ */
 export function continueWatching(movies: Title[], shows: Title[], watch: Watch[]): ResumeItem[] {
 	const out: ResumeItem[] = [];
 	const seen = new Set<string>();
 	for (const w of watch) {
-		if (!unfinished(w)) continue;
 		const base = {
 			left: Math.max(0, w.duration_seconds - w.position_seconds),
 			pct: w.duration_seconds > 0 ? Math.round((w.position_seconds / w.duration_seconds) * 100) : 0,
@@ -46,22 +51,34 @@ export function continueWatching(movies: Title[], shows: Title[], watch: Watch[]
 		if (w.series_id !== undefined) {
 			const key = `series:${w.series_id}`;
 			const show = shows.find((t) => t.id === w.series_id);
-			const season = show?.seasons?.find((s) => s.episodes.some((e) => e.id === w.episode_id));
-			const ep = season?.episodes.find((e) => e.id === w.episode_id);
-			if (seen.has(key) || !show || !season || !ep) continue;
+			const eps = (show?.seasons ?? []).flatMap((s) =>
+				s.episodes.map((e) => ({ ...e, season: s.number })),
+			);
+			const at = eps.findIndex((e) => e.id === w.episode_id);
+			if (seen.has(key) || !show || at < 0 || !(w.watched || unfinished(w))) continue;
 			seen.add(key);
+			const ep = w.watched
+				? eps
+						.slice(at + 1)
+						.find(
+							(e) => e.has_file && !watch.some((x) => x.media_id === e.media_file_id && x.watched),
+						)
+				: eps[at];
+			if (!ep) continue;
 			out.push({
-				...base,
+				...(w.watched
+					? { left: ep.runtime * 60, pct: 0, mediaId: ep.media_file_id, next: true }
+					: base),
 				kind: "series",
 				id: show.id,
 				title: show.title,
-				code: `S${season.number} · E${ep.number}`,
+				code: `S${ep.season} · E${ep.number}`,
 				sub: ep.title,
-				season: season.number,
+				season: ep.season,
 				episode: ep.number,
 				episodeId: ep.id,
 			});
-		} else if (w.movie_id !== undefined) {
+		} else if (w.movie_id !== undefined && unfinished(w)) {
 			const key = `movies:${w.movie_id}`;
 			const movie = movies.find((t) => t.id === w.movie_id);
 			if (seen.has(key) || !movie) continue;

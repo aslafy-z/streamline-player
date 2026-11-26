@@ -2,12 +2,13 @@
 name: Image
 
 # The engine's and the web player's images. A push to main publishes `main` and
-# `sha-<commit>` for each image whose inputs it changed; a tag v1.2.3 publishes
-# `1.2.3`, `1.2` and `latest` for both.
+# `sha-<commit>` for each image whose inputs it changed; a tag engine-v1.2.3 or
+# web-v1.2.3 publishes `1.2.3`, `1.2` and `latest` for its own image
+# (.taskfiles/release.yaml cuts them).
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"]
+    tags: ["engine-v*.*.*", "web-v*.*.*"]
 
 concurrency:
   group: image-${{ github.ref }}
@@ -26,8 +27,12 @@ jobs:
     permissions:
       contents: read
     outputs:
-      images: ${{ github.ref_type == 'tag' && '["engine","web"]' || steps.filter.outputs.changes }}
+      images: ${{ github.ref_type == 'tag' && format('["{0}"]', steps.tag.outputs.image) || steps.filter.outputs.changes }}
     steps:
+      - name: The tag's image
+        id: tag
+        if: github.ref_type == 'tag'
+        run: echo "image=${GITHUB_REF_NAME%%-v*}" >> "$GITHUB_OUTPUT"
       - name: Checkout
         if: github.ref_type != 'tag'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,7 +62,6 @@ jobs:
               - 'static/**'
               - 'messages/**'
               - 'project.inlang/settings.json'
-              - 'src-tauri/tauri.conf.json'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'vite.config.ts'
@@ -92,16 +96,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # metadata-action's semver type reads the git tag, and engine-v1.2.3 is
+      # not one: it gets the version without the line's prefix.
+      - name: Version
+        id: v
+        if: github.ref_type == 'tag'
+        run: echo "version=${GITHUB_REF_NAME#*-v}" >> "$GITHUB_OUTPUT"
+
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: latest=false
           tags: |
             type=ref,event=branch
             type=sha
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ steps.v.outputs.version }},enable=${{ github.ref_type == 'tag' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.v.outputs.version }},enable=${{ github.ref_type == 'tag' }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
 
       # The labels come from the Dockerfile: metadata-action's would replace
       # each image's description with the repository's.

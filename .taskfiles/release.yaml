@@ -1,0 +1,144 @@
+version: "3"
+
+# Six release lines, each with its own version file, changelog and tag: the
+# engine, its chart, the web player's chart, and each client. A line releases
+# the way Streamline's do — edit the version, regenerate the changelog, commit
+# both on one revision cut from main@origin, advance main, tag it and push —
+# and the tag is what CI acts on (.github/workflows/{release,image,chart}.yaml).
+#
+# Changelogs split by path: a commit touching src/ lands in every client's,
+# since every client ships it. @V@ in a line's bump and check is the version, @FILE@ its file.
+vars:
+  APP_CLIFF: --config cliff.toml
+  CHART_CLIFF: --config cliff.chart.toml
+  CLIENT_PATHS: >-
+    --include-path 'src/**' --include-path 'static/**' --include-path 'messages/**'
+    --include-path 'project.inlang/**' --include-path 'package.json'
+    --include-path 'pnpm-lock.yaml' --include-path 'vite.config.ts'
+  NATIVE_PATHS: --include-path 'src-tauri/**' --include-path 'plugins/**'
+  CARGO_BUMP: >-
+    sed -i '0,/^version = /s/^version = ".*"$/version = "@V@"/' @FILE@
+    && cargo update --workspace --offline
+  LINES:
+    map:
+      engine:
+        tag: engine-v
+        file: engine/Cargo.toml
+        out: changelog/engine.md
+        bump: CARGO
+        check: '^version = "@V@"$'
+        scope: --include-path 'engine/**' --include-path 'deploy/engine.Dockerfile*'
+        cliff: APP
+      web:
+        tag: web-v
+        file: package.json
+        out: changelog/web.md
+        bump: >-
+          sed -i 's/^\t"version": ".*"$/\t"version": "@V@"/' package.json
+        check: '^\t"version": "@V@"$'
+        scope: CLIENT --include-path 'deploy/web.*'
+        cliff: APP
+      desktop:
+        tag: desktop-v
+        file: src-tauri/Cargo.toml
+        out: changelog/desktop.md
+        bump: CARGO
+        check: '^version = "@V@"$'
+        # ponytail: path-scoped, so a fix(android) touching src/ lands here too;
+        # a scope filter needs a per-client cliff config.
+        scope: CLIENT NATIVE --exclude-path 'src-tauri/gen/android/**' --exclude-path 'src-tauri/tauri.android.conf.json'
+        cliff: APP
+      android:
+        tag: android-v
+        file: src-tauri/tauri.android.conf.json
+        out: changelog/android.md
+        bump: >-
+          sed -i 's/^\t"version": ".*"$/\t"version": "@V@"/' src-tauri/tauri.android.conf.json
+        check: '^\t"version": "@V@"$'
+        scope: CLIENT NATIVE --exclude-path 'src-tauri/tauri.linux.conf.json' --exclude-path 'src-tauri/tauri.windows.conf.json' --exclude-path 'src-tauri/tauri.macos.conf.json'
+        cliff: APP
+      chart-engine:
+        # chart-v: the engine chart's tags before the web chart had a line.
+        tag: chart-engine-v
+        pattern: '^chart-(engine-)?v[0-9]+\.[0-9]+\.[0-9]+'
+        file: deploy/helm/streamline-engine/Chart.yaml
+        out: deploy/helm/streamline-engine/CHANGELOG.md
+        bump: >-
+          sed -i 's/^version: .*/version: @V@/' deploy/helm/streamline-engine/Chart.yaml
+        check: '^version: @V@$'
+        scope: --include-path 'deploy/helm/streamline-engine/**'
+        cliff: CHART
+      chart-web:
+        tag: chart-web-v
+        file: deploy/helm/streamline-player-web/Chart.yaml
+        out: deploy/helm/streamline-player-web/CHANGELOG.md
+        bump: >-
+          sed -i 's/^version: .*/version: @V@/' deploy/helm/streamline-player-web/Chart.yaml
+        check: '^version: @V@$'
+        scope: --include-path 'deploy/helm/streamline-player-web/**'
+        cliff: CHART
+
+tasks:
+  changelog:
+    desc: "Set a line's VERSION, regenerate its changelog, commit both and advance main. Usage - task release:changelog LINE=engine VERSION=0.2.0 (LINE: engine, web, desktop, android, chart-engine, chart-web)"
+    requires: &requires
+      vars:
+        - name: LINE
+          enum: [engine, web, desktop, android, chart-engine, chart-web]
+        - VERSION
+    vars: &vars
+      V: '{{trimPrefix "v" .VERSION}}'
+      L:
+        ref: index .LINES .LINE
+      TAG: "{{.L.tag}}{{.V}}"
+    preconditions:
+      # Also on tag: run alone, a bad VERSION would commit a changelog before
+      # anything checked it.
+      - &semver
+        sh: 'echo "{{.V}}" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+"'
+        msg: "VERSION must look like 0.2.0 or 0.2.0-alpha.1 (a leading v is accepted and stripped)"
+    # The revision is cut from a fresh main@origin, never from @, which would
+    # seal the working copy into the release. jj snapshots the edits on the
+    # bookmark move, so they land on the revision main ends up on.
+    cmds:
+      - jj git fetch --remote origin
+      - 'jj new main@origin -m "docs(changelog): {{.LINE}} v{{.V}}"'
+      - >-
+        {{if eq .L.bump "CARGO"}}{{.CARGO_BUMP | replace "@FILE@" .L.file | replace "@V@" .V}}{{else}}{{.L.bump | replace "@V@" .V}}{{end}}
+      - mkdir -p "$(dirname {{.L.out}})"
+      - >-
+        git-cliff {{if eq .L.cliff "CHART"}}{{.CHART_CLIFF}}{{else}}{{.APP_CLIFF}}{{end}}
+        --tag-pattern '{{.L.pattern | default (print "^" .L.tag "[0-9]+\\.[0-9]+\\.[0-9]+")}}'
+        --tag {{.TAG}}
+        {{.L.scope | replace "CLIENT" .CLIENT_PATHS | replace "NATIVE" .NATIVE_PATHS}}
+        -o {{.L.out}}
+      - jj bookmark set main -r @
+
+  tag:
+    desc: "Tag main <line>-v<VERSION> and push both, triggering CI. Usage - task release:tag LINE=engine VERSION=0.2.0"
+    requires: *requires
+    vars: *vars
+    preconditions:
+      - *semver
+      # jj tag list prints nothing on stdout for a name it doesn't have.
+      - sh: '[ -z "$(jj tag list {{.TAG}} 2>/dev/null)" ]'
+        msg: "{{.TAG}} already exists"
+      # Read main, not the working copy: CI builds from the tag.
+      - sh: 'jj file show -r main {{.L.out}} 2>/dev/null | grep -q "^## \[{{.V}}\]"'
+        msg: "main's {{.L.out}} has no {{.V}} section — run: task release:changelog LINE={{.LINE}} VERSION={{.V}}"
+      - sh: "jj file show -r main {{.L.file}} | grep -qP '{{.L.check | replace \"@V@\" .V}}'"
+        msg: "main's {{.L.file}} is not at {{.V}} — run: task release:changelog LINE={{.LINE}} VERSION={{.V}}"
+    cmds:
+      - jj tag set {{.TAG}} -r main
+      # main goes in the same push: a tag pushed alone leaves main local, and
+      # the next renovate merge makes it conflicted on fetch.
+      - jj git push --remote origin -b main --tag {{.TAG}}
+
+  default:
+    desc: "Cut a release end to end — changelog, commit, advance main, tag and push. Run the halves apart to read the changelog first. Usage - task release LINE=engine VERSION=0.2.0"
+    requires: *requires
+    cmds:
+      - task: changelog
+        vars: {LINE: "{{.LINE}}", VERSION: "{{.VERSION}}"}
+      - task: tag
+        vars: {LINE: "{{.LINE}}", VERSION: "{{.VERSION}}"}

@@ -1,4 +1,5 @@
 <script lang="ts">
+import "#lib/ui/card.css";
 import Tip from "#lib/ui/Tip.svelte";
 import WatchGlyph from "#lib/ui/WatchGlyph.svelte";
 import Art from "#lib/ui/Art.svelte";
@@ -40,6 +41,7 @@ let {
 	note,
 	seasonMark,
 	seasonLang,
+	seasonScan,
 	seasonDl,
 	eps,
 	newLabel,
@@ -54,6 +56,7 @@ let {
 	note: string;
 	seasonMark: { label: string; watched: boolean; onclick: () => void };
 	seasonLang: { label: string; onclick: (e: MouseEvent) => void };
+	seasonScan?: { label: string; onclick: () => void } | null;
 	seasonDl?: Dl | null;
 	eps: Ep[];
 	newLabel: string;
@@ -101,6 +104,17 @@ let {
 			<Tip text={seasonLang.label} />
 			<Icon name="languages" size={17} stroke={1.8} />
 		</button>
+		{#if seasonScan}
+			<button
+				type="button"
+				class="round"
+				aria-label={seasonScan.label}
+				onclick={seasonScan.onclick}
+			>
+				<Tip text={seasonScan.label} />
+				<Icon name="refresh-cw" size={17} stroke={1.8} />
+			</button>
+		{/if}
 		{#if seasonDl}
 			<DownloadButton
 				variant="bar"
@@ -126,8 +140,11 @@ let {
 						></button>
 						<span class="disc"><Icon name="play" filled size={13} /></span>
 					{/if}
+					{#if e.state === "unwatched"}
+						<span class="slp-unread" aria-hidden="true"></span>
+					{/if}
 					{#if e.isNew}
-						<span class="new">{newLabel}</span>
+						<span class="new" class:after-unread={e.state === "unwatched"}>{newLabel}</span>
 					{/if}
 					{#if e.state === "progress"}
 						<span class="bar-p"><span style:width="{e.pct}%"></span></span>
@@ -348,6 +365,10 @@ section {
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--accent-text);
+}
+
+.new.after-unread {
+	left: 28px;
 }
 
 .bar-p {

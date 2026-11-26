@@ -416,15 +416,6 @@ def activity_events():
                 "file": {"resolution": "2160p", "hdr": "HDR10", "audio": "Atmos"},
             },
             {
-                "id": "a12",
-                "kind": "removed",
-                "at": at(4 * hour + 10 * minute),
-                "read": True,
-                "title": {"kind": "movies", "id": 9999},
-                "name": "The Wild Defending Itself",
-                "previous": {"size": 1041976513},
-            },
-            {
                 "id": "a3",
                 "kind": "upgrade",
                 "at": at(5 * hour + 45 * minute),
@@ -598,11 +589,15 @@ def person(pid):
 def art(kind, item_id, name):
     items = MOVIES if kind == "movies" else SERIES
     slug = next((i["slug"] for i in items if str(i["id"]) == item_id), None)
+    if not ART_ON["on"] or not slug:
+        return None
+    if name == "poster-w342":
+        # The extension serves the poster itself when it has no card-sized copy.
+        small = os.path.join(args.art, "p", f"{slug}-w342.jpg")
+        return small if os.path.exists(small) else art(kind, item_id, "poster")
     folder = {"poster": "p", "backdrop": "b"}[name]
     path = os.path.join(args.art, folder, f"{slug}.jpg")
-    if not ART_ON["on"]:
-        return None
-    return path if slug and os.path.exists(path) else None
+    return path if os.path.exists(path) else None
 
 
 def note_progress(sid, position):
@@ -1776,7 +1771,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(204)
             return not_found()
         if method == "POST" and path == "/library/scan":
-            folder = self.body().get("folder_id")
+            body = self.body()
+            if body.get("movies") or body.get("episodes"):
+                return self.reply(202)
+            folder = body.get("folder_id")
             known = ("movies", "series")
             if folder is not None and folder not in known:
                 return not_found()
@@ -1853,7 +1851,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(404, {"error": {"code": "not_found"}})
             return self.image(PICTURE["data"], PICTURE["type"])
         m = re.fullmatch(
-            r"/extensions/player/posters/(movies|series|people)/([\w-]+)/(poster|backdrop|photo)\.jpg",
+            r"/extensions/player/posters/(movies|series|people)/([\w-]+)/(poster|poster-w342|backdrop|photo)\.jpg",
             self.path,
         )
         if m:

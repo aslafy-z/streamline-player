@@ -1197,6 +1197,7 @@ dependencies = [
  "http-body",
  "humantime-serde",
  "libc",
+ "mime_guess",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",

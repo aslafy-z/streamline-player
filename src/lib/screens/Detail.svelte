@@ -55,16 +55,18 @@ import {
 } from "#lib/core/playback/choice.ts";
 import {
 	audioName,
-	codecName,
 	audioOutName,
+	codecName,
 	fileMbit,
 	languageLabel,
+	modeName,
 	subInfo,
 } from "#lib/core/playback/names.ts";
 import type { Tracks } from "#lib/core/playback/port.ts";
 import { isAnime, language } from "#lib/core/playback/rules.ts";
 import { myLanguage, prefs } from "#lib/core/prefs.svelte.ts";
 import { toast } from "#lib/core/toast.svelte.ts";
+import { canScan as isAdmin, scanTitle } from "#lib/screens/scan.ts";
 import type { Decision, Kind, Title } from "#lib/core/types.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
 import { askPort } from "#lib/screens/downloads-port.ts";
@@ -83,6 +85,8 @@ import NotFound from "#lib/ui/NotFound.svelte";
 import { presence } from "#lib/ui/presence.svelte.ts";
 import { useScroll } from "#lib/ui/scroll.ts";
 import TechDetails, { type Row } from "#lib/ui/TechDetails.svelte";
+import WatchMarks from "#lib/ui/WatchMarks.svelte";
+import { watchInfo } from "#lib/core/watch-info.ts";
 import {
 	artwork,
 	canDownload,
@@ -108,6 +112,8 @@ const BAR = 64;
 const MAX_SIMILAR = 8;
 const MAX_CAST = 14;
 const POPOVER_W = 264;
+const POPOVER_EDGE = 12;
+const POPOVER_OVERHANG = 8;
 const POPOVER_H = 330;
 const port = { library, watchState, home, title: fetchTitle };
 
@@ -187,6 +193,14 @@ $effect(() => {
 	}
 });
 
+let passthrough = $state<string[]>([]);
+playbackPort
+	.capabilities()
+	.then((c) => {
+		passthrough = (c as { audio?: { passthrough?: string[] } } | null)?.audio?.passthrough ?? [];
+	})
+	.catch(() => {});
+
 $effect(() => {
 	const media = primary?.mediaId;
 	tracks = null;
@@ -207,6 +221,8 @@ const PLAIN = $derived({
 	audio_transcode: i18n.detail_audio_converted(),
 	transcode: i18n.detail_converted(),
 });
+/** The technical name of the mode for a viewer who asked for the details, the plain sentence otherwise. */
+const playsAs = (mode: keyof typeof PLAIN) => (prefs.techDetails ? modeName(mode) : PLAIN[mode]);
 
 // Failing to know how it will play must not get in the way of the page.
 $effect(() => {
@@ -339,6 +355,7 @@ const toggleWatched = () =>
 	);
 
 const seasonEps = $derived(t?.seasons?.find((s) => s.number === season)?.episodes ?? []);
+const canScan = $derived(isAdmin());
 const seasonTargets = $derived(
 	seasonEps.filter((e) => e.has_file).map((e) => episodeTarget({ ...e, season })),
 );
@@ -541,13 +558,15 @@ const similar = $derived(
 );
 
 const modeText = (m: TechMode) =>
-	m.kind === "asis"
-		? i18n.detail_mode_as_is()
-		: m.kind === "converted"
-			? i18n.detail_mode_converted({ to: m.to })
-			: m.kind === "burn"
-				? i18n.detail_mode_burn({ formats: m.formats.join(", ") })
-				: i18n.detail_mode_shown();
+	m.kind === "pass"
+		? i18n.detail_mode_pass()
+		: m.kind === "asis"
+			? i18n.detail_mode_as_is()
+			: m.kind === "converted"
+				? i18n.detail_mode_converted({ to: m.to })
+				: m.kind === "burn"
+					? i18n.detail_mode_burn({ formats: m.formats.join(", ") })
+					: i18n.detail_mode_shown();
 const modeTone = (m: TechMode) =>
 	m.kind === "converted" ? "convert" : m.kind === "burn" ? "warn" : "copy";
 
@@ -566,7 +585,11 @@ const rows = $derived.by<Row[]>(() => {
 	return techRows(t, kind, tracks, {
 		video: d ? { copy: d.video.action === "copy", out: codecName(d.video.codec) } : undefined,
 		audio: d
-			? { copy: d.audio.action === "copy", out: audioOutName({ audio: d.audio }) }
+			? {
+					copy: d.audio.action === "copy",
+					out: audioOutName({ audio: d.audio }),
+					pass: passthrough.includes(d.audio.codec),
+				}
 			: undefined,
 		subs: (tracks?.subtitles ?? []).map((s) => {
 			const info = subInfo(s);
@@ -651,7 +674,13 @@ function openLang(scope: Scope, el: HTMLElement, ep: number | null) {
 	if (box) {
 		const b = box.getBoundingClientRect();
 		const r = el.getBoundingClientRect();
-		x = Math.max(0, Math.min(box.offsetWidth - POPOVER_W, r.right - b.left - POPOVER_W));
+		x = Math.max(
+			POPOVER_EDGE,
+			Math.min(
+				box.offsetWidth - POPOVER_W - POPOVER_EDGE,
+				r.right - b.left - POPOVER_W + POPOVER_OVERHANG,
+			),
+		);
 		y = r.bottom - b.top + 8;
 		const host = scroller?.();
 		const bottom = host ? host.getBoundingClientRect().bottom : window.innerHeight;
@@ -738,11 +767,7 @@ function setSeason(n: number) {
 }
 
 const heroHeight = $derived(
-	isTablet()
-		? Math.round(innerHeight * 0.78)
-		: !series && castShown.length
-			? Math.max(420, innerHeight - 250)
-			: Math.round(innerHeight * 0.78),
+	!series && castShown.length ? Math.max(420, innerHeight - 250) : Math.round(innerHeight * 0.78),
 );
 </script>
 
@@ -768,7 +793,11 @@ const heroHeight = $derived(
 	{:else if t && ready}
 		<section class="hero" style:min-height="{heroHeight}px" style:padding-inline="{PAD_X}px">
 			<div class="backdrop">
-				<Art src={artwork(kind, t.id, "backdrop")} position="50% 25%" />
+				<Art
+					src={artwork(kind, t.id, "backdrop")}
+					fallback={artwork(kind, t.id, "poster")}
+					position="50% 25%"
+				/>
 				<div class="side"></div>
 				<div class="low"></div>
 			</div>
@@ -821,6 +850,25 @@ const heroHeight = $derived(
 						<Tip text={heroLang} />
 						<Icon name="languages" size={19} stroke={1.9} />
 					</button>
+					{#if canScan && t}
+						{@const label = i18n.detail_scan_title({ title: t.title })}
+						{@const title = t}
+						<button
+							type="button"
+							class="glass sq"
+							aria-label={label}
+							onclick={() =>
+								scanTitle(
+									kind,
+									id,
+									i18n.detail_toast_scanning_title({ title: title.title }),
+									episodesOf(title),
+								)}
+						>
+							<Tip text={label} />
+							<Icon name="refresh-cw" size={19} stroke={1.9} />
+						</button>
+					{/if}
 					{#if seriesDl}
 						<DownloadButton
 							variant="hero"
@@ -850,7 +898,7 @@ const heroHeight = $derived(
 				{#if decided}
 					<div class="status">
 						<span class="dot" class:copy={full}></span>
-						<span class="plain">{PLAIN[decided.mode]}</span>
+						<span class="plain">{playsAs(decided.mode)}</span>
 						<span class="detail-note">{statusDetail}</span>
 					</div>
 				{/if}
@@ -887,6 +935,13 @@ const heroHeight = $derived(
 						label: seasonLang,
 						onclick: (e) => openLang("season", e.currentTarget as HTMLElement, null),
 					}}
+					seasonScan={canScan
+						? {
+								label: i18n.detail_scan_season({ season }),
+								onclick: () =>
+									scanTitle(kind, id, i18n.detail_toast_scanning_season({ season }), seasonEps),
+							}
+						: null}
 					seasonDl={seasonDl && {
 						look: seasonDl.state,
 						label: seasonDl.state.label,
@@ -923,7 +978,7 @@ const heroHeight = $derived(
 				summary={techSummary}
 				open={techOpen ?? prefs.techDetails}
 				status={{
-					label: decided ? PLAIN[decided.mode] : "",
+					label: decided ? playsAs(decided.mode) : "",
 					where: device ? i18n.detail_on_device({ device }) : "",
 					copy: !!full,
 				}}
@@ -943,7 +998,12 @@ const heroHeight = $derived(
 						{#each similar as it (`${it.kind}:${it.id}`)}
 							<button type="button" onclick={() => goto(`/detail/${it.kind}/${it.id}`)}>
 								<span class="poster"
-									><Art src={artwork(it.kind, it.id, "poster")} kind="poster" ratio="2 / 3" /></span
+									><Art
+										src={artwork(it.kind, it.id, "poster")}
+										small={artwork(it.kind, it.id, "poster-w342")}
+										kind="poster"
+										ratio="2 / 3"
+									/><WatchMarks info={watchInfo(it, it.kind, lib.watch)} /></span
 								>
 								<span class="name">{it.title}</span>
 							</button>

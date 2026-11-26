@@ -1,0 +1,9 @@
+creation_rules:
+  - path_regex: '^secrets/.*\.enc\.yaml$'
+    age: age13q7kqza63eva6haww69za2fkut7yp6nuyye77zc33hnx3n03y3ns66rfzc
+
+# secrets/android.enc.yaml is the release signing key. CI never decrypts it: it
+# reads three Actions secrets, set (and reset after a key rotation) with
+#   sops decrypt --extract '["keystore"]' secrets/android.enc.yaml | gh secret set ANDROID_KEYSTORE -R Streamline-HQ/streamline-player
+#   sops decrypt --extract '["password"]' secrets/android.enc.yaml | gh secret set ANDROID_KEYSTORE_PASSWORD -R Streamline-HQ/streamline-player
+#   sops decrypt --extract '["alias"]' secrets/android.enc.yaml | gh secret set ANDROID_KEY_ALIAS -R Streamline-HQ/streamline-player

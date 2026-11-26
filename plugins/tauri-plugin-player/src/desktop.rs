@@ -368,6 +368,7 @@ pub async fn load(
     audio: Option<u32>,
 ) -> Done {
     let p = player.inner().clone();
+    let _ = view::on_gtk(|| view::see_through(true));
     tauri::async_runtime::spawn_blocking(move || p.load(&url, at.unwrap_or(0.0), audio))
         .await
         .map_err(|e| e.to_string())?
@@ -376,6 +377,7 @@ pub async fn load(
 #[tauri::command]
 pub fn stop(player: State<'_, Arc<Player>>) -> Done {
     player.finish_load();
+    let _ = view::on_gtk(|| view::see_through(false));
     player.mpv.command(&["stop"])
 }
 

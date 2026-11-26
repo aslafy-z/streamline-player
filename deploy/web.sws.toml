@@ -1,0 +1,14 @@
+# static-web-server keeps HTML a day by default. After a release, a cached
+# index.html names chunks the new image no longer has. Everything is revalidated
+# instead; only the hashed chunks are kept as they are. A later entry overrides
+# an earlier one.
+
+[[advanced.headers]]
+source = "**"
+[advanced.headers.headers]
+Cache-Control = "no-cache"
+
+[[advanced.headers]]
+source = "/_app/immutable/**"
+[advanced.headers.headers]
+Cache-Control = "public, max-age=31536000, immutable"

@@ -19,6 +19,7 @@ import Banner from "#lib/ui/Banner.svelte";
 import Button from "#lib/ui/Button.svelte";
 import EmptyState from "#lib/ui/EmptyState.svelte";
 import Icon from "#lib/ui/Icon.svelte";
+import TriPick from "#lib/ui/TriPick.svelte";
 import StorageMeter from "#lib/ui/StorageMeter.svelte";
 import { prefs } from "#lib/core/prefs.svelte.ts";
 import { TARGET } from "#lib/platform/target.ts";
@@ -86,26 +87,7 @@ const toggleAll = (keys: string[]) => {
 const keysOf = (cards: Card[]) => cards.map((c) => c.key);
 </script>
 
-{#snippet tri(keys: string[], name: string, margin: string)}
-	{@const st = stateOf(keys)}
-	<!-- biome-ignore lint/a11y/useSemanticElements: a native checkbox has no mixed look to restyle. -->
-	<button
-		type="button"
-		class="tri"
-		style:margin
-		role="checkbox"
-		aria-checked={st === "mixed" ? "mixed" : st === "true"}
-		aria-label={(st === "true" ? i18n.dl_unselect_all_of : i18n.dl_select_all_of)({ name })}
-		onclick={() => toggleAll(keys)}
-	>
-		<span class="box" class:on={st === "true"} class:part={st === "mixed"} aria-hidden="true">
-			<Icon name="tick" size={13} stroke={3} />
-			<Icon name="minus" size={13} stroke={3} />
-		</span>
-	</button>
-{/snippet}
-
-<div class="page">
+<div class="page" style:--pick-line="color-mix(in srgb, var(--fg) 28%, transparent)">
 	<div class="top">
 		<div class="titles">
 			<h1>{i18n.shell_downloads()}</h1>
@@ -182,11 +164,16 @@ const keysOf = (cards: Card[]) => cards.map((c) => c.key);
 				<div class="group">
 					<div class="grow">
 						{#if selecting}
-							{@render tri(
-								g.seasons.flatMap((s) => keysOf(s.cards)),
-								g.title,
-								"-4px -4px 0",
-							)}
+							{@const keys = g.seasons.flatMap((s) => keysOf(s.cards))}
+							{@const st = stateOf(keys)}
+							<TriPick
+								state={st}
+								label={(st === "true" ? i18n.dl_unselect_all_of : i18n.dl_select_all_of)({
+									name: g.title,
+								})}
+								margin="-4px -4px 0"
+								onclick={() => toggleAll(keys)}
+							/>
 						{/if}
 						<button type="button" class="ghead" onclick={g.open}>
 							<span class="poster"><Art src={artworkAt(g.poster)} kind="poster" /></span>
@@ -201,7 +188,15 @@ const keysOf = (cards: Card[]) => cards.map((c) => c.key);
 						{#if s.label}
 							<div class="srow">
 								{#if selecting}
-									{@render tri(keysOf(s.cards), s.label, "0 -4px")}
+									{@const st = stateOf(keysOf(s.cards))}
+									<TriPick
+										state={st}
+										label={(st === "true" ? i18n.dl_unselect_all_of : i18n.dl_select_all_of)({
+											name: s.label,
+										})}
+										margin="0 -4px"
+										onclick={() => toggleAll(keysOf(s.cards))}
+									/>
 								{/if}
 								<span class="season">{s.label}</span>
 							</div>
@@ -301,7 +296,8 @@ const keysOf = (cards: Card[]) => cards.map((c) => c.key);
 	display: flex;
 	flex-direction: column;
 	gap: 22px;
-	padding: calc(env(safe-area-inset-top) + 12px) 20px 32px;
+	/* 4 on top of the 28 the shell leaves under its pages. */
+	padding: calc(env(safe-area-inset-top) + 12px) 20px 4px;
 }
 
 .none {
@@ -427,19 +423,6 @@ h1 {
 .srow {
 	min-height: 32px;
 	padding: 6px 0 0;
-}
-
-.tri {
-	flex: none;
-	width: 32px;
-	height: 32px;
-	display: grid;
-	place-items: center;
-	padding: 0;
-	border: 0;
-	border-radius: 50%;
-	background: transparent;
-	cursor: pointer;
 }
 
 section {
@@ -757,15 +740,6 @@ h2 {
 	grid-area: 1 / 1;
 }
 
-.box.part {
-	border-color: var(--accent);
-	background: var(--accent-soft);
-}
-
-.box.part :global(.sl-ico:last-child) {
-	opacity: 1;
-	color: var(--accent-text);
-}
 .wifi {
 	display: flex;
 	align-items: center;

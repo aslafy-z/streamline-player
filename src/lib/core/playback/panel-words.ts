@@ -94,10 +94,13 @@ export function panelWords(playerName: string): Words {
 		autoNow: (quality, why) => i18n.player_auto_now({ quality, why }),
 		autoNowOnly: (quality) => i18n.player_auto_now_only({ quality }),
 		autoBasedOnConnection: i18n.player_auto_based_on_connection(),
+		autoCappedOnCellular: i18n.player_auto_capped_cellular(),
+		awayFromHome: i18n.player_stat_away(),
 		autoConnectionAllows: i18n.player_auto_connection_allows(),
 		originalFile: i18n.player_stat_original_file(),
 		nothingConverted: i18n.player_stat_nothing_converted(),
 		statAsIs: i18n.player_stat_as_is(),
+		passThrough: i18n.player_pass_through(),
 		fileItself: i18n.player_stat_file_itself(),
 		audioOnly: i18n.player_stat_audio_only(),
 		burnedIn: i18n.player_stat_burned_in(),
@@ -113,5 +116,11 @@ export function panelWords(playerName: string): Words {
 		backTo: (title) => i18n.player_back_to({ title }),
 		downloadsStillPlay: i18n.halt_downloads_still_play(),
 		watchDownload: i18n.dl_watch(),
+		openServerSettings: i18n.halt_open_server(),
+		scanLibrary: i18n.halt_scan_library(),
+		adminNotes: {
+			missing: i18n.halt_missing_note_admin(),
+			nocodec: i18n.halt_nocodec_note_admin(),
+		},
 	};
 }

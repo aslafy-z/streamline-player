@@ -1,4 +1,5 @@
 <script lang="ts">
+import { onMount, untrack } from "svelte";
 import { loadActivity, unread } from "#lib/core/activity.svelte.ts";
 import { bellLabel } from "#lib/core/activity-view.ts";
 import {
@@ -10,20 +11,19 @@ import {
 	recentCount,
 	recentlyAdded,
 	topGenre,
+	years,
 } from "#lib/core/browse.ts";
-import { dl } from "#lib/core/downloads.svelte.ts";
-import { years } from "#lib/core/browse.ts";
 import { badges, left, runtime, stillPos } from "#lib/core/format.ts";
 import { lib, loadLibrary } from "#lib/core/library.svelte.ts";
-import { loadErrorText } from "#lib/core/load-error.ts";
 import { account } from "#lib/core/me.svelte.ts";
 import { picture, syncPicture } from "#lib/core/picture.svelte.ts";
 import type { Kind, Title } from "#lib/core/types.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import LoadFailed from "#lib/screens/LoadFailed.svelte";
 import { titleCard } from "#lib/screens/title-card.svelte.ts";
-import { activityWords } from "#lib/ui/activity-words.ts";
 import Art from "#lib/ui/Art.svelte";
 import Avatar from "#lib/ui/Avatar.svelte";
+import { activityWords } from "#lib/ui/activity-words.ts";
 import Button from "#lib/ui/Button.svelte";
 import EmptyState from "#lib/ui/EmptyState.svelte";
 import Icon from "#lib/ui/Icon.svelte";
@@ -35,7 +35,6 @@ import { useScroll } from "#lib/ui/scroll.ts";
 import {
 	activity,
 	artwork,
-	canDownload,
 	home,
 	library,
 	markActivityRead,
@@ -43,7 +42,6 @@ import {
 	title,
 	watchState,
 } from "#platform";
-import { onMount, untrack } from "svelte";
 
 type Slide = {
 	key: string;
@@ -87,12 +85,14 @@ const showSub = (t: Title) =>
 const quality = (t: Title) =>
 	[t.file_summary?.resolution, t.file_summary?.hdr].filter(Boolean).join(" ");
 
-const playResume = (r: (typeof resume)[number]) => goto(playUrl(r.kind, r.id, r.episodeId, true));
+const playResume = (r: (typeof resume)[number]) =>
+	goto(playUrl(r.kind, r.id, r.episodeId, !r.next));
 const open = (kind: Kind, id: number, season?: number) =>
 	goto(`/detail/${kind}/${id}${season ? `?s=${season}` : ""}`);
 
 function eyebrow(f: NonNullable<typeof lib.feed>["featured"][number], t: Title) {
 	if (f.reason === "continue") return i18n.home_continue_watching();
+	if (f.reason === "next") return i18n.home_up_next();
 	if (f.reason === "new_episodes" && f.season !== undefined && f.episodes?.length) {
 		const first = f.episodes[0];
 		const last = f.episodes.at(-1);
@@ -133,15 +133,19 @@ const slides = $derived.by(() => {
 						})
 					: [t.year, t.runtime ? runtime(t.runtime) : "", quality(t)].filter(Boolean).join(" · "),
 				primary: episode
-					? i18n.detail_resume_episode({
+					? (going.next ? i18n.detail_play_episode : i18n.detail_resume_episode)({
 							season: going.season as number,
 							episode: going.episode as number,
 						})
 					: i18n.common_resume(),
-				progress: {
-					pct: going.pct,
-					left: going.sub ? `${going.sub} · ${left(going.left)}` : left(going.left),
-				},
+				...(going.next
+					? {}
+					: {
+							progress: {
+								pct: going.pct,
+								left: going.sub ? `${going.sub} · ${left(going.left)}` : left(going.left),
+							},
+						}),
 				onprimary: () => playResume(going),
 			});
 			continue;
@@ -274,31 +278,63 @@ onMount(() => {
 		clearTimeout(swap);
 	};
 });
+
+// The header stays at the top of the page and takes a background once the hero starts to leave.
+const PIN_AFTER_PX = 24;
+let scrolled = $state(false);
+$effect(() => {
+	const el = scroller?.();
+	if (!el) return;
+	const on = () => (scrolled = el.scrollTop > PIN_AFTER_PX);
+	on();
+	el.addEventListener("scroll", on, { passive: true });
+	return () => el.removeEventListener("scroll", on);
+});
 </script>
 
 <div class="home">
 	{#if lib.error !== null}
-		<div class="state">
-			<EmptyState icon="film" title={i18n.home_error_title()} text={loadErrorText(lib.error)}>
-				{#snippet action()}
-					<div class="failed-actions">
-						<Button variant="secondary" onclick={() => loadLibrary(port, true)}>
-							{i18n.halt_try_again()}
-						</Button>
-						{#if canDownload && dl.items.some((e) => e.state === "done")}
-							<Button variant="secondary" onclick={() => goto("/downloads")}>
-								{i18n.dl_watch()}
-							</Button>
-						{/if}
-					</div>
-				{/snippet}
-			</EmptyState>
-		</div>
+		<LoadFailed error={lib.error} retry={() => loadLibrary(port, true)} />
 	{:else if empty}
 		<div class="state">
 			<EmptyState icon="film" title={i18n.home_empty_title()} text={i18n.home_empty_text()} />
 		</div>
 	{:else if lib.loaded}
+		<div class="pin">
+			<div class="top" class:scrolled>
+				<div class="brand">
+					<Mark size={28} ring={false} />
+					<span>streamline</span>
+				</div>
+				<div class="actions">
+					<span class="bell">
+						<Button
+							variant="icon"
+							icon="bell"
+							label={bell}
+							title={bell}
+							dot={unread() > 0}
+							onclick={() => goto("/activity")}
+						/>
+					</span>
+					<button
+						type="button"
+						class="account"
+						aria-label={i18n.nav_settings()}
+						onclick={() => goto("/settings")}
+					>
+						<Avatar
+							name={me?.name}
+							email={me?.email}
+							initials={me?.initials}
+							color={AVATAR_COLOR}
+							picture={picture.url}
+							size={32}
+						/>
+					</button>
+				</div>
+			</div>
+		</div>
 		{#if slide}
 			<section class="hero" use:swipe>
 				{#each slides as s, i (s.key)}
@@ -307,39 +343,6 @@ onMount(() => {
 					</div>
 				{/each}
 				<div class="scrim"></div>
-				<div class="top">
-					<div class="brand">
-						<Mark size={28} />
-						<span>streamline</span>
-					</div>
-					<div class="actions">
-						<span class="bell">
-							<Button
-								variant="icon"
-								icon="bell"
-								label={bell}
-								title={bell}
-								dot={unread() > 0}
-								onclick={() => goto("/activity")}
-							/>
-						</span>
-						<button
-							type="button"
-							class="account"
-							aria-label={i18n.nav_settings()}
-							onclick={() => goto("/settings")}
-						>
-							<Avatar
-								name={me?.name}
-								email={me?.email}
-								initials={me?.initials}
-								color={AVATAR_COLOR}
-								picture={picture.url}
-								size={32}
-							/>
-						</button>
-					</div>
-				</div>
 				<div class="body" style={text}>
 					<div class="eyebrow">{slide.eyebrow}</div>
 					<h1>{slide.title}</h1>
@@ -498,11 +501,6 @@ onMount(() => {
 </div>
 
 <style>
-.failed-actions {
-	display: flex;
-	gap: 10px;
-}
-
 .home {
 	position: relative;
 	min-height: 100%;
@@ -543,16 +541,34 @@ onMount(() => {
 	);
 }
 
+.pin {
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	height: 0;
+}
+
 .top {
 	position: absolute;
 	left: 0;
 	right: 0;
-	top: env(safe-area-inset-top);
-	height: 52px;
+	top: 0;
+	height: calc(env(safe-area-inset-top) + 52px);
+	box-sizing: border-box;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 0 20px;
+	padding: env(safe-area-inset-top) 20px 0;
+	transition:
+		background var(--dur-base),
+		box-shadow var(--dur-base);
+}
+
+.top.scrolled {
+	background: color-mix(in srgb, var(--bg-deep) 78%, transparent);
+	backdrop-filter: blur(16px) saturate(150%);
+	-webkit-backdrop-filter: blur(16px) saturate(150%);
+	box-shadow: inset 0 -1px 0 var(--border);
 }
 
 .brand {
@@ -623,6 +639,11 @@ h1 {
 	font-weight: 700;
 	letter-spacing: -0.03em;
 	text-wrap: balance;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
 }
 
 .meta {
@@ -752,7 +773,7 @@ h1 {
 }
 
 .rows.bare {
-	padding-top: calc(env(safe-area-inset-top) + 20px);
+	padding-top: calc(env(safe-area-inset-top) + 60px);
 }
 
 .rows section {

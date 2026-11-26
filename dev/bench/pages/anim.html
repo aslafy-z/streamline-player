@@ -1,0 +1,56 @@
+<!doctype html>
+<!-- One animation on an otherwise still page, to cost the webview itself rather than the app's
+     pages: anim.html?kind=bar|zoom|spin|width|still
+       bar    a 44 px bar, scaled along x by a CSS animation (a compositor animation on its own layer)
+       zoom   a full-window backdrop, scaled by a CSS animation (same, over every pixel)
+       spin   a 32 px spinner, rotated by a CSS animation
+       width  the 44 px bar animated through its width: no layer, repainted by the main thread
+       still  nothing moves
+     &bg=none leaves the page transparent but for the moving part, as the player's page is over
+     the video. &play=<url> has the player plugin play that file under the page (BENCH_PLAYER),
+     and &stop=<ms> has it stop after that long. -->
+<meta charset="utf-8" />
+<title>bench: one animation</title>
+<style>
+	html, body { margin: 0; height: 100%; background: #101014; color: #ddd; font: 16px sans-serif; overflow: hidden; }
+	.backdrop { position: absolute; inset: 0; background: linear-gradient(120deg, #233 0%, #638 45%, #c63 100%); }
+	.text { position: absolute; left: 48px; top: 48px; max-width: 40em; line-height: 1.5; }
+	.bar { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; background: #e33; transform-origin: left; }
+	.spinner { position: absolute; right: 48px; top: 48px; width: 32px; height: 32px; border: 4px solid #fff; border-top-color: transparent; border-radius: 50%; }
+	@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+	@keyframes widen { from { width: 0; } to { width: 100%; } }
+	@keyframes zoom { from { transform: scale(1); } to { transform: scale(1.08); } }
+	@keyframes turn { to { transform: rotate(1turn); } }
+	.kind-bar .bar { animation: grow 8s linear infinite; }
+	.kind-width .bar { right: auto; animation: widen 8s linear infinite; }
+	.kind-zoom .backdrop { animation: zoom 8s linear infinite alternate; }
+	.kind-spin .spinner { animation: turn 1s linear infinite; }
+	.kind-still .spinner, .kind-bar .spinner, .kind-width .spinner, .kind-zoom .spinner { display: none; }
+	.kind-still .bar, .kind-zoom .bar, .kind-spin .bar { display: none; }
+	.bg-none, .bg-none body { background: transparent; }
+	.bg-none .backdrop { display: none; }
+</style>
+<div class="backdrop"></div>
+<p class="text">One animation on a still page. The rest of this window never changes: a webview that
+tracks what changed has only the moving part to draw.</p>
+<div class="bar"></div>
+<div class="spinner"></div>
+<script>
+	const query = new URLSearchParams(location.search);
+	document.documentElement.className = `kind-${query.get("kind") ?? "bar"} bg-${query.get("bg") ?? "page"}`;
+	// Spelled in two halves: the bench renames the name in the pages it serves (stack.sh).
+	const tauri = window["__TAURI" + "_INTERNALS__"];
+	if (query.get("play") && tauri) {
+		// A second in: the plugin puts its video layer under the web view once the view is ready,
+		// and a load that comes before that leaves the page opaque.
+		setTimeout(async () => {
+			try {
+				await tauri.invoke("plugin:player|load", { url: query.get("play") });
+				await tauri.invoke("plugin:player|play");
+			} catch (error) {
+				document.querySelector(".text").append(` player: ${error}`);
+			}
+			if (query.get("stop")) setTimeout(() => tauri.invoke("plugin:player|stop"), +query.get("stop"));
+		}, 1000);
+	}
+</script>

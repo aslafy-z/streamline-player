@@ -1,4 +1,5 @@
 <script lang="ts">
+import { otherDevices } from "#lib/core/devices.ts";
 import Tip from "#lib/ui/Tip.svelte";
 import { type FieldError, PICTURE_TYPES, pictureProblem, refusal } from "#lib/core/account.ts";
 import { type Caps, chips } from "#lib/core/capabilities.ts";
@@ -15,6 +16,7 @@ import { toast } from "#lib/core/toast.svelte.ts";
 import type { Device, DeviceInfo } from "#lib/core/types.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
 import { isTablet } from "#lib/platform/form-factor.svelte.ts";
+import ScopeMenu from "#lib/shells/phone/ScopeMenu.svelte";
 import { IS_WEB } from "#lib/platform/target.ts";
 import { downloadsPort } from "#lib/screens/downloads-port.ts";
 import Art from "#lib/ui/Art.svelte";
@@ -209,7 +211,7 @@ const choice = (key: ChoiceKey, vals: string[]) =>
 	vals.map((v) => ({ value: v, label: shown(key, v) }));
 
 const selfDevice = $derived(devices.find((d) => d.current));
-const others = $derived(devices.filter((d) => !d.current));
+const others = $derived(otherDevices(devices));
 const pairPage = $derived(me?.player_url ? `${me.player_url.replace(/\/+$/, "")}/pair` : null);
 const deviceIcon = (d: Device): IconName =>
 	/browser/i.test(d.platform)
@@ -245,9 +247,8 @@ const preview = $derived(
 			: null,
 );
 const cueColor = $derived(
-	prefs.subColor === "Yellow"
-		? "color-mix(in srgb, var(--status-wanted) 40%, var(--fg))"
-		: "var(--fg)",
+	// The cue is drawn over a picture, as in the player: its colours do not follow the theme.
+	prefs.subColor === "Yellow" ? "#fde68a" : "#fff",
 );
 const cueShadow = $derived(
 	prefs.subBg === "Shadow"
@@ -337,7 +338,11 @@ onMount(() => {
 				picture={me?.picture ? profilePicture.url : undefined}
 			/>
 			<span class="who">
-				<h1>{i18n.settings_title()}</h1>
+				{#if me?.role === "Admin"}
+					<ScopeMenu here="settings" title={i18n.settings_title()} {host} />
+				{:else}
+					<h1>{i18n.settings_title()}</h1>
+				{/if}
 				<span class="mono">{me?.name} · {me?.email} · {me?.role}</span>
 			</span>
 			{#if me?.role === "Admin"}
@@ -568,7 +573,7 @@ onMount(() => {
 					/>
 				{/snippet}
 			</SettingsRow>
-			<SettingsRow label={i18n.settings_preview()}>
+			<SettingsRow label={i18n.settings_preview()} subtle>
 				{#snippet below()}
 					<div class="preview">
 						{#if preview}
@@ -653,11 +658,13 @@ onMount(() => {
 					/>
 				{/snippet}
 			</SettingsRow>
-			<SettingsRow label={i18n.settings_shortcuts()}>
-				{#snippet control()}
-					<span class="info">{i18n.settings_shortcuts_value()}</span>
-				{/snippet}
-			</SettingsRow>
+			{#if !isTablet()}
+				<SettingsRow label={i18n.settings_shortcuts()}>
+					{#snippet control()}
+						<span class="info">{i18n.settings_shortcuts_value()}</span>
+					{/snippet}
+				</SettingsRow>
+			{/if}
 		</SettingsList>
 
 		<SettingsList id="language" title={TITLES.language()}>
@@ -757,7 +764,7 @@ onMount(() => {
 			{/if}
 			<SettingsRow
 				label={i18n.settings_video_player()}
-				desc={IS_WEB ? undefined : i18n.settings_video_player_desc()}
+				desc={IS_WEB || isTablet() ? undefined : i18n.settings_video_player_desc()}
 			>
 				{#snippet control()}
 					<span class="info">{info?.player ?? "—"}</span>
@@ -832,8 +839,10 @@ onMount(() => {
 		<div class="ask">
 			<p>{i18n.settings_sign_out_body()}</p>
 			<div class="ask-actions">
-				<Button variant="ghost" onclick={() => (leaving = null)}>{i18n.settings_cancel()}</Button>
-				<Button variant="danger-outline" onclick={confirmSignOut}
+				<Button variant="secondary" onclick={() => (leaving = null)}
+					>{i18n.settings_cancel()}</Button
+				>
+				<Button variant="destructive" onclick={confirmSignOut}
 					>{i18n.settings_sign_out_value()}</Button
 				>
 			</div>
@@ -1062,7 +1071,7 @@ h1 {
 	height: 150px;
 	border-radius: 12px;
 	overflow: hidden;
-	background: var(--bg-deep);
+	background: #000;
 }
 
 .preview :global(.art) {

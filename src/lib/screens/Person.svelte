@@ -26,7 +26,7 @@ import { isTablet } from "#lib/platform/form-factor.svelte.ts";
 const PAD_X = $derived(isTablet() ? 44 : 56);
 const TOP = 80;
 const GLOW = 480;
-const MIN_COL = 148;
+const MIN_COL = $derived(isTablet() ? 140 : 148);
 
 let { id }: { id: string } = $props();
 
@@ -136,6 +136,7 @@ const subOf = (c: Credit) =>
 					note={c.character}
 					sub={subOf(c)}
 					src={artwork(c.kind, c.id, "poster")}
+					small={artwork(c.kind, c.id, "poster-w342")}
 					{...t ? titleCard(c.kind, t, now) : {}}
 					badge={undefined}
 					onclick={() => open(c)}

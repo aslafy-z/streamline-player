@@ -374,6 +374,7 @@
                 typescript-language-server
                 playwright-mcp
                 jq
+                git-cliff
                 python3
                 ffmpeg-full
                 dovi-tool

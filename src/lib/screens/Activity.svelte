@@ -1,4 +1,5 @@
 <script lang="ts">
+import LoadFailed from "#lib/screens/LoadFailed.svelte";
 import { feed, loadActivity, markAllRead, markRead } from "#lib/core/activity.svelte.ts";
 import { FILTERS, type Filter, feedView, type RowView } from "#lib/core/activity-view.ts";
 import { lib, loadLibrary } from "#lib/core/library.svelte.ts";
@@ -12,7 +13,7 @@ import { activityWords } from "#lib/ui/activity-words.ts";
 import Button from "#lib/ui/Button.svelte";
 import ChoicePills from "#lib/ui/ChoicePills.svelte";
 import EmptyState from "#lib/ui/EmptyState.svelte";
-import type { IconName } from "#lib/ui/Icon.svelte";
+import Icon, { type IconName } from "#lib/ui/Icon.svelte";
 import { goto } from "#lib/ui/nav.ts";
 import {
 	activity,
@@ -29,6 +30,8 @@ import { onMount } from "svelte";
 const PAD_X = $derived(isTablet() ? 44 : 56);
 const TOP = 92;
 const BOTTOM = 32;
+// The phone shell already leaves 28 under its pages.
+const PHONE_BOTTOM = 4;
 const MAX_WIDTH = 980;
 const PHONE_PAD_X = 20;
 const PHONE_TOP_GAP = 12;
@@ -80,14 +83,21 @@ onMount(() => {
 	class="page"
 	class:phone
 	style:padding={phone
-		? `calc(env(safe-area-inset-top) + ${PHONE_TOP_GAP}px) ${PHONE_PAD_X}px ${BOTTOM}px`
+		? `calc(env(safe-area-inset-top) + ${PHONE_TOP_GAP}px) ${PHONE_PAD_X}px ${PHONE_BOTTOM}px`
 		: `${TOP}px ${PAD_X}px ${BOTTOM}px`}
 	style:--max="{isTablet() ? MAX_WIDTH : MAX_WIDTH + 2 * PAD_X}px"
 >
 	<div class="top">
-		<div class="titles">
-			<h1>{i18n.shell_activity()}</h1>
-			<span class="summary">{view.summary}</span>
+		<div class="lead">
+			<div class="titles">
+				<h1>{i18n.shell_activity()}</h1>
+				<span class="summary">{view.summary}</span>
+			</div>
+			{#if phone}
+				<button type="button" class="read-all" disabled={view.unread === 0} onclick={readAll}>
+					<Icon name="check-check" size={16} stroke={2} />{i18n.activity_mark_all_short()}
+				</button>
+			{/if}
 		</div>
 		<div class="tools">
 			<ChoicePills
@@ -96,20 +106,16 @@ onMount(() => {
 				label={i18n.activity_filter()}
 				onchange={(v) => (filter = v as Filter)}
 			/>
-			<Button variant="secondary" icon="tick" disabled={view.unread === 0} onclick={readAll}>
-				{i18n.activity_mark_all()}
-			</Button>
+			{#if !phone}
+				<Button variant="secondary" icon="tick" disabled={view.unread === 0} onclick={readAll}>
+					{i18n.activity_mark_all()}
+				</Button>
+			{/if}
 		</div>
 	</div>
 
 	{#if feed.error !== null && !feed.loaded}
-		<EmptyState icon="bell" title={i18n.activity_error()} text={feed.error}>
-			{#snippet action()}
-				<Button variant="secondary" onclick={() => loadActivity(port, true)}>
-					{i18n.halt_try_again()}
-				</Button>
-			{/snippet}
-		</EmptyState>
+		<LoadFailed error={feed.error} retry={() => loadActivity(port, true)} />
 	{:else}
 		{#each view.groups as g (g.group)}
 			<section>
@@ -122,6 +128,9 @@ onMount(() => {
 							text={r.text}
 							at={r.at}
 							poster={r.poster && r.titleKind ? artwork(r.titleKind, r.poster.id, "poster") : null}
+							small={r.poster && r.titleKind
+								? artwork(r.titleKind, r.poster.id, "poster-w342")
+								: undefined}
 							badge={r.badge as IconName | null}
 							badgeTone={r.badgeTone}
 							icon={r.icon as IconName}
@@ -185,8 +194,47 @@ h1 {
 	gap: 10px;
 }
 
+.lead {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.page.phone .lead,
 .page.phone .tools {
-	flex-wrap: wrap;
+	flex: 1 1 100%;
+}
+
+.page.phone .tools :global(.filters) {
+	flex: 1 1 0;
+}
+
+.page.phone .tools :global(.filters button) {
+	height: 36px;
+}
+
+.read-all {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 44px;
+	margin: 0 -10px -12px 0;
+	padding: 0 10px;
+	border: 0;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--accent-text);
+	font-size: 13.5px;
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.read-all:disabled {
+	color: var(--fg-faint);
+	cursor: default;
 }
 
 section {

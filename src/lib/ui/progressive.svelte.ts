@@ -16,21 +16,23 @@ export function viewRange(
 	return { from: Math.min(total, first * cols), to: Math.min(total, last * cols) };
 }
 
+type Range = { from: number; to: number };
+
 export type Step = { urgent: boolean } & ({ draw: number } | { real: number[] });
 
 /**
  * The next work on a list whose first `drawn` items are drawn, as skeletons or `real(i)`: skeletons
  * down to the end of `view`, then its skeletons made real, then skeletons for every item, then the
- * rest made real from `cursor`, below which every drawn item is real. `urgent` until every item is
- * drawn, so that the list is as tall as it will be and find-in-page sees every title, and while the
- * viewport shows skeletons. Draws at most `draws`, makes at most `reals` real.
+ * skeletons of `near`, the rows around the view, made real. `urgent` until every item is drawn, so
+ * that the list is as tall as it will be and find-in-page sees every title, and while the viewport
+ * shows skeletons. Draws at most `draws`, makes at most `reals` real.
  */
 export function nextStep(
 	real: (i: number) => boolean,
 	total: number,
 	drawn: number,
-	view: { from: number; to: number },
-	cursor: number,
+	view: Range,
+	near: Range,
 	draws: number,
 	reals: number,
 ): Step | null {
@@ -38,8 +40,8 @@ export function nextStep(
 	const inView = pick(real, view.from, view.to, reals);
 	if (inView.length) return { urgent: true, real: inView };
 	if (drawn < total) return { urgent: true, draw: Math.min(total - drawn, draws) };
-	const rest = pick(real, cursor, total, reals);
-	return rest.length ? { urgent: false, real: rest } : null;
+	const around = pick(real, near.from, near.to, reals);
+	return around.length ? { urgent: false, real: around } : null;
 }
 
 function pick(real: (i: number) => boolean, from: number, to: number, max: number) {
@@ -60,6 +62,12 @@ const BUDGET_MS = 8;
 // For what must not wait several frames at 8 ms a frame: see `nextStep`.
 const URGENT_BUDGET_MS = 24;
 const MARGIN_ROWS = 1;
+// Real ahead of the scroll, so that skeletons seldom reach the viewport.
+const NEAR_ROWS = 3;
+// Real items cost the webview on every frame it draws, on screen or not (WebKitGTK walks the
+// layers of the whole page), so those beyond this go back to skeletons. Wider than NEAR_ROWS:
+// a small scroll back and forth swaps nothing.
+const KEEP_ROWS = 8;
 // Before their cost is measured: 700 skeletons take ~50 ms, so this many stay well inside a frame.
 const FIRST_DRAW = 240;
 
@@ -69,9 +77,8 @@ const FIRST_DRAW = 240;
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 /**
- * Draws a long list a little at a time: skeletons, the same size as the items, then the real items.
- * Each frame does what the viewport needs first, wherever it has scrolled to, then the rest from
- * the top, within a time budget. The list element, given to `track`, lays out `items()` in rows of
+ * Draws a long list a little at a time: skeletons, the same size as the items, then the real items
+ * for the rows in and around the viewport, wherever it scrolls to, within a time budget per frame. The list element, given to `track`, lays out `items()` in rows of
  * equal height (a CSS grid, or one per line), draws the first `drawn` of them, real where
  * `real(id)`, and is padded by `after` px, the rows not drawn yet, so that its height and a restored
  * scroll position hold. A new `key()` starts over; a refresh, a filter or a sort keeps what is real.
@@ -101,29 +108,26 @@ export function progressive(items: () => { id: number }[], key: () => unknown) {
 		const id = ++run;
 		pumping = true;
 		const cost = { draw: 0, real: 0 };
-		let cursor = 0;
-		let seen = items();
 		let more = true;
 		while (more) {
 			await nextFrame();
 			if (id !== run || !node) break;
 			const list = items();
-			if (list !== seen) {
-				seen = list;
-				cursor = 0;
-			}
 			const start = performance.now();
-			const view = viewRange(
-				measure(node),
-				window.innerHeight,
-				geo.stride,
-				geo.cols,
-				list.length,
-				MARGIN_ROWS,
-			);
+			const top = measure(node);
+			const rows = (margin: number) =>
+				viewRange(top, window.innerHeight, geo.stride, geo.cols, list.length, margin);
+			const view = rows(MARGIN_ROWS);
+			const near = rows(NEAR_ROWS);
+			const keep = rows(KEEP_ROWS);
 			const isReal = (i: number) => i < drawn && real.has(list[i]?.id ?? -1);
+			// Outside the budget: a fast scroll spends all of it on the viewport, and what it left
+			// behind would pile up and slow every frame.
+			if (real.size > 0)
+				for (let i = 0; i < drawn; i++)
+					if (i < keep.from || i >= keep.to) real.delete(list[i]?.id ?? -1);
 			while (true) {
-				const next = nextStep(isReal, list.length, drawn, view, cursor, 1, 1);
+				const next = nextStep(isReal, list.length, drawn, view, near, 1, 1);
 				if (!next) {
 					more = false;
 					break;
@@ -135,7 +139,7 @@ export function progressive(items: () => { id: number }[], key: () => unknown) {
 					list.length,
 					drawn,
 					view,
-					cursor,
+					near,
 					fits(left, cost.draw, FIRST_DRAW),
 					fits(left, cost.real, geo.cols),
 				);
@@ -146,12 +150,9 @@ export function progressive(items: () => { id: number }[], key: () => unknown) {
 				flushSync();
 				// Reads layout, so the cost per item includes it.
 				node.getBoundingClientRect();
-				const each = (performance.now() - at) / ("draw" in step ? step.draw : step.real.length);
-				if ("draw" in step) cost.draw = each;
-				else {
-					cost.real = each;
-					if (!step.urgent) cursor = (step.real.at(-1) ?? cursor) + 1;
-				}
+				const took = performance.now() - at;
+				if ("draw" in step) cost.draw = took / step.draw;
+				else cost.real = took / step.real.length;
 			}
 		}
 		if (id === run) pumping = false;
@@ -172,6 +173,18 @@ export function progressive(items: () => { id: number }[], key: () => unknown) {
 	});
 	$effect(() => () => {
 		run++;
+	});
+	// The loop ends once the rows around the viewport are real; a scroll or a resize moves them.
+	$effect(() => {
+		const again = () => {
+			if (!pumping && node) pump();
+		};
+		window.addEventListener("scroll", again, { capture: true, passive: true });
+		window.addEventListener("resize", again, { passive: true });
+		return () => {
+			window.removeEventListener("scroll", again, { capture: true });
+			window.removeEventListener("resize", again);
+		};
 	});
 
 	return {

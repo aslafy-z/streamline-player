@@ -6,12 +6,14 @@ let {
 	label,
 	desc,
 	icon,
+	subtle = false,
 	control,
 	below,
 }: {
 	label: string;
 	desc?: string;
 	icon?: IconName;
+	subtle?: boolean;
 	control?: Snippet;
 	below?: Snippet;
 } = $props();
@@ -23,7 +25,7 @@ let {
 			<span class="icon"><Icon name={icon} /></span>
 		{/if}
 		<span class="text">
-			<span class="label">{label}</span>
+			<span class="label" class:subtle>{label}</span>
 			{#if desc}
 				<span class="desc">{desc}</span>
 			{/if}
@@ -76,6 +78,10 @@ let {
 	font-size: 14px;
 	font-weight: 500;
 	color: var(--fg);
+}
+
+.label.subtle {
+	color: var(--fg-subtle);
 }
 
 .desc {

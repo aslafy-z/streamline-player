@@ -20,10 +20,6 @@ export const activityWords = (): Words => ({
 	episodeCount: (count) =>
 		count === 1 ? i18n.activity_episodes_one() : i18n.activity_episodes_other({ count }),
 	movieAdded: i18n.activity_movie_added(),
-	movieRemoved: i18n.activity_movie_removed(),
-	episodeRemoved: i18n.activity_episode_removed(),
-	removedFile: i18n.activity_removed_file(),
-	episodePlace: (season, list) => i18n.activity_episode_place({ season, list }),
 	upgraded: (is4k) => (is4k ? i18n.activity_upgraded_4k() : i18n.activity_upgraded_hd()),
 	replaced: (previous, quality) => i18n.activity_replaced({ previous, quality }),
 	downloadFinished: i18n.activity_download_finished(),

@@ -14,6 +14,7 @@ use tokio::time::{self, Instant};
 use tracing::Instrument;
 
 use super::seam::{self, Seam};
+use super::source::Source;
 use super::{
     AudioOut, KEEP_BEHIND_SECS, RESUME_MARGIN_SECS, RUN_AHEAD_SECS, SEGMENT_WAIT, Served,
     SourceCodecs, VideoOut, bandwidth, hw_name, live_for, unix_now,
@@ -115,6 +116,7 @@ pub(super) struct Session {
     pub id: String,
     pub dir: PathBuf,
     pub input: PathBuf,
+    pub source: Source,
     pub cfg: Arc<Config>,
     pub epoch: AtomicU64,
     pub state: AsyncMutex<State>,
@@ -209,7 +211,7 @@ impl Session {
     pub fn new(
         id: String,
         dir: PathBuf,
-        input: PathBuf,
+        source: Source,
         cfg: Arc<Config>,
         state: State,
         live: Live,
@@ -217,7 +219,8 @@ impl Session {
         Self {
             id,
             dir,
-            input,
+            input: source.input(),
+            source,
             cfg,
             epoch: AtomicU64::new(0),
             state: AsyncMutex::new(state),

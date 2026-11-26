@@ -1,5 +1,6 @@
 mod runner;
 pub mod seam;
+mod source;
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
@@ -26,6 +27,7 @@ use crate::playlist;
 
 pub(crate) use runner::OpenStream;
 use runner::{Live, Session, State};
+use source::Source;
 
 pub const RUN_AHEAD_SECS: f64 = 180.0;
 pub const RESUME_MARGIN_SECS: f64 = 60.0;
@@ -419,8 +421,8 @@ impl Sessions {
             .ok_or_else(|| ApiError::not_found("unknown session"))
     }
 
-    fn permit_for(&self, mode: Mode) -> Result<Option<OwnedSemaphorePermit>, ApiError> {
-        if !is_transcode(mode) {
+    fn permit_for(&self, plan: &Plan) -> Result<Option<OwnedSemaphorePermit>, ApiError> {
+        if !is_transcode(plan.mode) {
             return Ok(None);
         }
         self.inner
@@ -428,7 +430,10 @@ impl Sessions {
             .clone()
             .try_acquire_owned()
             .map(Some)
-            .map_err(|_| ApiError::transcode_limit(TRANSCODE_RETRY_AFTER))
+            .map_err(|_| {
+                let need = plan.video_reasons.first().or(plan.audio_reasons.first());
+                ApiError::transcode_limit(TRANSCODE_RETRY_AFTER, need.map(|r| r.text.clone()))
+            })
     }
 
     /// `to_play` asks for the keyframes too, which can mean reading the whole file.
@@ -526,7 +531,19 @@ impl Sessions {
             return Err(ApiError::session_exists());
         }
         let cfg = &self.inner.cfg;
+        // Opened before the analysis reads the path, so the check after it proves both saw
+        // the same file.
+        let held = Source::open(cfg.path_map.rewrite(&r.path)).await;
         let (input, analysis) = self.input_and_analysis(&r.path, r.analysis, true).await?;
+        let source = held.map_err(|e| {
+            ApiError::unreadable_file(format!("cannot open {}: {e}", input.display()))
+        })?;
+        if !source.still_at_path().await {
+            return Err(ApiError::unreadable_file(format!(
+                "{} was replaced while it was read; try again",
+                input.display()
+            )));
+        }
         let params = SessionParams {
             audio_index: r.audio_index,
             burn_in_subtitle: r.burn_in_subtitle,
@@ -534,7 +551,7 @@ impl Sessions {
             max_height: None,
         };
         let plan = decide(&r.capabilities, &analysis, &params, &self.inner.hw.encoders)?;
-        let permit = self.permit_for(plan.mode)?;
+        let permit = self.permit_for(&plan)?;
 
         let hw = &self.inner.hw;
         let reply = response(&plan, &analysis, hw);
@@ -555,7 +572,7 @@ impl Sessions {
         let session = Arc::new(Session::new(
             r.session_id.clone(),
             cfg.tmp_dir.join(&r.session_id),
-            input,
+            source,
             cfg.clone(),
             state,
             live,
@@ -597,7 +614,7 @@ impl Sessions {
         let analysis = st.analysis.clone();
         let plan = decide(&st.caps, &analysis, &params, &self.inner.hw.encoders)?;
         let permit = match (is_transcode(plan.mode), st.permit.is_some()) {
-            (true, false) => self.permit_for(plan.mode)?,
+            (true, false) => self.permit_for(&plan)?,
             (true, true) => st.permit.take(),
             (false, _) => None,
         };
@@ -688,7 +705,8 @@ impl Sessions {
         s.serve(file).await
     }
 
-    pub async fn direct_path(&self, id: &str) -> Result<PathBuf, ApiError> {
+    /// The held file's name, and its content type, which that name cannot give.
+    pub async fn direct_path(&self, id: &str) -> Result<(PathBuf, Option<&'static str>), ApiError> {
         let s = self.get(id)?;
         s.touch();
         s.stamp_fetch();
@@ -696,7 +714,7 @@ impl Sessions {
         if st.closed || st.plan.mode != Mode::Direct {
             return Err(ApiError::not_found("session is not a direct session"));
         }
-        Ok(s.input.clone())
+        Ok((s.input.clone(), s.source.content_type()))
     }
 
     pub fn add_bytes(&self, id: &str, n: u64) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { loadErrorText } from "#lib/core/load-error.ts";
+import { onMount } from "svelte";
 import {
 	arrivalDay,
 	continueWatching,
@@ -10,26 +10,23 @@ import {
 	recentCount,
 	recentlyAdded,
 	topGenre,
+	years,
 } from "#lib/core/browse.ts";
-import { years } from "#lib/core/browse.ts";
 import { badges, left, runtime, stillPos } from "#lib/core/format.ts";
-import { dl } from "#lib/core/downloads.svelte.ts";
 import { lib, loadLibrary } from "#lib/core/library.svelte.ts";
 import type { Kind, Title } from "#lib/core/types.ts";
-import { getLocale } from "#lib/paraglide/runtime.js";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import { getLocale } from "#lib/paraglide/runtime.js";
+import { isTablet } from "#lib/platform/form-factor.svelte.ts";
+import LoadFailed from "#lib/screens/LoadFailed.svelte";
+import { titleCard } from "#lib/screens/title-card.svelte.ts";
 import Billboard, { type Slide } from "#lib/ui/Billboard.svelte";
-import Button from "#lib/ui/Button.svelte";
 import EmptyState from "#lib/ui/EmptyState.svelte";
+import { goto } from "#lib/ui/nav.ts";
 import PosterCard from "#lib/ui/PosterCard.svelte";
 import ResumeCard from "#lib/ui/ResumeCard.svelte";
 import Row from "#lib/ui/Row.svelte";
-import { goto } from "#lib/ui/nav.ts";
-import { titleCard } from "#lib/screens/title-card.svelte.ts";
-import { artwork, canDownload, home, library, title, watchState } from "#platform";
-import { onMount } from "svelte";
-
-import { isTablet } from "#lib/platform/form-factor.svelte.ts";
+import { artwork, home, library, title, watchState } from "#platform";
 
 const PAD_X = $derived(isTablet() ? 44 : 56);
 const HERO_TITLE = $derived(isTablet() ? 54 : 58);
@@ -75,12 +72,14 @@ const fmt = {
 };
 const resLabel = (t: Title) => badges(t.file_summary)[0];
 
-const playResume = (r: (typeof resume)[number]) => goto(playUrl(r.kind, r.id, r.episodeId, true));
+const playResume = (r: (typeof resume)[number]) =>
+	goto(playUrl(r.kind, r.id, r.episodeId, !r.next));
 const open = (kind: Kind, id: number, season?: number) =>
 	goto(`/detail/${kind}/${id}${season ? `?s=${season}` : ""}`);
 
 function eyebrow(f: NonNullable<typeof lib.feed>["featured"][number], t: Title) {
 	if (f.reason === "continue") return i18n.home_continue_watching();
+	if (f.reason === "next") return i18n.home_up_next();
 	if (f.reason === "new_episodes" && f.season !== undefined && f.episodes?.length) {
 		const first = f.episodes[0];
 		const last = f.episodes.at(-1);
@@ -117,15 +116,19 @@ const slides = $derived.by(() => {
 				...base,
 				primary:
 					going.kind === "series"
-						? i18n.detail_resume_episode({
+						? (going.next ? i18n.detail_play_episode : i18n.detail_resume_episode)({
 								season: going.season as number,
 								episode: going.episode as number,
 							})
 						: i18n.common_resume(),
-				progress: {
-					pct: going.pct,
-					left: going.sub ? `${going.sub} · ${left(going.left)}` : left(going.left),
-				},
+				...(going.next
+					? {}
+					: {
+							progress: {
+								pct: going.pct,
+								left: going.sub ? `${going.sub} · ${left(going.left)}` : left(going.left),
+							},
+						}),
 				onprimary: () => playResume(going),
 			});
 			continue;
@@ -177,22 +180,7 @@ onMount(() => {
 
 <div class="home">
 	{#if lib.error !== null}
-		<div class="state">
-			<EmptyState icon="film" title={i18n.home_error_title()} text={loadErrorText(lib.error)}>
-				{#snippet action()}
-					<div class="failed-actions">
-						<Button variant="secondary" onclick={() => loadLibrary(port, true)}>
-							{i18n.halt_try_again()}
-						</Button>
-						{#if canDownload && dl.items.some((e) => e.state === "done")}
-							<Button variant="secondary" onclick={() => goto("/downloads")}>
-								{i18n.dl_watch()}
-							</Button>
-						{/if}
-					</div>
-				{/snippet}
-			</EmptyState>
-		</div>
+		<LoadFailed error={lib.error} retry={() => loadLibrary(port, true)} />
 	{:else if empty}
 		<div class="state">
 			<EmptyState icon="film" title={i18n.home_empty_title()} text={i18n.home_empty_text()} />
@@ -220,8 +208,8 @@ onMount(() => {
 					note={i18n.home_count_in_progress({ count: resume.length })}
 					padX={PAD_X}
 					arrows={!isTablet()}
-					prevLabel={i18n.home_scroll_left()}
-					nextLabel={i18n.home_scroll_right()}
+					prevLabel={i18n.row_scroll_left({ title: i18n.home_continue_watching() })}
+					nextLabel={i18n.row_scroll_right({ title: i18n.home_continue_watching() })}
 				>
 					{#each resume as r (r.mediaId)}
 						{@const t = byKey(r.kind, r.id)}
@@ -250,8 +238,8 @@ onMount(() => {
 					note={i18n.home_count_month({ count: recentCount(recentMovies, now) })}
 					padX={PAD_X}
 					arrows={!isTablet()}
-					prevLabel={i18n.home_scroll_left()}
-					nextLabel={i18n.home_scroll_right()}
+					prevLabel={i18n.row_scroll_left({ title: i18n.home_recent_movies() })}
+					nextLabel={i18n.row_scroll_right({ title: i18n.home_recent_movies() })}
 				>
 					{#each recentMovies as t (t.id)}
 						<PosterCard
@@ -259,6 +247,7 @@ onMount(() => {
 							title={t.title}
 							sub={movieSub(t)}
 							src={artwork("movies", t.id, "poster")}
+							small={artwork("movies", t.id, "poster-w342")}
 							{...titleCard("movies", t, now)}
 							badge={badge(t, "movies")}
 							onclick={() => open("movies", t.id)}
@@ -272,8 +261,8 @@ onMount(() => {
 					note={i18n.home_count_month({ count: recentCount(recentShows, now) })}
 					padX={PAD_X}
 					arrows={!isTablet()}
-					prevLabel={i18n.home_scroll_left()}
-					nextLabel={i18n.home_scroll_right()}
+					prevLabel={i18n.row_scroll_left({ title: i18n.home_recent_shows() })}
+					nextLabel={i18n.row_scroll_right({ title: i18n.home_recent_shows() })}
 				>
 					{#each recentShows as t (t.id)}
 						<PosterCard
@@ -281,6 +270,7 @@ onMount(() => {
 							title={t.title}
 							sub={showSub(t)}
 							src={artwork("series", t.id, "poster")}
+							small={artwork("series", t.id, "poster-w342")}
 							{...titleCard("series", t, now)}
 							badge={badge(t, "series")}
 							onclick={() => open("series", t.id)}
@@ -293,8 +283,8 @@ onMount(() => {
 					title={genre}
 					padX={PAD_X}
 					arrows={!isTablet()}
-					prevLabel={i18n.home_scroll_left()}
-					nextLabel={i18n.home_scroll_right()}
+					prevLabel={i18n.row_scroll_left({ title: genre })}
+					nextLabel={i18n.row_scroll_right({ title: genre })}
 				>
 					{#each genreTitles as { kind, t } (`${kind}:${t.id}`)}
 						<PosterCard
@@ -302,6 +292,7 @@ onMount(() => {
 							title={t.title}
 							sub={kind === "movies" ? movieSub(t) : showSub(t)}
 							src={artwork(kind, t.id, "poster")}
+							small={artwork(kind, t.id, "poster-w342")}
 							{...titleCard(kind, t, now)}
 							badge={undefined}
 							onclick={() => open(kind, t.id)}
@@ -314,11 +305,6 @@ onMount(() => {
 </div>
 
 <style>
-.failed-actions {
-	display: flex;
-	gap: 10px;
-}
-
 .home {
 	position: relative;
 	min-height: 100%;

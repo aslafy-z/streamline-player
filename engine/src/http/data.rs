@@ -168,8 +168,8 @@ pub async fn file(
     req: Request,
 ) -> Result<Response, ApiError> {
     check_token(&s, Scope::Hls, &id, &q)?;
-    let path = s.sessions.direct_path(&id).await?;
-    Ok(serve_file(&s, &id, path, req, None).await)
+    let (path, content_type) = s.sessions.direct_path(&id).await?;
+    Ok(serve_file(&s, &id, path, req, content_type).await)
 }
 
 pub async fn download(

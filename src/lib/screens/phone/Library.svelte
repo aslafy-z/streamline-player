@@ -1,7 +1,7 @@
 <script lang="ts">
+import { onMount, untrack } from "svelte";
 import { isNew, years } from "#lib/core/browse.ts";
 import { addedText, badges } from "#lib/core/format.ts";
-import { dl } from "#lib/core/downloads.svelte.ts";
 import { lib, loadLibrary, loadSeasons } from "#lib/core/library.svelte.ts";
 import {
 	browseRails,
@@ -16,21 +16,21 @@ import {
 	viewToQuery,
 	visible,
 } from "#lib/core/library-view.ts";
-import { loadErrorText } from "#lib/core/load-error.ts";
 import { prefs } from "#lib/core/prefs.svelte.ts";
 import type { Kind, Title } from "#lib/core/types.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import LoadFailed from "#lib/screens/LoadFailed.svelte";
 import { titleCard } from "#lib/screens/title-card.svelte.ts";
 import BackdropCard from "#lib/ui/BackdropCard.svelte";
 import Button from "#lib/ui/Button.svelte";
 import EmptyState from "#lib/ui/EmptyState.svelte";
 import Icon from "#lib/ui/Icon.svelte";
+import TitleMenu from "#lib/shells/phone/TitleMenu.svelte";
 import { goto } from "#lib/ui/nav.ts";
 import PosterCard from "#lib/ui/PosterCard.svelte";
 import { progressive } from "#lib/ui/progressive.svelte.ts";
-import { artwork, canDownload, home, library, title, watchState } from "#platform";
+import { artwork, home, library, title, watchState } from "#platform";
 import { page } from "$app/state";
-import { onMount, untrack } from "svelte";
 
 const port = { library, watchState, home, title };
 
@@ -153,22 +153,7 @@ onMount(() => {
 
 <div class="library">
 	{#if lib.error !== null}
-		<div class="state">
-			<EmptyState icon="film" title={i18n.home_error_title()} text={loadErrorText(lib.error)}>
-				{#snippet action()}
-					<div class="failed-actions">
-						<Button variant="secondary" onclick={() => loadLibrary(port, true)}>
-							{i18n.halt_try_again()}
-						</Button>
-						{#if canDownload && dl.items.some((e) => e.state === "done")}
-							<Button variant="secondary" onclick={() => goto("/downloads")}>
-								{i18n.dl_watch()}
-							</Button>
-						{/if}
-					</div>
-				{/snippet}
-			</EmptyState>
-		</div>
+		<LoadFailed error={lib.error} retry={() => loadLibrary(port, true)} />
 	{:else if empty}
 		<div class="state">
 			<EmptyState
@@ -182,7 +167,27 @@ onMount(() => {
 	{:else if lib.loaded}
 		<div class="page">
 			<div class="heading">
-				<h1>{i18n.nav_library()}</h1>
+				<TitleMenu
+					here={kind}
+					title={kind === "series" ? i18n.nav_shows() : i18n.nav_movies()}
+					label={i18n.nav_library()}
+					width={260}
+					items={[
+						{
+							key: "movies",
+							icon: "film",
+							label: i18n.nav_movies(),
+							sub: i18n.library_total_movies({ count: lib.movies.length }),
+						},
+						{
+							key: "series",
+							icon: "tv-minimal",
+							label: i18n.nav_shows(),
+							sub: i18n.library_total_shows({ count: lib.shows.length }),
+						},
+					]}
+					onpick={(k) => goto(`/library/${k}`)}
+				/>
 				<span class="count"
 					>{#if isAll}
 						{kind === "movies"
@@ -194,21 +199,6 @@ onMount(() => {
 							: i18n.library_total_shows({ count: base.length })}
 					{/if}</span
 				>
-			</div>
-			<div class="kinds">
-				{#each [
-					["movies", i18n.nav_movies()],
-					["series", i18n.nav_shows()],
-				] as [k, label] (k)}
-					<button
-						type="button"
-						class="kind"
-						class:on={kind === k}
-						onclick={() => go(k as Kind, { ...view, flags: [], genre: null })}
-					>
-						{label}
-					</button>
-				{/each}
 			</div>
 			<nav class="tabs" aria-label={i18n.library_view_label()}>
 				{#each [
@@ -274,13 +264,14 @@ onMount(() => {
 			{:else}
 				<div class="genres" role="tablist" aria-label={i18n.library_genre()}>
 					{#each [
-						{ name: null, label: i18n.library_all() },
-						...genreList.map((g) => ({ name: g.name, label: g.name })),
+						{ name: null, label: i18n.library_all(), none: false },
+						...genreList.map((g) => ({ name: g.name, label: g.name, none: g.count === 0 })),
 					] as g (g.name ?? "")}
 						<button
 							type="button"
 							role="tab"
 							class="genre"
+							class:none={g.none}
 							class:on={view.genre === g.name}
 							aria-selected={view.genre === g.name}
 							onclick={() => set({ genre: g.name })}
@@ -347,11 +338,6 @@ onMount(() => {
 </div>
 
 <style>
-.failed-actions {
-	display: flex;
-	gap: 10px;
-}
-
 .library {
 	position: relative;
 	min-height: 100%;
@@ -381,42 +367,9 @@ onMount(() => {
 	padding: 8px 20px 0;
 }
 
-h1 {
-	margin: 0;
-	font-size: 30px;
-	font-weight: 700;
-	letter-spacing: -0.025em;
-}
-
 .count {
 	font: 400 11.5px var(--font-mono);
 	color: var(--fg-subtle);
-}
-
-.kinds {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	margin: 0 20px;
-	padding: 3px;
-	border: 1px solid var(--border);
-	border-radius: 12px;
-	background: var(--bg-elevated);
-}
-
-.kind {
-	height: 38px;
-	border: 0;
-	border-radius: 9px;
-	background: transparent;
-	color: var(--fg-subtle);
-	font-size: 14px;
-	font-weight: 600;
-	cursor: pointer;
-}
-
-.kind.on {
-	background: var(--bg-selected);
-	color: var(--fg);
 }
 
 .tabs {
@@ -538,6 +491,10 @@ h2 {
 	font-weight: 500;
 	white-space: nowrap;
 	cursor: pointer;
+}
+
+.genre.none {
+	color: var(--fg-faint);
 }
 
 .genre.on {

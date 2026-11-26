@@ -61,7 +61,6 @@ let {
 	font-size: 10.5px;
 	font-weight: 500;
 	line-height: 1.5;
-	-webkit-tap-highlight-color: transparent;
 }
 
 .ptab :global(.sl-ico) {

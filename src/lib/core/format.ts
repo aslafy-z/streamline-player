@@ -1,4 +1,4 @@
-import { stars } from "#lib/core/browse.ts";
+import { stars, years } from "#lib/core/browse.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
 import { getLocale } from "#lib/paraglide/runtime.js";
 import { dateLocale } from "#lib/core/date-locale.ts";
@@ -79,9 +79,15 @@ export const meta = (kind: Kind, t: Title) => {
 	const count = t.total_seasons ?? t.seasons?.length ?? 0;
 	const seasons =
 		count === 1 ? i18n.common_seasons_one({ count }) : i18n.common_seasons_other({ count });
-	return [t.first_aired ? `${t.first_aired.slice(0, 4)}\u2013` : t.year, seasons, rated]
-		.filter(Boolean)
-		.join(" · ");
+	return [years(t), seasons, rated].filter(Boolean).join(" · ");
+};
+
+/** The line under a title on a wide rail card: when it is from and how long it runs. */
+export const railSub = (kind: Kind, t: Title) => {
+	if (kind !== "series")
+		return [t.year, t.runtime ? runtime(t.runtime) : ""].filter(Boolean).join(" · ");
+	const count = t.total_seasons ?? t.seasons?.length ?? 0;
+	return `${years(t)} · ${count === 1 ? i18n.common_seasons_one({ count }) : i18n.common_seasons_other({ count })}`;
 };
 
 /** Episodes in play order, each with its season number. */

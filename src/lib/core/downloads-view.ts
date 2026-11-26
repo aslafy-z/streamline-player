@@ -274,12 +274,18 @@ export function pageView(items: DownloadEntry[], rate: number, w: Words, watch: 
 	};
 }
 
-export function storageView(s: { used: number; other: number; free: number }, w: Words) {
+/** `whole` rounds to the gigabyte, for a phone's narrow legend. */
+export function storageView(
+	s: { used: number; other: number; free: number },
+	w: Words,
+	whole = false,
+) {
 	const sum = s.used + s.other + s.free || 1;
+	const size = (bytes: number) => (whole ? `${Math.round(bytes / 1e9)} GB` : gb(bytes));
 	return {
 		usedPct: Math.max(1, (s.used / sum) * 100),
 		otherPct: (s.other / sum) * 100,
-		labels: [w.meterUsed(gb(s.used)), w.meterOther(gb(s.other)), w.meterFree(gb(s.free))] as [
+		labels: [w.meterUsed(size(s.used)), w.meterOther(size(s.other)), w.meterFree(size(s.free))] as [
 			string,
 			string,
 			string,

@@ -15,7 +15,7 @@ let
 in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "streamline-player-web";
-  inherit (source) version;
+  inherit (lib.importJSON ../../package.json) version;
   src = source.web;
 
   nativeBuildInputs = [

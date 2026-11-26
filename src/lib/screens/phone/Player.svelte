@@ -18,11 +18,10 @@ import { loadLaunch } from "#lib/core/player-view.ts";
 import { prefs } from "#lib/core/prefs.svelte.ts";
 import type { DownloadEntry, Kind } from "#lib/core/types.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import LoadFailed from "#lib/screens/LoadFailed.svelte";
 import { downloadsPort } from "#lib/screens/downloads-port.ts";
 import PlayerControls from "#lib/screens/phone/PlayerControls.svelte";
 import BufferingSpinner from "#lib/ui/BufferingSpinner.svelte";
-import Button from "#lib/ui/Button.svelte";
-import EmptyState from "#lib/ui/EmptyState.svelte";
 import { goto } from "#lib/ui/nav.ts";
 import {
 	artwork,
@@ -53,7 +52,8 @@ let {
 } = $props();
 
 let launch = $state.raw<Launch | null>(null);
-let failed = $state(false);
+let failed = $state<string | null>(null);
+let attempt = $state(0);
 let controls = $state<PlayerControls>();
 let fromApp = false;
 let leaving = false;
@@ -134,9 +134,9 @@ async function open(
 }
 
 $effect(() => {
-	const [k, i, e, r, file] = [kind, id, epId, resume, local];
+	const [k, i, e, r, file] = [kind, id, epId, resume, local, attempt];
 	let stale = false;
-	failed = false;
+	failed = null;
 	leaving = false;
 	untrack(() => open(k, i, e, r, file)).then(
 		({ launch: l, port }) => {
@@ -144,8 +144,8 @@ $effect(() => {
 			launch = l;
 			start(l, port);
 		},
-		() => {
-			if (!stale) failed = true;
+		(error) => {
+			if (!stale) failed = String(error);
 		},
 	);
 	return () => {
@@ -198,13 +198,7 @@ function openMore(href: string) {
 </script>
 
 {#if failed}
-	<div class="failed">
-		<EmptyState icon="info" title={i18n.halt_error_title()}>
-			{#snippet action()}
-				<Button variant="secondary" onclick={exit}>{i18n.common_back()}</Button>
-			{/snippet}
-		</EmptyState>
-	</div>
+	<LoadFailed error={failed} title={i18n.halt_error_title()} retry={() => (attempt += 1)} />
 {:else if pb && launch}
 	<PlayerControls
 		bind:this={controls}
@@ -216,24 +210,28 @@ function openMore(href: string) {
 		onopen={openMore}
 	/>
 {:else}
-	<div class="loading">
+	<div
+		class="loading"
+		style:background-image="url({JSON.stringify(
+			artwork(kind, id, "backdrop"),
+		)}), url({JSON.stringify(artwork(kind, id, "poster"))})"
+	>
 		<BufferingSpinner label={i18n.player_buffering()} />
 	</div>
 {/if}
 
 <style>
-.failed {
-	position: fixed;
-	inset: 0;
-	display: grid;
-	place-items: center;
-	background: var(--bg-deep);
-}
-
 .loading {
 	position: fixed;
 	inset: 0;
-	background: #000;
+	background: #000 center / cover no-repeat;
 	color: var(--player-ink);
+}
+
+.loading::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.55);
 }
 </style>

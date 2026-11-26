@@ -8,7 +8,7 @@ import { kind, startTarget, violationLines } from "./target.ts";
 type ApiError = { error: { code: string } };
 
 const NOW = "1794225600";
-const REASONS = ["continue", "new_episodes", "added"];
+const REASONS = ["continue", "next", "new_episodes", "added"];
 const PNG = Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.alloc(1024 - 8)]);
 
 const dir = mkdtempSync(join(tmpdir(), "browse-check-"));

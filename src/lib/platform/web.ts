@@ -11,6 +11,7 @@ import type {
 	ActivityEvent,
 	AdminDevice,
 	AdminLibrary,
+	ScanScope,
 	AdminOverview,
 	AdminPairing,
 	AdminSettings,
@@ -257,7 +258,7 @@ export const watchState = () => call<{ items: Watch[] }>("GET", "/watchstate").t
 export const setWatched = (mediaId: string, watched: boolean) =>
 	call("PUT", `/watchstate/${mediaId}`, { watched });
 
-export const artwork = (kind: Kind, id: number, name: "poster" | "backdrop") =>
+export const artwork = (kind: Kind, id: number, name: "poster" | "poster-w342" | "backdrop") =>
 	`${streamline}/extensions/player/posters/${kind}/${id}/${name}.jpg`;
 export const artworkAt = (path: string) =>
 	`${streamline}/extensions/player/posters/${path.replace(/^\//, "")}`;
@@ -335,6 +336,8 @@ export const adminRevokeDevice = (id: string) =>
 export const adminLibrary = () => call<AdminLibrary>("GET", "/admin/library");
 export const adminScan = (folderId?: string) =>
 	call<void>("POST", "/admin/library/scan", folderId === undefined ? {} : { folder_id: folderId });
+export const adminScanTitles = (scope: ScanScope) =>
+	call<void>("POST", "/admin/library/scan", scope);
 export const adminEngineSecret = () => call<EngineSecretStatus>("GET", "/admin/engine/secret");
 export const adminRotateEngineSecret = () =>
 	call<{ secret: string }>("POST", "/admin/engine/secret");

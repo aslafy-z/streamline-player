@@ -176,9 +176,6 @@ const pb = new Playback(
 
 const halted = $derived(!!pb.halt && !pb.haltLeaving);
 const skipOn = $derived(((pb.introOn && !prefs.autoSkip) || pb.creditsOn) && !pb.ended && !pb.halt);
-const upNextFrac = $derived(
-	pb.creditsAt === null ? 0 : Math.min(1, Math.max(0, (pb.position - pb.creditsAt) / UP_NEXT_SECS)),
-);
 // The player reports every 500 ms; between reports the bar moves on each frame at the playback speed.
 let frameAt = $state(0);
 const shownPosition = $derived(
@@ -189,6 +186,11 @@ const shownPosition = $derived(
 					Math.min(MAX_EXTRAPOLATION, Math.max(0, ((frameAt - pb.positionAt) / 1000) * pb.speed)),
 			)
 		: pb.position,
+);
+const upNextFrac = $derived(
+	pb.creditsAt === null
+		? 0
+		: Math.min(1, Math.max(0, (shownPosition - pb.creditsAt) / UP_NEXT_SECS)),
 );
 const segs = $derived.by(() => {
 	const list = pb.tracks?.chapters ?? [];
@@ -230,7 +232,7 @@ const peekLeft = $derived(
 	Math.max(peekWidth / 2, Math.min(scrubWidth - peekWidth / 2, (pct / 100) * scrubWidth)),
 );
 $effect(() => {
-	if (!pb.playing || !controlsOn) return;
+	if (!pb.playing || !(controlsOn || pb.upNextOn)) return;
 	let raf = requestAnimationFrame(function tick(t) {
 		frameAt = t;
 		raf = requestAnimationFrame(tick);
@@ -242,7 +244,7 @@ const modeLabel = $derived.by(() => {
 	const { width, height, hdr, dv_profile } = pb.session.video;
 	const range = dv_profile !== undefined ? " · Dolby Vision" : hdr === "sdr" ? "" : " · HDR";
 	const size = resBadge(width, height);
-	return `${size}${range}`;
+	return prefs.techDetails ? `${modeName(pb.session.mode)} · ${size}` : `${size}${range}`;
 });
 const fileRate = $derived(pb.preview ? fileMbit(pb.preview.bitRate) : "");
 const qualText = $derived(
@@ -294,16 +296,33 @@ function setPref(key: "subSize" | "subBg" | "subColor", value: string) {
 	pb.syncTiming();
 }
 
+// The display runs at the video's rate or a whole multiple of it, the same test the player switches modes by.
+function matched(hz: number, fps?: number) {
+	if (!fps || fps <= 0 || hz <= 0) return false;
+	const multiple = Math.round(hz / fps);
+	return multiple >= 1 && Math.abs(hz - multiple * fps) <= 0.01 * multiple;
+}
+
+const PASS_PREF: Record<string, "passEAC3" | "passTrueHD" | "passDTS"> = {
+	eac3: "passEAC3",
+	truehd: "passTrueHD",
+	dts: "passDTS",
+};
+const passes = (codec: string) => pb.passthrough.includes(codec);
+
 const audioNote = $derived.by(() => {
 	if (!pb.selectedAudio || !pb.session) return "";
 	const name = audioName(pb.selectedAudio);
-	return pb.session.audio.action === "copy"
-		? i18n.player_audio_note_as_is({ player: PLAYER_NAME, name })
-		: i18n.player_audio_note_convert({
-				player: PLAYER_NAME,
-				name,
-				out: audioOutName(pb.session),
-			});
+	const out = audioOutName(pb.session);
+	if (pb.session.audio.action === "copy")
+		return passes(pb.session.audio.codec)
+			? i18n.player_audio_note_pass({ name })
+			: i18n.player_audio_note_as_is({ player: PLAYER_NAME, name });
+	// The viewer chose "Decode here" for this codec and the device cannot: say where to change it.
+	const pref = PASS_PREF[pb.selectedAudio.codec];
+	return pref && prefs[pref] === "Decode here"
+		? i18n.player_audio_note_pass_off({ name, out })
+		: i18n.player_audio_note_convert({ player: PLAYER_NAME, name, out });
 });
 
 const styleNote = $derived(
@@ -387,7 +406,9 @@ const autoSub = $derived.by(() => {
 	const why =
 		d && !d.error && !pb.originalPlays
 			? (d.video_reasons[0]?.text ?? "")
-			: i18n.player_auto_based_on_connection();
+			: pb.autoPick && pb.autoPick === pb.mobileLimit
+				? i18n.player_auto_capped_cellular()
+				: i18n.player_auto_based_on_connection();
 	if (pb.autoPick)
 		return i18n.player_auto_now({ quality: i18n.player_mbit({ value: pb.autoPick }), why });
 	if (!d || d.error || pb.originalPlays)
@@ -444,7 +465,7 @@ const statRows = $derived.by(() => {
 			k: i18n.player_audio(),
 			v:
 				session.audio.action === "copy"
-					? `${audioIn} · ${i18n.player_stat_as_is()}`
+					? `${audioIn} · ${passes(session.audio.codec) ? i18n.player_pass_through() : i18n.player_stat_as_is()}`
 					: `${audioIn} → ${audioOut}`,
 			c: "var(--player-ink)",
 		},
@@ -502,7 +523,12 @@ const statRows = $derived.by(() => {
 		rows.push(
 			{
 				k: i18n.player_stat_throughput(),
-				v: speed === null ? i18n.player_measuring() : mbit(speed),
+				v:
+					speed === null
+						? i18n.player_measuring()
+						: pb.network === "away"
+							? `${mbit(speed)} · ${i18n.player_stat_away()}`
+							: mbit(speed),
 				c: speed !== null && speed < SLOW_THROUGHPUT ? "var(--status-warning)" : undefined,
 			},
 			{
@@ -518,7 +544,9 @@ const statRows = $derived.by(() => {
 			},
 			{
 				k: i18n.player_stat_display(),
-				v: i18n.player_stat_display_value({
+				v: (matched(live.displayHz, live.videoFps)
+					? i18n.player_stat_display_matched
+					: i18n.player_stat_display_value)({
 					hz: (Math.round(live.displayHz * 1000) / 1000).toLocaleString(getLocale()),
 				}),
 			},
@@ -951,7 +979,15 @@ onMount(() => {
 					<span class="tv-heading"
 						><span class="tv-eyebrow">{eyebrow}</span><span class="tv-title">{heading}</span></span
 					>
-					<span class="mode">{modeLabel}</span>
+					<span class="mode"
+						>{#if prefs.techDetails && pb.session}
+							<span
+								class="mode-dot"
+								style:background={pb.full ? "var(--status-available)" : "var(--status-downloading)"}
+							></span>
+						{/if}
+						{modeLabel}</span
+					>
 				</div>
 				<button
 					type="button"
@@ -1142,7 +1178,11 @@ onMount(() => {
 								: languageLabel(t.language),
 							t.index === pb.selectedAudio?.index,
 							() => pb.pickAudio(t),
-							out && !asIs ? `${audioName(t)} \u2192 ${audioOutName(out)}` : audioName(t),
+							out && !asIs
+								? `${audioName(t)} \u2192 ${audioOutName(out)}`
+								: asIs && passes(out.audio.codec)
+									? `${audioName(t)} · ${i18n.player_pass_through()}`
+									: audioName(t),
 							out ? (asIs ? i18n.player_badge_as_is() : i18n.player_badge_converted()) : "",
 							asIs ? "ok" : "conv",
 						)}
@@ -1298,7 +1338,8 @@ onMount(() => {
 					class="btn-ink"
 					onclick={() => playNext()}
 				>
-					<Play size={15} fill="currentColor" /><span>{i18n.player_play_now()}</span>
+					<Play size={15} fill="currentColor" />
+					<span>{prefs.autoplay ? i18n.player_play_now() : i18n.player_play_next()}</span>
 				</button>
 				<button
 					type="button"
@@ -1477,8 +1518,9 @@ onMount(() => {
 	pointer-events: none;
 	background: linear-gradient(
 		180deg,
-		rgba(0, 0, 0, 0.62) 0%,
-		rgba(0, 0, 0, 0) 22%,
+		rgba(0, 0, 0, 0.8) 0%,
+		rgba(0, 0, 0, 0.55) 10%,
+		rgba(0, 0, 0, 0) 26%,
 		rgba(0, 0, 0, 0) 62%,
 		var(--player-scrim) 100%
 	);
@@ -1632,6 +1674,12 @@ onMount(() => {
 	gap: 12px;
 	font: 500 22px var(--font-mono);
 	color: var(--player-ink-muted);
+}
+
+.mode-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
 }
 
 .scrub {
@@ -2364,7 +2412,6 @@ onMount(() => {
 	height: 100%;
 	background: var(--player-accent);
 	transform-origin: 0 50%;
-	transition: transform 250ms linear;
 	will-change: transform;
 }
 

@@ -99,13 +99,14 @@ export type TechKey = "video" | "audio" | "subs" | "file" | "bitrate" | "added";
 /** What the server does with one stream: nothing, or something the screen words. */
 export type TechMode =
 	| { kind: "asis" }
+	| { kind: "pass" }
 	| { kind: "converted"; to: string }
 	| { kind: "burn"; formats: string[] }
 	| { kind: "shown" };
 export type TechRow = { key: TechKey; value: string; mode?: TechMode; count?: number };
 export type TechContext = {
 	video?: { copy: boolean; out: string };
-	audio?: { copy: boolean; out: string };
+	audio?: { copy: boolean; out: string; pass?: boolean };
 	subs: { format: string; burn: boolean }[];
 	bitrate?: string;
 	size?: string;
@@ -130,7 +131,10 @@ export function techRows(t: Title, kind: Kind, tracks: Tracks | null, ctx: TechC
 			key: "audio",
 			value: audio,
 			mode:
-				ctx.audio && (ctx.audio.copy ? { kind: "asis" } : { kind: "converted", to: ctx.audio.out }),
+				ctx.audio &&
+				(ctx.audio.copy
+					? { kind: ctx.audio.pass ? "pass" : "asis" }
+					: { kind: "converted", to: ctx.audio.out }),
 		});
 	if (kind === "movies") {
 		if (ctx.subs.length) {

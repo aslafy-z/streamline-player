@@ -15,16 +15,17 @@ same(viewRange(157, 1000, 65, 1, 3, 1), { from: 0, to: 3 });
 const done = new Set([0, 1, 2, 5, 40, 41]);
 const real = (i: number) => done.has(i);
 const view = { from: 38, to: 44 };
-same(nextStep(real, 100, 10, view, 0, 240, 3), { urgent: true, draw: 34 });
-same(nextStep(real, 100, 10, view, 0, 20, 3), { urgent: true, draw: 20 });
-same(nextStep(real, 100, 50, view, 0, 240, 3), { urgent: true, real: [38, 39, 42] });
-same(nextStep(real, 100, 50, { from: 40, to: 42 }, 0, 240, 3), { urgent: true, draw: 50 });
-same(nextStep(real, 100, 100, { from: 40, to: 42 }, 3, 240, 4), {
+const near = { from: 34, to: 48 };
+same(nextStep(real, 100, 10, view, near, 240, 3), { urgent: true, draw: 34 });
+same(nextStep(real, 100, 10, view, near, 20, 3), { urgent: true, draw: 20 });
+same(nextStep(real, 100, 50, view, near, 240, 3), { urgent: true, real: [38, 39, 42] });
+same(nextStep(real, 100, 50, { from: 40, to: 42 }, near, 240, 3), { urgent: true, draw: 50 });
+same(nextStep(real, 100, 100, { from: 40, to: 42 }, near, 240, 4), {
 	urgent: false,
-	real: [3, 4, 6, 7],
+	real: [34, 35, 36, 37],
 });
 eq(
-	nextStep(() => true, 100, 100, view, 0, 240, 4),
+	nextStep(() => true, 100, 100, view, near, 240, 4),
 	null,
 );
 

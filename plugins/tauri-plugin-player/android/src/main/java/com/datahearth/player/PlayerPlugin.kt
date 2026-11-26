@@ -748,7 +748,8 @@ class PlayerPlugin(private val activity: Activity) : Plugin(activity) {
                 put("audioBitrate", p.audioFormat?.bitrate ?: -1)
                 put("rendered", frames?.renderedOutputBufferCount ?: 0)
                 put("dropped", frames?.droppedBufferCount ?: 0)
-                put("displayHz", activity.windowManager.defaultDisplay.refreshRate.toDouble())
+                put("displayHz", activity.window.decorView.display?.refreshRate?.toDouble() ?: -1.0)
+                put("videoFps", p.videoFormat?.frameRate?.toDouble() ?: -1.0)
             })
         }
     }

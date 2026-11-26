@@ -197,6 +197,11 @@ const hue = (name: string) =>
 	flex-direction: column;
 	justify-content: center;
 	padding: 0 64px;
+	transition: transform 320ms var(--ease);
+}
+
+.halt.leaving .zoom {
+	transform: translateY(10px);
 }
 
 .col {

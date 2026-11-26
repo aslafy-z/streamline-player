@@ -1,6 +1,8 @@
 <script lang="ts">
 import type { Act, Row } from "#lib/core/server-view.ts";
-import { initialsOf } from "#lib/core/me.svelte.ts";
+import { stillPos } from "#lib/core/format.ts";
+import { account, initialsOf } from "#lib/core/me.svelte.ts";
+import { picture as profilePicture } from "#lib/core/picture.svelte.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
 import { TONES } from "#lib/screens/admin/tone.ts";
 import Icon from "#lib/ui/Icon.svelte";
@@ -8,15 +10,14 @@ import { artwork } from "#platform";
 
 let { row, onact }: { row: Extract<Row, { t: "stream" }>; onact?: (a: Act) => void } = $props();
 
-const COLORS = [
-	"var(--kind-album)",
-	"var(--kind-episode)",
-	"var(--kind-movie)",
-	"var(--kind-book)",
-];
-const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0);
 const initials = $derived(initialsOf(row.user.replace(/ \(.*\)$/, "")));
-const color = $derived(COLORS[Math.abs(hash(row.user)) % COLORS.length]);
+// ponytail: only the viewer's own picture can be fetched; other users' need the server to serve them.
+const picture = $derived(row.you && account.me?.picture ? profilePicture.url : undefined);
+const pos = $derived(
+	row.season !== undefined && row.episode !== undefined
+		? stillPos(row.episode, row.season)
+		: undefined,
+);
 const tone = $derived(TONES[row.tone]);
 const image = $derived(row.poster ? artwork(row.kind, row.poster.id, "backdrop") : undefined);
 let failed = $state(false);
@@ -25,7 +26,7 @@ let failed = $state(false);
 <div class="stream">
 	<div class="thumb">
 		{#if image && !failed}
-			<img src={image} alt="" onerror={() => (failed = true)}>
+			<img src={image} alt="" style:object-position={pos} onerror={() => (failed = true)}>
 		{/if}
 		{#if !row.playing}
 			<div class="paused"><Icon name="pause" size={22} filled /></div>
@@ -46,14 +47,20 @@ let failed = $state(false);
 			>
 		</div>
 		<div class="who">
-			<span class="av" style:background={color}>{initials}</span>
+			<span class="av"
+				>{#if picture}
+					<img src={picture} alt="">
+				{:else}
+					{initials}
+				{/if}</span
+			>
 			<span>{row.user}</span><span class="sep">·</span><span>{row.device}</span
 			><span class="sep">·</span>
 			<span class="where">{row.where}</span>
 		</div>
 		<span class="path">{row.path}</span>
 		<div class="bar">
-			<div class="track"><div style:width="{row.pct}%"></div></div>
+			<div class="track"><div style:transform="translateX({row.pct - 100}%)"></div></div>
 			<span class="time">{row.time}</span>
 			<span class="mbps">{row.mbps}</span>
 			<button
@@ -165,11 +172,19 @@ let failed = $state(false);
 	width: 20px;
 	height: 20px;
 	border-radius: var(--radius-sm);
+	overflow: hidden;
 	display: grid;
 	place-items: center;
+	background: var(--kind-album);
 	color: var(--bg-deep);
 	font-size: 9px;
 	font-weight: 600;
+}
+
+.av img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 
 .sep {
@@ -205,7 +220,8 @@ let failed = $state(false);
 	height: 100%;
 	border-radius: var(--radius-full);
 	background: var(--accent);
-	transition: width 900ms linear;
+	/* Slid in from the left rather than widened: a width relays the page out on every frame. */
+	transition: transform 900ms linear;
 }
 
 .time {

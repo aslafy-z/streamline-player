@@ -1,0 +1,119 @@
+Subject: [GTK] Do not use accelerated compositing when GL is a software rasterizer
+
+Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
+tarball root. Independent of the other drafts (applies with an offset of one
+line after 0004). Compiled and measured (dev/bench/RESULTS.md).
+
+What it does
+  In the UI process, where WEBKIT_DISABLE_COMPOSITING_MODE is resolved
+  (HardwareAccelerationManager), hardware acceleration is now also considered
+  unavailable when the EGL display GTK uses is backed by a software device:
+  the EGL device advertises EGL_MESA_device_software, or its renderer string
+  (EGL_EXT_device_query_name) contains llvmpipe, softpipe or swrast. The
+  result is the same as WEBKIT_DISABLE_COMPOSITING_MODE=1: preferences start
+  with accelerated compositing off (WebPreferencesGtk.cpp), no
+  AcceleratedBackingStore is created, and pages are painted with Skia on the
+  CPU through the UpdateInfo path, dirty rects only.
+
+  WEBKIT_FORCE_COMPOSITING_MODE set to anything but 0 keeps compositing on a
+  software rasterizer. That variable already exists in 2.52 (its only other
+  meaning is "0 = do not force").
+
+How to check it took effect
+  webkit_settings_get_hardware_acceleration_policy() returns NEVER, and
+  webkit://gpu shows the hardware acceleration policy as "never".
+
+What it does not handle
+  - No glGetString(GL_RENDERER) fallback (2.54's GLDisplay::isSoftwareRendered
+    has one): there is no current GL context at this point. A software driver
+    that exposes neither EGL extension is not detected.
+  - webkit_settings_set_hardware_acceleration_policy(ALWAYS) cannot turn
+    compositing back on in that case (it returns early when hardware
+    acceleration is unavailable); only the environment variable can.
+  - Everything that depends on accelerated compositing is lost on software
+    GL: async scrolling, 3D transforms, compositor driven animations.
+  - 2.54 needs a different patch: there the same test belongs in
+    HardwareAccelerationManager and must also clear hardware acceleration,
+    since WEBKIT_DISABLE_COMPOSITING_MODE alone keeps GL painting.
+
+--- a/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.cpp
++++ b/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.cpp
+@@ -144,6 +144,41 @@
+     return false;
+ }
+ 
++#ifndef EGL_RENDERER_EXT
++#define EGL_RENDERER_EXT 0x335F
++#endif
++
++bool AcceleratedBackingStore::isSoftwareRendered()
++{
++    static bool isSoftwareRendered;
++    static std::once_flag onceFlag;
++    std::call_once(onceFlag, [] {
++        auto* glDisplay = Display::singleton().glDisplay();
++        if (!glDisplay)
++            return;
++
++        if (!GLContext::isExtensionSupported(eglQueryString(nullptr, EGL_EXTENSIONS), "EGL_EXT_device_query"))
++            return;
++
++        EGLDeviceEXT device = nullptr;
++        if (!eglQueryDisplayAttribEXT(glDisplay->eglDisplay(), EGL_DEVICE_EXT, reinterpret_cast<EGLAttrib*>(&device)) || !device)
++            return;
++
++        const char* deviceExtensions = eglQueryDeviceStringEXT(device, EGL_EXTENSIONS);
++        if (GLContext::isExtensionSupported(deviceExtensions, "EGL_MESA_device_software")) {
++            isSoftwareRendered = true;
++            return;
++        }
++
++        if (!GLContext::isExtensionSupported(deviceExtensions, "EGL_EXT_device_query_name"))
++            return;
++
++        if (const char* renderer = eglQueryDeviceStringEXT(device, EGL_RENDERER_EXT))
++            isSoftwareRendered = g_strrstr(renderer, "llvmpipe") || g_strrstr(renderer, "softpipe") || g_strrstr(renderer, "swrast");
++    });
++    return isSoftwareRendered;
++}
++
+ #if USE(GBM)
+ Vector<RendererBufferFormat> AcceleratedBackingStore::preferredBufferFormats()
+ {
+--- a/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.h
++++ b/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.h
+@@ -65,6 +65,7 @@
+ 
+     static OptionSet<RendererBufferTransportMode> rendererBufferTransportMode();
+     static bool checkRequirements();
++    static bool isSoftwareRendered();
+ #if USE(GBM)
+     static Vector<RendererBufferFormat> preferredBufferFormats();
+ #endif
+--- a/Source/WebKit/UIProcess/gtk/HardwareAccelerationManager.cpp
++++ b/Source/WebKit/UIProcess/gtk/HardwareAccelerationManager.cpp
+@@ -42,15 +42,23 @@
+     : m_canUseHardwareAcceleration(true)
+     , m_forceHardwareAcceleration(true)
+ {
++    const char* forceCompositing = getenv("WEBKIT_FORCE_COMPOSITING_MODE");
++
+ #if !ENABLE(WEBGL)
+     m_canUseHardwareAcceleration = false;
+ #else
+     const char* disableCompositing = getenv("WEBKIT_DISABLE_COMPOSITING_MODE");
+     if ((disableCompositing && strcmp(disableCompositing, "0")) || !AcceleratedBackingStore::checkRequirements())
+         m_canUseHardwareAcceleration = false;
++
++    // A software rasterizer composites and reads back the whole view on the CPU for every frame, which
++    // costs more than painting the dirty rects without GL. WEBKIT_FORCE_COMPOSITING_MODE set to anything
++    // but 0 keeps accelerated compositing.
++    bool isCompositingForced = forceCompositing && strcmp(forceCompositing, "0");
++    if (m_canUseHardwareAcceleration && !isCompositingForced && AcceleratedBackingStore::isSoftwareRendered())
++        m_canUseHardwareAcceleration = false;
+ #endif
+ 
+-    const char* forceCompositing = getenv("WEBKIT_FORCE_COMPOSITING_MODE");
+     if (forceCompositing && !strcmp(forceCompositing, "0"))
+         m_forceHardwareAcceleration = false;
+ }

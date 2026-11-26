@@ -12,6 +12,7 @@ import { m as i18n } from "#lib/paraglide/messages.js";
 import { formFactor, isPhone } from "#lib/platform/form-factor.svelte.ts";
 import { FORM_FACTOR, IS_WEB } from "#lib/platform/target.ts";
 import DesktopShell from "#lib/shells/desktop/Shell.svelte";
+import Mark from "#lib/ui/Mark.svelte";
 import PhoneShell from "#lib/shells/phone/Shell.svelte";
 import TabletShell from "#lib/shells/tablet/Shell.svelte";
 import TvShell from "#lib/shells/tv/Shell.svelte";
@@ -63,6 +64,8 @@ onMount(() => {
 {#snippet content()}
 	{#if ready}
 		{@render children()}
+	{:else if isPhone()}
+		<div class="splash"><Mark size={56} radius={14} ring={false} /></div>
 	{/if}
 {/snippet}
 
@@ -77,6 +80,13 @@ onMount(() => {
 {/if}
 
 <style>
+.splash {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+}
+
 :global(*),
 :global(*::before),
 :global(*::after) {
@@ -94,6 +104,8 @@ onMount(() => {
 	font-size: 14px;
 	line-height: 1.5;
 	-webkit-font-smoothing: antialiased;
+	/* Android's webview otherwise flashes a blue box over whatever is tapped. */
+	-webkit-tap-highlight-color: transparent;
 }
 
 :global(button) {

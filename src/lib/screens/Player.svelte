@@ -1,22 +1,29 @@
 <script lang="ts">
 import {
+	ArrowLeft,
+	AudioLines,
 	Captions,
 	CaptionsOff,
 	Gauge,
 	Maximize,
 	Minimize,
-	PictureInPicture2,
-	Settings,
-	AudioLines,
-	ArrowLeft,
 	Pause,
+	PictureInPicture2,
 	Play,
 	RotateCcw,
 	RotateCw,
+	Settings,
 } from "@lucide/svelte";
+import { onMount, untrack } from "svelte";
+import { localKey, localLaunch } from "#lib/core/download-launch.ts";
+import { dl } from "#lib/core/downloads.svelte.ts";
+import { episodesOf } from "#lib/core/format.ts";
+import { lib } from "#lib/core/library.svelte.ts";
+import { account } from "#lib/core/me.svelte.ts";
+import { net } from "#lib/core/online.svelte.ts";
 import { rememberedThroughput } from "#lib/core/playback/auto.ts";
+import { localPort } from "#lib/core/playback/local-port.ts";
 import { digits, modeName, resBadge, subInfo } from "#lib/core/playback/names.ts";
-import { fmtOffset, panelWords } from "#lib/core/playback/panel-words.ts";
 import {
 	type Launch,
 	nowPlaying,
@@ -24,22 +31,13 @@ import {
 	setVolume,
 	stop,
 	toFull,
-	toMini,
 	toggleMute,
+	toMini,
 } from "#lib/core/playback/now-playing.svelte.ts";
+import { fmtOffset, panelWords } from "#lib/core/playback/panel-words.ts";
 import { UP_NEXT_SECS } from "#lib/core/playback/playback.svelte.ts";
+import type { PlaybackPort } from "#lib/core/playback/port.ts";
 import { DEFAULT_SIZE_PX, SIZE_PX } from "#lib/core/playback/rules.ts";
-import {
-	clock,
-	endsAt,
-	keyFor,
-	loadLaunch,
-	type PlayerKey,
-	type SeekFlash,
-	seekFlash,
-	segments,
-} from "#lib/core/player-view.ts";
-import { account } from "#lib/core/me.svelte.ts";
 import {
 	audioRows,
 	haltView,
@@ -48,33 +46,25 @@ import {
 	statsRows,
 	subtitleRows,
 } from "#lib/core/player-panels.ts";
+import {
+	clock,
+	endsAt,
+	keyFor,
+	loadLaunch,
+	type PlayerKey,
+	SEEK_STEP,
+	type SeekFlash,
+	seekFlash,
+	segments,
+} from "#lib/core/player-view.ts";
 import { prefs, setPref as savePref } from "#lib/core/prefs.svelte.ts";
-import { isTablet } from "#lib/platform/form-factor.svelte.ts";
-import PlayerChrome from "#lib/screens/tablet/PlayerChrome.svelte";
+import { toast } from "#lib/core/toast.svelte.ts";
 import type { DownloadEntry, Kind } from "#lib/core/types.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
 import { getLocale } from "#lib/paraglide/runtime.js";
-import {
-	artwork,
-	artworkAt,
-	canDownload,
-	everything,
-	isFullscreen,
-	localPlayback,
-	noteOffline,
-	playbackPort,
-	setFullscreen,
-	title as fetchTitle,
-	watchState,
-} from "#platform";
-import { localKey, localLaunch } from "#lib/core/download-launch.ts";
-import { dl } from "#lib/core/downloads.svelte.ts";
-import { episodesOf } from "#lib/core/format.ts";
-import { lib } from "#lib/core/library.svelte.ts";
-import { localPort } from "#lib/core/playback/local-port.ts";
-import { net } from "#lib/core/online.svelte.ts";
-import type { PlaybackPort } from "#lib/core/playback/port.ts";
+import { isTablet } from "#lib/platform/form-factor.svelte.ts";
 import { downloadsPort } from "#lib/screens/downloads-port.ts";
+import PlayerChrome from "#lib/screens/tablet/PlayerChrome.svelte";
 import BufferingSpinner from "#lib/ui/BufferingSpinner.svelte";
 import Button from "#lib/ui/Button.svelte";
 import EmptyState from "#lib/ui/EmptyState.svelte";
@@ -92,8 +82,21 @@ import Stepper from "#lib/ui/Stepper.svelte";
 import SubtitleStyle from "#lib/ui/SubtitleStyle.svelte";
 import Tip from "#lib/ui/Tip.svelte";
 import UpNextCard from "#lib/ui/UpNextCard.svelte";
+import {
+	adminScan,
+	artwork,
+	artworkAt,
+	canDownload,
+	everything,
+	title as fetchTitle,
+	isFullscreen,
+	localPlayback,
+	noteOffline,
+	playbackPort,
+	setFullscreen,
+	watchState,
+} from "#platform";
 import { afterNavigate, beforeNavigate } from "$app/navigation";
-import { onMount, untrack } from "svelte";
 
 type Tab = "subs" | "audio" | "quality" | "speed";
 type Phase = "idle" | "in" | "out";
@@ -422,11 +425,28 @@ function pressSurface() {
 	pressedOn = controlsOn && !!pb?.playing;
 }
 
-function tapSurface() {
+// Tablet: a second tap on the same side within this long skips that way, and so does each tap after it.
+const DOUBLE_TAP_MS = 320;
+const SIDE = 0.4;
+let lastTap = { side: 0, at: 0, running: false, controls: true };
+
+function tapSurface(e: MouseEvent) {
 	if (pressClosedMenu) {
 		pressClosedMenu = false;
 		return;
 	}
+	const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	const x = (e.clientX - r.left) / r.width;
+	const side = x < SIDE ? -1 : x > 1 - SIDE ? 1 : 0;
+	const now = Date.now();
+	if (side !== 0 && lastTap.side === side && now - lastTap.at < DOUBLE_TAP_MS && !pb?.ended) {
+		// The pair's first tap toggled the controls: put them back as they were.
+		if (!lastTap.running) controls = lastTap.controls;
+		lastTap = { ...lastTap, at: now, running: true };
+		seek(side * SEEK_STEP);
+		return;
+	}
+	lastTap = { side, at: now, running: false, controls };
 	controls = !pressedOn;
 	lastMove = Date.now();
 }
@@ -455,7 +475,8 @@ function openMore(href: string) {
 }
 
 function onKey(e: KeyboardEvent) {
-	if (!pb) return;
+	// A tablet has no keyboard shortcuts; Escape stays, as it closes things everywhere else.
+	if (!pb || (tablet && e.key !== "Escape")) return;
 	const act = keyFor(
 		{
 			key: e.key,
@@ -540,7 +561,7 @@ $effect(() => {
 
 // The player reports every 500 ms; between reports the bar moves on each frame at the playback speed.
 $effect(() => {
-	if (!pb?.playing || !controlsOn) return;
+	if (!pb?.playing || !(controlsOn || pb.upNextOn)) return;
 	let raf = requestAnimationFrame(function tick(t) {
 		frameAt = t;
 		raf = requestAnimationFrame(tick);
@@ -565,7 +586,7 @@ const paused = $derived(
 const upNextFrac = $derived(
 	!pb || pb.creditsAt === null
 		? 0
-		: Math.min(1, Math.max(0, (pb.position - pb.creditsAt) / UP_NEXT_SECS)),
+		: Math.min(1, Math.max(0, (shown - pb.creditsAt) / UP_NEXT_SECS)),
 );
 const skipOn = $derived(
 	!!pb && ((pb.introOn && !prefs.autoSkip) || pb.creditsOn) && !pb.ended && !pb.halt,
@@ -621,7 +642,7 @@ const subtitleCue = $derived.by(() => {
 const selectedSub = $derived(pb?.tracks?.subtitles.find((t) => t.index === pb.subPick) ?? null);
 const subKind = $derived(pb?.burn ? "burn" : selectedSub ? subInfo(selectedSub).kind : "text");
 const audioList = $derived(
-	pb ? audioRows(pb.tracks, pb.selectedAudio, pb.preview, pb.session, words) : [],
+	pb ? audioRows(pb.tracks, pb.selectedAudio, pb.preview, pb.session, words, pb.passthrough) : [],
 );
 const subList = $derived(pb ? subtitleRows(pb.tracks, pb.subPick, words) : []);
 const qualityList = $derived(
@@ -632,6 +653,7 @@ const qualityList = $derived(
 					autoPick: pb.autoPick,
 					measuredOnce: pb.measuredOnce,
 					originalPlays: pb.originalPlays,
+					mobileLimit: pb.mobileLimit,
 					preview: pb.preview,
 					tracks: pb.tracks,
 				},
@@ -686,7 +708,9 @@ const menuNote = $derived.by(() => {
 		const asIs = session.audio.action === "copy";
 		return {
 			text: asIs
-				? i18n.player_audio_note_as_is({ player: playbackPort.playerName, name })
+				? pb.passthrough.includes(session.audio.codec)
+					? i18n.player_audio_note_pass({ name })
+					: i18n.player_audio_note_as_is({ player: playbackPort.playerName, name })
 				: i18n.player_audio_note_convert({
 						player: playbackPort.playerName,
 						name,
@@ -797,6 +821,9 @@ const statList = $derived.by(() => {
 			audioDelay: pb.audioDelay,
 			measured: pb.measured,
 			throughput: pb.network ? rememberedThroughput(pb.network) : null,
+			away: pb.network === "away",
+			passAudio:
+				pb.session?.audio.action === "copy" && pb.passthrough.includes(pb.session.audio.codec),
 			host: URL.canParse(pb.session.url) ? new URL(pb.session.url).host : "",
 			playerName: playbackPort.playerName,
 			full: pb.full,
@@ -815,7 +842,7 @@ const haltModel = $derived(
 					host: pb.host,
 					position: pb.position,
 					isAdmin: account.me?.role === "Admin",
-					routes: { serverSettings: false },
+					routes: { serverSettings: true },
 					canDownload,
 				},
 				words,
@@ -826,9 +853,15 @@ const haltModel = $derived(
 function haltAction(id: string) {
 	if (id === "retry") pb?.retry();
 	else if (id === "back") exit();
-	else if (id === "downloads") {
+	else if (id === "downloads" || id === "server-settings") {
 		if (fullscreen) toggleFullscreen(false);
-		goto("/downloads");
+		goto(id === "downloads" ? "/downloads" : "/admin");
+	} else if (id === "scan") {
+		adminScan().then(
+			() => toast(i18n.halt_toast_scan_started()),
+			() => {},
+		);
+		exit();
 	}
 }
 
@@ -837,7 +870,7 @@ $effect(() => {
 });
 
 const menuButtons = $derived.by(() => {
-	const label = (name: string, key?: string) => ({ label: name, key });
+	const label = (name: string, key?: string) => ({ label: name, key: tablet ? undefined : key });
 	return [
 		{
 			id: "subtitles",

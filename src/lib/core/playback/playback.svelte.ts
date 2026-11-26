@@ -351,7 +351,10 @@ export class Playback {
 		else this.nudgeAudio(0);
 	}
 
-	#mobileLimit: number | null = null;
+	/** The cellular cap in Mbit/s while this stream runs on mobile data, else null. */
+	mobileLimit = $state<number | null>(null);
+	/** Audio codecs this device hands to the TV or receiver undecoded. */
+	passthrough = $state<string[]>([]);
 
 	#currentCap() {
 		if (typeof this.quality === "number") return this.quality;
@@ -532,8 +535,13 @@ export class Playback {
 
 	async refreshTracks() {
 		clearTimeout(this.#tracksTimer);
+		const wasPreparing = !!this.tracks?.preparing;
 		this.tracks = await this.#port.mediaTracks(this.#item.mediaId).catch(() => this.tracks);
 		if (this.#gone) return;
+		if (wasPreparing && this.tracks && !this.tracks.preparing)
+			toast(i18n.player_toast_subs_ready(), {
+				text: i18n.player_toast_subs_ready_text({ count: this.tracks.subtitles.length }),
+			});
 		if (!this.tracks) this.#tracksTimer = setTimeout(() => this.refreshTracks(), TRACKS_RETRY_MS);
 		if (this.tracks && !this.#picked) {
 			this.#picked = true;
@@ -629,6 +637,8 @@ export class Playback {
 			if (!this.#picked)
 				this.quality = presetOf(this.network === "home" ? prefs.qHome : prefs.qAway);
 			const capabilities = await this.#port.capabilities();
+			this.passthrough =
+				(capabilities as { audio?: { passthrough?: string[] } } | null)?.audio?.passthrough ?? [];
 			await Promise.race([
 				this.refreshTracks(),
 				new Promise((done) => setTimeout(done, TRACKS_WAIT_MS)),
@@ -637,7 +647,7 @@ export class Playback {
 			// ponytail: read when a stream starts; a watcher on the connection if leaving Wi-Fi
 			// mid-film must lower the stream at once.
 			const limit = parseInt(prefs.cellular, 10);
-			this.#mobileLimit =
+			this.mobileLimit =
 				Number.isFinite(limit) && (await this.#port.metered().catch(() => false)) ? limit : null;
 			if (id !== this.#startId) return;
 			this.autoPick = capped(
@@ -648,7 +658,7 @@ export class Playback {
 							this.originalPlays,
 						)
 					: this.autoPick,
-				this.#mobileLimit,
+				this.mobileLimit,
 			);
 			const asked = this.#sessionTracks();
 			const started = await this.#port.startSession(this.#item.mediaId, capabilities, at, asked);
@@ -823,8 +833,10 @@ export class Playback {
 		this.upNextDismissed = true;
 	}
 
-	retry() {
-		return this.start();
+	async retry() {
+		const stopped = this.halt?.kind === "stop";
+		await this.start();
+		if (stopped && !this.halt) toast(i18n.player_toast_resumed());
 	}
 
 	async pickQuality(q: Quality) {
@@ -863,7 +875,7 @@ export class Playback {
 	#considerStepUp() {
 		const target = capped(
 			autoCap(this.measured, this.preview && this.preview.bitRate / MBIT, this.originalPlays),
-			this.#mobileLimit,
+			this.mobileLimit,
 		);
 		const session = this.session;
 		const steady =

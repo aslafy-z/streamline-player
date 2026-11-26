@@ -1,4 +1,5 @@
 <script lang="ts">
+import { otherDevices } from "#lib/core/devices.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
 import { goto } from "#lib/ui/nav.ts";
 import LoadFailed from "#lib/tv/LoadFailed.svelte";
@@ -221,9 +222,9 @@ const sections = $derived.by((): [Section, ...Section[]] => {
 						]
 					: []),
 				// The TV only manages itself: other devices are signed out from the web app.
-				...devices
-					.filter((x) => !x.current)
-					.map((x) => show(x.name, seen(x, true), `${x.platform} · ${seen(x)}`)),
+				...otherDevices(devices).map((x) =>
+					show(x.name, seen(x, true), `${x.platform} · ${seen(x)}`),
+				),
 			],
 		},
 		{

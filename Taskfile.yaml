@@ -9,6 +9,7 @@ includes:
   build: ./.taskfiles/build.yaml
   test: ./.taskfiles/test.yaml
   lint: ./.taskfiles/lint.yaml
+  release: ./.taskfiles/release.yaml
 
 tasks:
   default:

@@ -469,6 +469,9 @@ pub fn file_video_args(plan: &Plan, a: &Analysis, hw: &Hw) -> FileVideo {
     }
 }
 
+const START_AT_ZERO: &str =
+    "noise=drop='lte(pts+duration\\,0)',setts=pts='max(PTS\\,0)':dts='max(DTS\\,0)'";
+
 fn audio_args(args: &mut Vec<String>, s: &RunSpec, seam: Option<&AudioSeam>) {
     match &s.plan.audio {
         AudioAction::Copy => push(args, &["-c:a", "copy"]),
@@ -508,9 +511,13 @@ fn audio_args(args: &mut Vec<String>, s: &RunSpec, seam: Option<&AudioSeam>) {
     }
     if let Some(m) = seam {
         args.extend(["-bsf:a".to_owned(), drop_audio_before(m.end)]);
-    } else if s.start_index == 0 && s.plan.audio == AudioAction::Copy {
-        // A copied AAC track opens with its priming packet, below zero, which fMP4 cannot hold.
-        push(args, &["-bsf:a", "noise=drop='lt(pts\\,0)'"]);
+    } else if s.start_index == 0 {
+        // The track opens below zero, which fMP4 cannot hold and Android's player refuses: a
+        // copied AAC track with its priming packet, an encoded one with the encoder's lead-in.
+        // A packet wholly below zero goes. One that straddles it (E-AC-3 leads in by 256 of
+        // its 1536 samples) is moved up to zero instead: dropped, it took the first 27 ms of
+        // the film with it.
+        push(args, &["-bsf:a", START_AT_ZERO]);
     }
 }
 
@@ -873,6 +880,7 @@ mod tests {
             &["-c:a", "eac3", "-b:a", "640000", "-ac", "6"]
         ));
         assert_eq!(value_of(&args, "-af"), "asetpts=round(PTS/S)*S");
+        assert_eq!(value_of(&args, "-bsf:a"), START_AT_ZERO);
     }
 
     fn seamed(p: &Plan, a: &Analysis) -> Vec<String> {

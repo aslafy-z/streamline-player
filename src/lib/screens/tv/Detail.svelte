@@ -3,6 +3,8 @@ import { m as i18n } from "#lib/paraglide/messages.js";
 import { goto } from "#lib/ui/nav.ts";
 import { page } from "$app/state";
 import { autoCap, PRESETS, presetOf, rememberedThroughput } from "#lib/core/playback/auto.ts";
+import { newEpisodes } from "#lib/core/detail.ts";
+import { modeName } from "#lib/core/playback/names.ts";
 import { prefs } from "#lib/core/prefs.svelte.ts";
 import LoadFailed from "#lib/tv/LoadFailed.svelte";
 import TvScreen from "#lib/tv/TvScreen.svelte";
@@ -32,9 +34,13 @@ import {
 } from "#platform";
 import { applyWatch, lib, loadLibrary } from "#lib/core/library.svelte.ts";
 import WatchGlyph from "#lib/ui/WatchGlyph.svelte";
+import WatchMarks from "#lib/ui/WatchMarks.svelte";
+import { watchInfo } from "#lib/core/watch-info.ts";
 import { hideBroken, orPoster } from "#lib/ui/img.ts";
 import { toast } from "#lib/core/toast.svelte.ts";
-import { Play, RotateCcw, SkipBack } from "@lucide/svelte";
+import { canScan, scanTitle } from "#lib/screens/scan.ts";
+import "#lib/ui/card.css";
+import { Play, RefreshCw, RotateCcw, SkipBack } from "@lucide/svelte";
 
 const MAX_SIMILAR = 10;
 const MAX_CAST = 14;
@@ -210,6 +216,7 @@ async function resetProgress() {
 				: i18n.card_reset_text({ title: t.title }),
 	});
 }
+const arrived = $derived(newEpisodes(lib.feed, id, new Date()));
 </script>
 
 {#snippet castRow()}
@@ -298,6 +305,19 @@ async function resetProgress() {
 						<WatchGlyph on={watched} size={26} stroke={2.2} />
 						{watched ? i18n.detail_watched() : i18n.detail_mark_watched()}
 					</button>
+					{#if canScan()}
+						{@const title = t}
+						<button
+							type="button"
+							data-tv="1"
+							class="act"
+							aria-label={i18n.detail_scan_title({ title: title.title })}
+							onclick={() =>
+								scanTitle(kind, id, i18n.detail_toast_scanning_title({ title: title.title }), eps)}
+						>
+							<RefreshCw size={26} strokeWidth={2} />{i18n.detail_scan_short()}
+						</button>
+					{/if}
 				</div>
 				{#if playback && !playback.error}
 					<div class="status">
@@ -308,7 +328,7 @@ async function resetProgress() {
 								? "var(--status-available) 18%"
 								: "var(--status-downloading) 20%"}, transparent)"
 						></span>
-						<span>{PLAIN[playback.mode]}</span>
+						<span>{prefs.techDetails ? modeName(playback.mode) : PLAIN[playback.mode]}</span>
 					</div>
 				{/if}
 			</div>
@@ -327,10 +347,28 @@ async function resetProgress() {
 								{i18n.common_season_n({ n: s.number })}
 							</button>
 						{/each}
+						{#if canScan()}
+							<button
+								type="button"
+								data-tv="1"
+								class="season scan"
+								onclick={() =>
+									scanTitle(
+										kind,
+										id,
+										i18n.detail_toast_scanning_season({ season: curSeason }),
+										shown,
+									)}
+							>
+								<RefreshCw size={24} strokeWidth={2} />
+								{i18n.detail_scan_season({ season: curSeason })}
+							</button>
+						{/if}
 					</div>
 					<div class="eps">
 						{#each shown as e}
 							{@const w = stateOf(e.media_file_id)}
+							{@const unread = e.has_file && !w?.watched && !inProgress(w)}
 							<button
 								type="button"
 								data-tv="1"
@@ -350,6 +388,12 @@ async function resetProgress() {
 										style:filter={e.has_file ? "none" : "grayscale(1)"}
 										onerror={orPoster(artwork("series", id, "poster"))}
 									>
+									{#if unread}
+										<span class="slp-unread slp-mk--tv" aria-hidden="true"></span>
+									{/if}
+									{#if e.has_file && arrived.has(`${curSeason}:${e.number}`)}
+										<span class="new" class:after-unread={unread}>{i18n.home_new()}</span>
+									{/if}
 									{#if inProgress(w)}
 										<span class="bar"><span style:width="{pct(w)}%"></span></span>
 									{/if}
@@ -373,7 +417,7 @@ async function resetProgress() {
 							<button
 								type="button"
 								data-tv="1"
-								class="sim"
+								class="sim slp-mk--tv"
 								aria-label={it.title}
 								onclick={() => goto(`/detail/${it.kind}/${it.id}`)}
 							>
@@ -383,6 +427,7 @@ async function resetProgress() {
 									loading="lazy"
 									onerror={hideBroken}
 								>
+								<WatchMarks info={watchInfo(it, it.kind, watch)} />
 							</button>
 						{/each}
 					</div>
@@ -594,6 +639,15 @@ p {
 	transition: transform var(--dur-fast);
 }
 
+.season.scan {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	background: rgba(255, 255, 255, 0.08);
+	color: var(--fg);
+}
+
 .season.on {
 	background: rgba(255, 255, 255, 0.14);
 	color: var(--fg);
@@ -641,6 +695,23 @@ p {
 	border-radius: var(--radius-lg);
 	overflow: hidden;
 	background: var(--bg-card);
+}
+
+.new {
+	position: absolute;
+	left: 14px;
+	top: 14px;
+	padding: 4px 10px;
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--bg-deep) 85%, transparent);
+	font: 500 17px var(--font-mono);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--accent-text);
+}
+
+.new.after-unread {
+	left: 44px;
 }
 
 .still img {
@@ -783,6 +854,8 @@ p {
 }
 
 .sim {
+	position: relative;
+	overflow: clip;
 	flex: none;
 	width: 220px;
 	padding: 0;

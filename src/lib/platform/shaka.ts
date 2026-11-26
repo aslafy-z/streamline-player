@@ -209,7 +209,12 @@ async function load(url: string, at: number) {
 				// followed by leading pictures (open GOP) decodes a frame or more earlier than the
 				// others do, so that one segment got pushed late and left a hole before it. The
 				// engine's segments carry the file's real times: they place themselves.
-				hls: { ignoreManifestTimestampsInSegmentsMode: true },
+				// Captions detection: Shaka looks for captions carried inside the video, and when the
+				// first segment has none it fetches the middle and the last one too. Each of those is
+				// a seek to the engine, which restarts its conversion three times before the film
+				// starts, and the run that comes back to the second segment no longer has the first
+				// one to line up with: a hole in the sound two seconds in. Subtitles never come that way.
+				hls: { ignoreManifestTimestampsInSegmentsMode: true, disableClosedCaptionsDetection: true },
 				retryParameters: {
 					maxAttempts: 2,
 					baseDelay: 500,

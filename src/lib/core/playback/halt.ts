@@ -46,7 +46,13 @@ export function haltFor(
 	{ host, at, titleName }: Context,
 	playerName: string,
 ): { halt: Halt; retryIn?: number } {
-	let error: { code?: string; message?: string; retry_after?: number; by?: string } | null = null;
+	let error: {
+		code?: string;
+		message?: string;
+		retry_after?: number;
+		by?: string;
+		need?: string;
+	} | null = null;
 	try {
 		const parsed = JSON.parse(raw);
 		error = parsed.error ?? parsed;
@@ -90,7 +96,9 @@ export function haltFor(
 				eyebrow: i18n.halt_busy_eyebrow(),
 				icon: "cpu",
 				title: i18n.halt_busy_title(),
-				body: i18n.halt_busy_body({ host }),
+				body: error.need
+					? i18n.halt_busy_body_need({ host, need: error.need })
+					: i18n.halt_busy_body({ host }),
 				count: (left) => i18n.halt_count_retry({ left }),
 				note: i18n.halt_busy_note({ at: at ?? "" }),
 				failed: false,

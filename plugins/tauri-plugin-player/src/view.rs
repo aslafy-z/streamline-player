@@ -51,6 +51,7 @@ unsafe extern "C" {
 
 thread_local! {
     static AREA: RefCell<Option<gtk::GLArea>> = const { RefCell::new(None) };
+    static WEBVIEW: RefCell<Option<webkit2gtk::WebView>> = const { RefCell::new(None) };
     static RENDER: Cell<*mut c_void> = const { Cell::new(ptr::null_mut()) };
     static PLAYER: RefCell<Option<Arc<mpv::Mpv>>> = const { RefCell::new(None) };
     static RECT: Cell<Option<Rect>> = const { Cell::new(None) };
@@ -203,7 +204,20 @@ pub fn attach(webview: webkit2gtk::WebView, player: Arc<mpv::Mpv>) {
         Some(b) => b.pack_start(&overlay, true, true, 0),
         None => parent.add(&overlay),
     }
-    webview.set_background_color(&gdk::RGBA::new(0.0, 0.0, 0.0, 0.0));
+    // GTK3 paints a window in software before GL goes over it, so every background it fills is
+    // a full-window fill per frame. The page and the picture cover all of it.
+    let css = gtk::CssProvider::new();
+    if css
+        .load_from_data(b"window, window.background, box, overlay { background: none; }")
+        .is_ok()
+        && let Some(screen) = gdk::Screen::default()
+    {
+        gtk::StyleContext::add_provider_for_screen(
+            &screen,
+            &css,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
     #[cfg(debug_assertions)]
     if let Some(settings) = WebViewExt::settings(&webview) {
         use webkit2gtk::SettingsExt;
@@ -211,6 +225,18 @@ pub fn attach(webview: webkit2gtk::WebView, player: Arc<mpv::Mpv>) {
     }
     overlay.show_all();
     AREA.with(|a| *a.borrow_mut() = Some(area));
+    WEBVIEW.with(|w| *w.borrow_mut() = Some(webview));
+}
+
+/// Lets the picture show through the page. A see-through webview makes GTK3 upload the whole
+/// window to GL on every frame, so it stays opaque while nothing plays.
+pub fn see_through(on: bool) {
+    WEBVIEW.with(|w| {
+        if let Some(w) = w.borrow().as_ref() {
+            let alpha = if on { 0.0 } else { 1.0 };
+            w.set_background_color(&gdk::RGBA::new(0.0, 0.0, 0.0, alpha));
+        }
+    });
 }
 
 pub fn refresh_rate(widget: &impl IsA<gtk::Widget>) -> Option<f64> {

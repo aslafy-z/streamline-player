@@ -10,6 +10,7 @@ import type {
 	ActivityEvent,
 	AdminDevice,
 	AdminLibrary,
+	ScanScope,
 	AdminOverview,
 	AdminPairing,
 	AdminSettings,
@@ -128,7 +129,7 @@ function picture(path: string) {
 	}
 	return `${ARTWORK}${path}`;
 }
-export const artwork = (kind: Kind, id: number, name: "poster" | "backdrop") =>
+export const artwork = (kind: Kind, id: number, name: "poster" | "poster-w342" | "backdrop") =>
 	picture(`${kind}/${id}/${name}.jpg`);
 /** A picture by the path a download saved it under, as the `artwork` scheme takes it. */
 export const artworkAt = (path: string) => picture(path.replace(/^\//, ""));
@@ -182,6 +183,8 @@ export const adminResolvePairing = (code: string, approve: boolean, userId?: num
 export const adminRevokeDevice = (id: string) => invoke<void>("admin_revoke_device", { id });
 export const adminLibrary = () => invoke<AdminLibrary>("admin_library");
 export const adminScan = (folderId?: string) => invoke<void>("admin_scan", { folderId });
+export const adminScanTitles = ({ movies, episodes }: ScanScope) =>
+	invoke<void>("admin_scan", { movies, episodes });
 export const adminEngineSecret = () => invoke<EngineSecretStatus>("admin_engine_secret");
 export const adminRotateEngineSecret = () =>
 	invoke<{ secret: string }>("admin_rotate_engine_secret");
@@ -237,6 +240,10 @@ export const reachable = () => invoke<boolean>("reachable");
 /** Android alone says whether its connection is billed by volume, which is how it sees mobile data. */
 export const canMeter: boolean = /Android/.test(navigator.userAgent);
 const metered = () => (canMeter ? invoke<boolean>("metered") : Promise.resolve(false));
+
+// A page that reloads forgets what was playing, and the native player outlives the page: its
+// sound would go on with nothing on screen to stop it.
+invoke("plugin:player|stop").catch(() => {});
 
 export const playbackPort: PlaybackPort = {
 	playerName: PLAYER_NAME,

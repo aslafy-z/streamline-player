@@ -1,6 +1,6 @@
 <script lang="ts">
 import { ask } from "#lib/core/ask.svelte.ts";
-import { removeKeys } from "#lib/core/download-ask.svelte.ts";
+import { openPopover, removeKeys } from "#lib/core/download-ask.svelte.ts";
 import { dl, retry } from "#lib/core/downloads.svelte.ts";
 import { type Card, type Group, pageView, storageView } from "#lib/core/downloads-view.ts";
 import { localUrl } from "#lib/core/download-launch.ts";
@@ -20,6 +20,7 @@ import Icon from "#lib/ui/Icon.svelte";
 import { goto } from "#lib/ui/nav.ts";
 import Art from "#lib/ui/Art.svelte";
 import StorageMeter from "#lib/ui/StorageMeter.svelte";
+import TriPick from "#lib/ui/TriPick.svelte";
 import { prefs } from "#lib/core/prefs.svelte.ts";
 import { TARGET } from "#lib/platform/target.ts";
 import { artworkAt } from "#platform";
@@ -33,7 +34,7 @@ const BOTTOM = 32;
 
 const words = $derived(downloadWords());
 const view = $derived(pageView(dl.items, dl.rate, words, lib.watch));
-const meter = $derived(dl.storage ? storageView(dl.storage, words) : null);
+const meter = $derived(dl.storage ? storageView(dl.storage, words, isPhone()) : null);
 const byKey = (key: string) => dl.items.find((e) => e.key === key);
 
 const stillOf = (key: string) => artworkAt(byKey(key)?.meta.still ?? "");
@@ -74,6 +75,18 @@ function toggleSelecting() {
 function pick(key: string) {
 	const next = new Set(picked);
 	if (!next.delete(key)) next.add(key);
+	picked = next;
+}
+
+type PickState = "true" | "mixed" | "false";
+const stateOf = (keys: string[]): PickState => {
+	const n = keys.filter((k) => picked.has(k)).length;
+	return n === 0 ? "false" : n === keys.length ? "true" : "mixed";
+};
+function toggleAll(keys: string[]) {
+	const next = new Set(picked);
+	if (stateOf(keys) === "true") for (const k of keys) next.delete(k);
+	else for (const k of keys) next.add(k);
 	picked = next;
 }
 
@@ -176,7 +189,8 @@ const phoneGroups = $derived<PhoneGroup[]>(
 		{allPicked}
 		{stillOf}
 		{posOf}
-		oncancel={cancel}
+		oncancel={(key) =>
+			openPopover([key], view.active.find((r) => r.key === key)?.title ?? "", null, false)}
 		onretry={(key) => retry(downloadsPort, key)}
 		onplay={play}
 		onremove={removeOne}
@@ -192,16 +206,6 @@ const phoneGroups = $derived<PhoneGroup[]>(
 			<div class="titles">
 				<div class="title-row">
 					<h1>{i18n.shell_downloads()}</h1>
-					{#if view.groups.length > 0}
-						<Button
-							variant="secondary"
-							size="sm"
-							icon={selecting ? "x" : "circle-check"}
-							onclick={toggleSelecting}
-						>
-							{selecting ? i18n.dl_select_done() : i18n.dl_select()}
-						</Button>
-					{/if}
 				</div>
 				<span class="summary">{view.summary}</span>
 			</div>
@@ -217,38 +221,6 @@ const phoneGroups = $derived<PhoneGroup[]>(
 				</p>
 			{/if}
 		</div>
-
-		{#if selecting}
-			<div class="selbar" role="toolbar" aria-label={i18n.dl_selection()}>
-				<span class="selcount"
-					>{pickedKeys.length
-						? (pickedKeys.length === 1 ? i18n.dl_selected_one : i18n.dl_selected_other)({
-								count: pickedKeys.length,
-							})
-						: i18n.dl_pick_none()}</span
-				>
-				{#if pickedKeys.length}
-					<span class="selsize">{pickedSize}</span>
-				{/if}
-				<span class="spacer"></span>
-				<Button
-					variant="secondary"
-					size="sm"
-					onclick={() => (picked = allPicked ? new Set() : new Set(doneKeys))}
-				>
-					{allPicked ? i18n.dl_select_clear() : i18n.dl_select_all()}
-				</Button>
-				<Button
-					variant="danger"
-					size="sm"
-					icon="trash-2"
-					disabled={!pickedKeys.length}
-					onclick={removePicked}
-				>
-					{i18n.dl_remove_one()}
-				</Button>
-			</div>
-		{/if}
 
 		{#if !net.online}
 			<Banner
@@ -301,11 +273,27 @@ const phoneGroups = $derived<PhoneGroup[]>(
 
 		{#if view.groups.length > 0}
 			<section class="done">
-				<h2>{i18n.dl_on_device()}</h2>
+				<div class="done-head">
+					<h2>{i18n.dl_on_device()}</h2>
+					<button type="button" class="text" aria-pressed={selecting} onclick={toggleSelecting}>
+						{selecting ? i18n.dl_select_done() : i18n.dl_select()}
+					</button>
+				</div>
 				{#each view.groups as g (g.kind === "movies" ? "movies" : `${g.titleKind}:${g.titleId}`)}
 					<div class="group">
 						{#if g.kind === "show"}
 							<div class="head">
+								{#if selecting}
+									{@const st = stateOf(g.keys)}
+									<TriPick
+										state={st}
+										label={(st === "true" ? i18n.dl_unselect_all_of : i18n.dl_select_all_of)({
+											name: g.title,
+										})}
+										margin="0 -4px"
+										onclick={() => toggleAll(g.keys)}
+									/>
+								{/if}
 								<button
 									type="button"
 									class="poster"
@@ -324,6 +312,17 @@ const phoneGroups = $derived<PhoneGroup[]>(
 							</div>
 						{:else}
 							<div class="head movies">
+								{#if selecting}
+									{@const st = stateOf(g.keys)}
+									<TriPick
+										state={st}
+										label={(st === "true" ? i18n.dl_unselect_all_of : i18n.dl_select_all_of)({
+											name: g.title,
+										})}
+										margin="0 -4px"
+										onclick={() => toggleAll(g.keys)}
+									/>
+								{/if}
 								<span class="gname">{g.title}</span>
 								<span class="gsub">{g.sub}</span>
 							</div>
@@ -331,7 +330,20 @@ const phoneGroups = $derived<PhoneGroup[]>(
 						{#each g.seasons as s (s.label ?? "")}
 							<div class="season">
 								{#if s.label}
-									<span class="label">{s.label}</span>
+									<div class="slabel">
+										{#if selecting}
+											{@const st = stateOf(s.cards.map((c) => c.key))}
+											<TriPick
+												state={st}
+												label={(st === "true" ? i18n.dl_unselect_all_of : i18n.dl_select_all_of)({
+													name: s.label,
+												})}
+												margin="0 -4px"
+												onclick={() => toggleAll(s.cards.map((c) => c.key))}
+											/>
+										{/if}
+										<span class="label">{s.label}</span>
+									</div>
 								{/if}
 								<div class="grid">
 									{#each s.cards as c (c.key)}
@@ -388,6 +400,38 @@ const phoneGroups = $derived<PhoneGroup[]>(
 					</div>
 				{/each}
 			</section>
+		{/if}
+
+		{#if selecting}
+			<div class="selbar" role="toolbar" aria-label={i18n.dl_selection()}>
+				<span class="seltext">
+					<span class="selcount"
+						>{pickedKeys.length
+							? (pickedKeys.length === 1 ? i18n.dl_selected_one : i18n.dl_selected_other)({
+									count: pickedKeys.length,
+								})
+							: i18n.dl_pick_what()}</span
+					>
+					{#if pickedKeys.length}
+						<span class="selsize">{pickedSize}</span>
+					{/if}
+				</span>
+				<button
+					type="button"
+					class="text"
+					onclick={() => (picked = allPicked ? new Set() : new Set(doneKeys))}
+				>
+					{allPicked ? i18n.dl_select_clear() : i18n.dl_select_all()}
+				</button>
+				<Button
+					variant="danger"
+					icon="trash-2"
+					disabled={!pickedKeys.length}
+					onclick={removePicked}
+				>
+					{i18n.dl_remove_one()}
+				</Button>
+			</div>
 		{/if}
 
 		{#if view.empty && dl.loaded}
@@ -587,7 +631,6 @@ h2 {
 }
 
 .head.movies {
-	align-items: baseline;
 	gap: 10px;
 }
 
@@ -795,36 +838,92 @@ h2 {
 	gap: 12px;
 }
 
+.done-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.text {
+	flex: none;
+	height: 36px;
+	padding: 0 12px;
+	border: 0;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--accent-text);
+	font-size: 13.5px;
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.text:hover {
+	background: var(--surface-2);
+}
+
+.done-head .text {
+	height: 32px;
+	margin: -8px -10px -8px 0;
+	padding: 0 10px;
+}
+
+.slabel {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 32px;
+}
+
 .selbar {
 	position: sticky;
-	top: 72px;
+	bottom: 20px;
 	z-index: 10;
+	align-self: center;
+	width: 100%;
+	max-width: 560px;
+	box-sizing: border-box;
 	display: flex;
-	flex-wrap: wrap;
 	align-items: center;
-	gap: 10px;
-	padding: 10px 12px 10px 16px;
-	border-radius: 12px;
-	background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
+	gap: 8px;
+	padding: 8px 8px 8px 16px;
+	border-radius: var(--radius-lg);
+	background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+	backdrop-filter: blur(16px) saturate(150%);
+	-webkit-backdrop-filter: blur(16px) saturate(150%);
 	box-shadow:
 		inset 0 0 0 1px var(--border-strong),
-		var(--shadow-3);
+		var(--shadow-4);
+	animation: rise 200ms var(--ease);
+}
+
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+}
+
+.seltext {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
 }
 
 .selcount {
 	font-size: 14px;
 	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .selsize {
 	font: 400 11.5px var(--font-mono);
 	color: var(--fg-subtle);
-}
-
-.spacer {
-	flex: 1;
 }
 .box {
 	position: absolute;
@@ -858,6 +957,7 @@ h2 {
 	opacity: 1;
 }
 .wifi {
+	flex: 0 0 100%;
 	display: flex;
 	align-items: center;
 	gap: 8px;

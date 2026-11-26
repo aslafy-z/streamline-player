@@ -85,6 +85,18 @@ eq(resume[0]?.episodeId, 24);
 eq(resume[1]?.pct, 50);
 eq(resume[1]?.left, 4980);
 eq(continueWatching([], [], []), []);
+
+const done = (id: number, season: number) =>
+	row(`ep-${id}`, { series_id: 1, season, episode_id: id, watched: true });
+const next = continueWatching([], shows, [done(12, 1), done(21, 2)]);
+eq(next.length, 1);
+eq(next[0]?.next, true);
+eq(next[0]?.code, "S2 · E2");
+eq(next[0]?.episodeId, 22);
+eq(next[0]?.pct, 0);
+eq(next[0]?.left, 3000);
+eq(continueWatching([], shows, [done(11, 1), done(12, 1)])[0]?.episodeId, 21);
+eq(continueWatching([], shows, [done(24, 2)]), []);
 eq(
 	recentlyAdded(movies, 1).map((t) => t.id),
 	[2],

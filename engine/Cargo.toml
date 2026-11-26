@@ -21,6 +21,7 @@ hex = "0.4.3"
 hmac = "0.13.0"
 http-body = "1.1.0"
 humantime-serde = "1.1.1"
+mime_guess = "2.0.5"
 opentelemetry = "0.33.1"
 opentelemetry-otlp = { version = "0.33.1", features = ["grpc-tonic", "metrics", "trace"] }
 opentelemetry_sdk = "0.33.1"

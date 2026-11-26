@@ -23,3 +23,10 @@ export function seen(d: Device, short = false) {
 		});
 	return (count === 1 ? i18n.settings_seen_days_one : i18n.settings_seen_days_other)({ count });
 }
+
+const idle = (d: Device) => Date.now() - Date.parse(d.last_seen);
+const rank = (d: Device) => (d.streaming ? 1 : idle(d) < ACTIVE_SECS * 1000 ? 0 : 2);
+
+/** The viewer's other devices: the active ones, the streaming ones, then the most recently seen. */
+export const otherDevices = (devices: Device[]) =>
+	devices.filter((d) => !d.current).sort((a, b) => rank(a) - rank(b) || idle(a) - idle(b));

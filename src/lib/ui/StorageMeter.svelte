@@ -7,7 +7,8 @@ let {
 }: {
 	usedPct: number;
 	otherPct: number;
-	labels: [string, string, string];
+	/** Streamline, other apps, free; a narrow screen leaves the middle one out. */
+	labels: [string, string, string] | [string, string];
 	/** Without the card around it, for a settings row. */
 	plain?: boolean;
 } = $props();
@@ -20,8 +21,10 @@ let {
 	</div>
 	<div class="legend">
 		<span class="me">{labels[0]}</span>
-		<span>{labels[1]}</span>
-		<span class="free">{labels[2]}</span>
+		{#if labels.length === 3}
+			<span>{labels[1]}</span>
+		{/if}
+		<span class="free">{labels.at(-1)}</span>
 	</div>
 </div>
 

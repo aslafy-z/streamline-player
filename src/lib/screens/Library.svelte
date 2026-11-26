@@ -1,17 +1,21 @@
+<script lang="ts" module>
+// How tall the rails were when last fully drawn, for the space to hold while they draw again.
+const railsHeight = new Map<string, number>();
+</script>
+
 <script lang="ts">
-import { isTablet } from "#lib/platform/form-factor.svelte.ts";
+import { onMount, untrack } from "svelte";
 import { isNew, years } from "#lib/core/browse.ts";
-import { addedText, badges, sizeText } from "#lib/core/format.ts";
-import { dl } from "#lib/core/downloads.svelte.ts";
+import { addedText, badges, railSub, sizeText } from "#lib/core/format.ts";
 import { lib, loadLibrary, loadSeasons } from "#lib/core/library.svelte.ts";
 import {
 	browseRails,
 	FLAGS,
+	type Flag,
 	genres,
+	type Layout,
 	MENU_SORTS,
 	pickSort,
-	type Flag,
-	type Layout,
 	type Rail,
 	type Sort,
 	setWatch,
@@ -24,10 +28,12 @@ import {
 	WATCH_FLAGS,
 	watchFlag,
 } from "#lib/core/library-view.ts";
-import { loadErrorText } from "#lib/core/load-error.ts";
 import { prefs } from "#lib/core/prefs.svelte.ts";
 import type { Kind, Title } from "#lib/core/types.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import { isTablet } from "#lib/platform/form-factor.svelte.ts";
+import LoadFailed from "#lib/screens/LoadFailed.svelte";
+import { titleCard } from "#lib/screens/title-card.svelte.ts";
 import BackdropCard from "#lib/ui/BackdropCard.svelte";
 import Button from "#lib/ui/Button.svelte";
 import Chip from "#lib/ui/Chip.svelte";
@@ -43,10 +49,8 @@ import Row from "#lib/ui/Row.svelte";
 import SegmentedControl from "#lib/ui/SegmentedControl.svelte";
 import SortMenu from "#lib/ui/SortMenu.svelte";
 import TitleRow, { skeleton as rowSkeleton } from "#lib/ui/TitleRow.svelte";
-import { titleCard } from "#lib/screens/title-card.svelte.ts";
-import { artwork, canDownload, home, library, title, watchState } from "#platform";
+import { artwork, home, library, title, watchState } from "#platform";
 import { page } from "$app/state";
-import { onMount, untrack } from "svelte";
 
 const PAD_X = $derived(isTablet() ? 44 : 56);
 const TOP = 92;
@@ -72,6 +76,27 @@ const rows = progressive(
 	() => `${kind}:${view.layout}`,
 );
 const shown = $derived(items.slice(0, rows.drawn));
+
+// The rails of the first screen at once, then one a frame: all of them in one go was a frame of
+// a quarter of a second on arrival.
+const FIRST_RAILS = 3;
+let railsDrawn = $state(FIRST_RAILS);
+let railsBox = $state<HTMLElement>();
+const railsDone = $derived(railsDrawn >= rails.length);
+$effect.pre(() => {
+	kind;
+	untrack(() => {
+		railsDrawn = FIRST_RAILS;
+	});
+});
+$effect(() => {
+	if (isAll || railsDrawn >= rails.length) return;
+	const frame = requestAnimationFrame(() => railsDrawn++);
+	return () => cancelAnimationFrame(frame);
+});
+$effect(() => {
+	if (!isAll && railsDone && railsBox) railsHeight.set(kind, railsBox.offsetHeight);
+});
 const track = rows.track;
 
 let genreMenu = $state(false);
@@ -135,15 +160,6 @@ const sub = (t: Title) => {
 		: badges(q).slice(0, 2).join(" ");
 	return [t.year, tech].filter(Boolean).join(" · ");
 };
-const runtime = (m: number) =>
-	i18n.common_runtime_hm({ h: Math.floor(m / 60), m: String(m % 60).padStart(2, "0") });
-const railSub = (t: Title) => {
-	if (kind === "series") {
-		const count = t.total_seasons ?? t.seasons?.length ?? 0;
-		return `${years(t)} · ${count === 1 ? i18n.common_seasons_one({ count }) : i18n.common_seasons_other({ count })}`;
-	}
-	return [t.year, t.runtime ? runtime(t.runtime) : ""].filter(Boolean).join(" · ");
-};
 const newest = $derived(
 	base.reduce<Title | null>(
 		(a, t) => (!a || Date.parse(t.added_at) > Date.parse(a.added_at) ? t : a),
@@ -202,22 +218,7 @@ const heads: { label: () => string; sort: Sort; end?: boolean }[] = [
 
 <div class="library" style:--cols={LIST_COLS}>
 	{#if lib.error !== null}
-		<div class="state">
-			<EmptyState icon="film" title={i18n.home_error_title()} text={loadErrorText(lib.error)}>
-				{#snippet action()}
-					<div class="failed-actions">
-						<Button variant="secondary" onclick={() => loadLibrary(port, true)}>
-							{i18n.halt_try_again()}
-						</Button>
-						{#if canDownload && dl.items.some((e) => e.state === "done")}
-							<Button variant="secondary" onclick={() => goto("/downloads")}>
-								{i18n.dl_watch()}
-							</Button>
-						{/if}
-					</div>
-				{/snippet}
-			</EmptyState>
-		</div>
+		<LoadFailed error={lib.error} retry={() => loadLibrary(port, true)} />
 	{:else if empty}
 		<div class="state">
 			<EmptyState
@@ -347,15 +348,20 @@ const heads: { label: () => string; sort: Sort; end?: boolean }[] = [
 			</nav>
 
 			{#if !isAll}
-				<div class="rails" style:margin="4px -{PAD_X}px 0">
-					{#each rails as r (`${r.id}:${r.genre ?? ""}`)}
+				<div
+					class="rails"
+					bind:this={railsBox}
+					style:margin="4px -{PAD_X}px 0"
+					style:min-height={railsDone ? undefined : `${railsHeight.get(kind) ?? 0}px`}
+				>
+					{#each rails.slice(0, railsDrawn) as r (`${r.id}:${r.genre ?? ""}`)}
 						<Row
 							title={railTitle(r)}
 							note={railNote(r)}
 							padX={PAD_X}
 							gap={r.wide ? 16 : 18}
-							prevLabel={i18n.home_scroll_left()}
-							nextLabel={i18n.home_scroll_right()}
+							prevLabel={i18n.row_scroll_left({ title: railTitle(r) })}
+							nextLabel={i18n.row_scroll_right({ title: railTitle(r) })}
 							seeAll={{ label: i18n.rail_see_all(), onclick: () => seeAll(r) }}
 						>
 							{#each r.titles as t (t.id)}
@@ -364,10 +370,11 @@ const heads: { label: () => string; sort: Sort; end?: boolean }[] = [
 									<div class="cell" style:width="320px">
 										<BackdropCard
 											title={t.title}
-											sub={railSub(t)}
+											sub={railSub(kind, t)}
 											eyebrow={eyebrow(t)}
 											backdrop={artwork(kind, t.id, "backdrop")}
 											poster={artwork(kind, t.id, "poster")}
+											posterSmall={artwork(kind, t.id, "poster-w342")}
 											info={card.info}
 											leftLabel={card.leftLabel}
 											onclick={() => open(t)}
@@ -377,8 +384,9 @@ const heads: { label: () => string; sort: Sort; end?: boolean }[] = [
 									<div class="cell" style:width="168px">
 										<PosterCard
 											title={t.title}
-											sub={railSub(t)}
+											sub={railSub(kind, t)}
 											src={artwork(kind, t.id, "poster")}
+											small={artwork(kind, t.id, "poster-w342")}
 											{...card}
 											badge={undefined}
 											onclick={() => open(t)}
@@ -397,6 +405,7 @@ const heads: { label: () => string; sort: Sort; end?: boolean }[] = [
 								title={t.title}
 								sub={sub(t)}
 								src={artwork(kind, t.id, "poster")}
+								small={artwork(kind, t.id, "poster-w342")}
 								{...titleCard(kind, t, now)}
 								onclick={() => open(t)}
 							/>
@@ -432,6 +441,7 @@ const heads: { label: () => string; sort: Sort; end?: boolean }[] = [
 								<TitleRow
 									title={t.title}
 									poster={artwork(kind, t.id, "poster")}
+									small={artwork(kind, t.id, "poster-w342")}
 									info={card.info}
 									leftLabel={card.leftLabel}
 									year={kind === "series" ? years(t) : String(t.year)}
@@ -471,11 +481,6 @@ const heads: { label: () => string; sort: Sort; end?: boolean }[] = [
 </div>
 
 <style>
-.failed-actions {
-	display: flex;
-	gap: 10px;
-}
-
 .library {
 	position: relative;
 	min-height: 100%;

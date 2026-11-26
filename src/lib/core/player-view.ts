@@ -29,7 +29,7 @@ export type PlayerKey =
 	| "exit";
 export type SeekFlash = { side: "left" | "right"; amount: number; at: number };
 
-const SEEK_STEP = 10;
+export const SEEK_STEP = 10;
 const SEEK_RUN_MS = 900;
 const MORE_LIKE = 6;
 const KEYS: Record<string, PlayerKey> = {

@@ -415,6 +415,125 @@ async fn direct_mkv() {
     assert_eq!(bytes, disk[100..4196]);
 }
 
+/// Two audio tracks told apart by their channel count, French then English.
+fn make_two_audio_mkv(path: &Path, french_channels: &str, english_channels: &str) {
+    ffmpeg(&[
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc2=size=320x180:rate=25:duration=10",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:sample_rate=48000:duration=10",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=880:sample_rate=48000:duration=10",
+        "-map",
+        "0",
+        "-map",
+        "1",
+        "-map",
+        "2",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-g",
+        "50",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-ac:a:0",
+        french_channels,
+        "-ac:a:1",
+        english_channels,
+        "-metadata:s:a:0",
+        "language=fre",
+        "-metadata:s:a:1",
+        "language=eng",
+        path.to_str().unwrap(),
+    ]);
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn direct_keeps_serving_the_file_it_started_on() {
+    if !have_ffmpeg() {
+        return;
+    }
+    let e = env().await;
+    let src = e.root.join("in.mkv");
+    make_h264_mkv(&src);
+    let original = std::fs::read(&src).unwrap();
+    let sid = id(40);
+    e.start(&sid, &src, caps_json("h264", "mkv"), json!({}))
+        .await;
+
+    let upgrade = e.root.join("upgrade.mkv");
+    make_two_audio_mkv(&upgrade, "1", "2");
+    std::fs::rename(&upgrade, &src).unwrap();
+
+    let uri = format!("/file/{sid}?{}", valid_query(&sid));
+    let res = e
+        .router
+        .clone()
+        .oneshot(
+            Request::get(uri)
+                .header("range", "bytes=0-4095")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(res.headers()["content-type"], "video/x-matroska");
+    assert_eq!(body_bytes(res).await, original[..4096]);
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn audio_switch_after_an_upgrade_reads_the_file_it_started_on() {
+    if !have_ffmpeg() {
+        return;
+    }
+    let e = env().await;
+    let src = e.root.join("in.mkv");
+    make_two_audio_mkv(&src, "1", "2");
+    let sid = id(41);
+    let r = e
+        .start(
+            &sid,
+            &src,
+            caps_json("h264", "mp4"),
+            json!({ "audio_index": 1 }),
+        )
+        .await;
+    assert_eq!(r["mode"], "remux");
+
+    let upgrade = e.root.join("upgrade.mkv");
+    make_two_audio_mkv(&upgrade, "2", "1");
+    std::fs::rename(&upgrade, &src).unwrap();
+
+    let (status, v) = e
+        .api(
+            "PATCH",
+            &format!("/v1/sessions/{sid}"),
+            Some(json!({ "audio_index": 2, "position": 0.0 })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{v}");
+    let init = e.hls(&sid, "init.mp4").await;
+    let joined = joined_segment(&e, &sid, &init, 0).await;
+    let audio = ffprobe_stream(&joined, "a:0", "stream=channels");
+    assert_eq!(
+        audio["streams"][0]["channels"], 2,
+        "the upgrade's mono track played"
+    );
+}
+
 #[tokio::test]
 async fn remux_segments_match_playlist() {
     if !have_ffmpeg() {

@@ -20,12 +20,14 @@
 .slp-prog>i{position:absolute;left:calc(7px * var(--mk,1));right:calc(7px * var(--mk,1));bottom:calc(7px * var(--mk,1));height:max(3px,calc(4px * var(--mk,1)));border-radius:4px;background:rgba(0,0,0,.55);box-shadow:0 0 0 1px rgba(255,255,255,.14),0 1px 6px rgba(0,0,0,.6);overflow:hidden}
 .slp-prog>i>b{display:block;height:100%;border-radius:inherit;background:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 70%,transparent)}
 /* The same track inline in a list row */
-.slp-track{display:block;width:84px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+.slp-track{display:block;width:84px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:clip}
 .slp-track>b{display:block;height:100%;background:var(--accent)}
 
 /* Hover controls over the art (desktop) */
 .slp-hover{position:absolute;inset:0;z-index:1;display:grid;place-items:center;background:linear-gradient(180deg,transparent 30%,color-mix(in srgb,var(--bg-deep) 55%,transparent) 100%);opacity:0;transition:opacity 180ms var(--ease)}
 .slp-art:hover .slp-hover,.slp-art:focus-within .slp-hover{opacity:1}
+/* Drawn on the first hover, already hovered: without this it would appear at once instead of fading in. */
+@starting-style{.slp-art:hover .slp-hover{opacity:0}}
 /* Phone: no hover. A long press on the card turns the controls on, sized for the smaller poster. */
 .slp-mk--phone .slp-hover{opacity:0!important;pointer-events:none}
 .slp-mk--phone .slp-hover.slp-hover--on{opacity:1!important;pointer-events:auto;transition-delay:160ms;background:color-mix(in srgb,var(--bg-deep) 55%,transparent)}
@@ -35,7 +37,6 @@
 /* Over a poster with no hover to tint it, the glass has to carry its own contrast. */
 .slp-mk--phone .slp-glass{width:30px;height:30px;background:rgba(10,10,14,.84);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3),0 2px 8px rgba(0,0,0,.45)}
 .slp-mk--phone .slp-glass>svg{width:16px;height:16px;stroke-width:2.1}
-.slp-mk--phone button{-webkit-tap-highlight-color:transparent}
 /* The same controls over a Continue watching card's still. */
 .slp-resume{position:relative}
 .slp-resume .slp-hover{inset:0 0 auto 0;height:140px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;gap:12px}
@@ -51,7 +52,7 @@
 
 
 /* The poster frame */
-.slp-art{position:relative;display:block;width:100%;aspect-ratio:2/3;border-radius:calc(var(--radius-md) * var(--mk,1));overflow:hidden;background:var(--bg-card);box-shadow:0 0 0 1px var(--border)}
+.slp-art{position:relative;display:block;width:100%;aspect-ratio:2/3;border-radius:calc(var(--radius-md) * var(--mk,1));overflow:clip;background:var(--bg-card);box-shadow:0 0 0 1px var(--border)}
 .slp-art--wide{aspect-ratio:16/9}
 .slp-art>img{width:100%;height:100%;object-fit:cover;display:block}
 
@@ -65,7 +66,7 @@
 .slp-bd__shade{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.45) 60%,rgba(0,0,0,.88) 100%)}
 .slp-bd__txt{position:absolute;left:calc(14px * var(--mk,1));right:calc(14px * var(--mk,1));bottom:calc(16px * var(--mk,1));z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:calc(3px * var(--mk,1));text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 12px rgba(0,0,0,.6)}
 .slp-bd__eyebrow{padding:calc(2px * var(--mk,1)) calc(6px * var(--mk,1));border-radius:calc(6px * var(--mk,1));background:rgba(10,10,14,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font:500 calc(10px * var(--mk,1)) var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent-text);text-shadow:none}
-.slp-bd__title{max-width:100%;font-size:calc(15px * var(--mk,1));font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slp-bd__title{max-width:100%;font-size:calc(15px * var(--mk,1));font-weight:600;white-space:nowrap;overflow:clip;text-overflow:ellipsis}
 .slp-bd__sub{font:400 calc(11.5px * var(--mk,1)) var(--font-mono);color:rgba(255,255,255,.82)}
 .slp-bd .slp-prog{background:none}
 /* Watched toggle: eye ⇄ double check morph (.wtog[data-on]) and a ring that restarts by alternating two identical keyframe names (.wpop). */

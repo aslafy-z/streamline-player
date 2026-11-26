@@ -656,7 +656,20 @@ impl Jobs {
                 error: e.error.clone(),
             });
         }
-        self.0.read_record(id).ok_or_else(not_found)
+        if let Some(record) = self.0.read_record(id) {
+            return Ok(record);
+        }
+        // Until `restore_backlog` has queued it again after a restart, a job owed in the backlog is
+        // only a file. Answering not_found would tell the caller it is lost, and it would drop it.
+        if self.0.backlog_file(id).exists() {
+            return Ok(JobStatus {
+                state: JobState::Queued,
+                progress: None,
+                result: None,
+                error: None,
+            });
+        }
+        Err(not_found())
     }
 
     pub fn file(&self, id: &str, name: &str) -> Result<PathBuf, ApiError> {
@@ -749,19 +762,27 @@ impl Jobs {
     /// backlog is read off the caller's path, since a library scan leaves tens of thousands of
     /// files and the engine must answer before they are all read.
     pub fn sweep_boot(&self) -> JoinHandle<()> {
-        if let Ok(entries) = std::fs::read_dir(&self.0.cfg.jobs_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if entry.file_name().to_str().is_some_and(valid_id)
-                    && path.is_dir()
-                    && !path.join(DONE_FILE).exists()
-                {
+        // Only the names are read before the engine listens: looking inside every folder of a
+        // volume that was just attached took minutes, longer than the startup probe allows.
+        let leftovers: Vec<String> = std::fs::read_dir(&self.0.cfg.jobs_dir)
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .filter_map(|e| e.file_name().into_string().ok())
+                    .filter(|name| valid_id(name))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let jobs = self.clone();
+        tokio::task::spawn_blocking(move || {
+            for id in leftovers {
+                let path = jobs.0.cfg.jobs_dir.join(&id);
+                // Under the lock: a job submitted since boot under the same id owns the folder.
+                let q = jobs.0.lock();
+                if !q.jobs.contains_key(&id) && path.is_dir() && !path.join(DONE_FILE).exists() {
                     let _ = std::fs::remove_dir_all(path);
                 }
             }
-        }
-        let jobs = self.clone();
-        tokio::task::spawn_blocking(move || {
             jobs.restore_backlog();
             jobs.0.restored.store(true, Ordering::Release);
         })
@@ -1147,6 +1168,8 @@ mod tests {
 
         let fresh = f.jobs();
         assert_eq!(fresh.owed(), None);
+        assert_eq!(fresh.status(&id(2)).unwrap().state, JobState::Queued);
+        assert_eq!(fresh.status(&id(3)).unwrap_err().code, "not_found");
         fresh.sweep_boot().await.unwrap();
         assert_eq!(fresh.owed(), Some(2));
         f.release();
@@ -1213,7 +1236,7 @@ mod tests {
         std::fs::create_dir_all(&unfinished).unwrap();
         std::fs::create_dir_all(&finished).unwrap();
         std::fs::write(finished.join(DONE_FILE), r#"{"state":"done"}"#).unwrap();
-        f.jobs().sweep_boot();
+        f.jobs().sweep_boot().await.unwrap();
         assert!(!unfinished.exists());
         assert!(finished.exists());
     }
@@ -1227,7 +1250,7 @@ mod tests {
         for dir in [&foreign, &upper, &ours] {
             std::fs::create_dir_all(dir).unwrap();
         }
-        f.jobs().sweep_boot();
+        f.jobs().sweep_boot().await.unwrap();
         assert!(foreign.exists());
         assert!(upper.exists());
         assert!(!ours.exists());

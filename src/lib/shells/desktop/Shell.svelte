@@ -97,6 +97,15 @@ let pipArt = $state<HTMLElement>();
 let hole = $state<{ x: number; y: number; width: number; height: number } | null>(null);
 provideScroll(() => content);
 
+// Cards sliding under a still pointer each start their hover (a layer, a transition, their
+// controls): on WebKitGTK that cost frames all through a scroll. Hover waits for the scroll to end.
+let hoverBack: ReturnType<typeof setTimeout>;
+function quietHover(el: HTMLElement) {
+	el.classList.add("scrolling");
+	clearTimeout(hoverBack);
+	hoverBack = setTimeout(() => el.classList.remove("scrolling"), 150);
+}
+
 // SvelteKit restores the window's scroll, and the pages scroll in `content`: without this a page
 // opens wherever the one before it was left.
 // ponytail: positions keyed by URL, so two history entries of one page share theirs; key by history entry if that shows.
@@ -593,7 +602,10 @@ if (import.meta.env.DEV)
 			<div
 				class="content"
 				bind:this={content}
-				onscroll={(e) => (scrolledDown = e.currentTarget.scrollTop > 24)}
+				onscroll={(e) => {
+					scrolledDown = e.currentTarget.scrollTop > 24;
+					quietHover(e.currentTarget);
+				}}
 			>
 				{@render children()}
 			</div>
@@ -615,6 +627,7 @@ if (import.meta.env.DEV)
 					downloadsOn={route === "/downloads"}
 					account={{ name, email: account.me?.email ?? "", initials, color: AVATAR_COLOR, picture }}
 					accountLabel={i18n.shell_account_menu()}
+					accountDot={pendingPairs.n > 0 && !menuOpen}
 					{menuOpen}
 					accountOn={route === "/settings" || route === "/admin"}
 					onhome={() => go("home")}
@@ -881,6 +894,10 @@ if (import.meta.env.DEV)
 	inset: 0;
 	overflow-y: auto;
 	scrollbar-width: none;
+}
+
+.content:global(.scrolling) > :global(*) {
+	pointer-events: none;
 }
 
 .pip {

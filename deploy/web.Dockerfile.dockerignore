@@ -4,9 +4,9 @@
 !pnpm-workspace.yaml
 !vite.config.ts
 !tsconfig.json
-!src-tauri/tauri.conf.json
 !project.inlang/settings.json
 !messages/
 !static/
 !src/
+!deploy/web.sws.toml
 src/lib/paraglide/

@@ -9,6 +9,7 @@ let {
 	eyebrow,
 	backdrop,
 	poster,
+	posterSmall,
 	info,
 	leftLabel,
 	size = "desktop",
@@ -22,6 +23,7 @@ let {
 	backdrop: string;
 	/** Drawn when the title has no backdrop. */
 	poster: string;
+	posterSmall?: string;
 	info?: WatchInfo;
 	leftLabel?: string;
 	size?: "desktop" | "tv" | "phone";
@@ -43,7 +45,13 @@ let {
 		{onclick}
 	>
 		<span class="slp-art slp-art--wide">
-			<img src={backdrop} alt="" loading="lazy" onerror={orPoster(poster)}>
+			<img
+				src={backdrop}
+				alt=""
+				loading="lazy"
+				decoding="async"
+				onerror={orPoster(poster, undefined, posterSmall)}
+			>
 			<span class="slp-bd__shade" aria-hidden="true"></span>
 			{#if info?.unread}
 				<span class="slp-unread" aria-hidden="true"></span>

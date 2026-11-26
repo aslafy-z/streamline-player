@@ -58,6 +58,8 @@ export type Stats = {
 	rendered: number;
 	dropped: number;
 	displayHz: number;
+	/** The video's own frame rate, where the player reports it. */
+	videoFps?: number;
 };
 export type AudioTrack = {
 	index: number;

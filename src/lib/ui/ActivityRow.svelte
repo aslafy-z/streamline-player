@@ -10,6 +10,7 @@ let {
 	text,
 	at,
 	poster,
+	small,
 	badge,
 	badgeTone,
 	icon,
@@ -21,8 +22,9 @@ let {
 	text: string;
 	at: string;
 	poster: string | null;
+	small?: string;
 	badge: IconName | null;
-	badgeTone: "accent" | "warning" | "available" | "failed" | null;
+	badgeTone: "accent" | "warning" | "available" | null;
 	icon: IconName;
 	unread: boolean;
 	onclick: () => void;
@@ -32,14 +34,13 @@ const TONES = {
 	accent: "var(--accent)",
 	warning: "var(--status-warning)",
 	available: "var(--status-available)",
-	failed: "var(--status-failed)",
 };
 </script>
 
 <button type="button" class="row" {onclick}>
 	<span class="lead">
 		{#if poster}
-			<span class="poster"><Art src={poster} kind="poster" ratio="2 / 3" /></span>
+			<span class="poster"><Art src={poster} {small} kind="poster" ratio="2 / 3" /></span>
 			{#if badge}
 				<span class="badge" style:--c={badgeTone ? TONES[badgeTone] : undefined}>
 					<Icon name={badge} />

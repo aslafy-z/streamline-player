@@ -93,7 +93,7 @@ onMount(() => {
 				<div class="card">
 					<header>
 						<Mark size={48} />
-						<span class="brand">Streamline</span>
+						<span class="brand">{IS_WEB ? "Streamline" : i18n.welcome_step_2()}</span>
 						<h1>{i18n.signin_title()}</h1>
 						<p class="lead">{i18n.signin_lead({ host })}</p>
 					</header>

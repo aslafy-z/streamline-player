@@ -51,7 +51,7 @@ $effect(() => {
 });
 </script>
 
-<section class:rail={!!seeAll}>
+<section aria-label={title} class:rail={!!seeAll}>
 	<div class="head" style:padding="0 {padX}px">
 		<h2>{title}</h2>
 		{#if seeAll && note}

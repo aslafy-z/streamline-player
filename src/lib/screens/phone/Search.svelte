@@ -1,9 +1,10 @@
 <script lang="ts">
+import LoadFailed from "#lib/screens/LoadFailed.svelte";
 import "#lib/ui/card.css";
-import { lib, loadLibrary } from "#lib/core/library.svelte.ts";
-import { loadErrorText } from "#lib/core/load-error.ts";
-import { years } from "#lib/core/browse.ts";
+import { onMount } from "svelte";
+import { stars, years } from "#lib/core/browse.ts";
 import { runtime } from "#lib/core/format.ts";
+import { lib, loadLibrary } from "#lib/core/library.svelte.ts";
 import {
 	genreTiles,
 	type Hit,
@@ -15,15 +16,14 @@ import {
 } from "#lib/core/search-view.ts";
 import { watchInfo } from "#lib/core/watch-info.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
+import { getLocale } from "#lib/paraglide/runtime.js";
 import Art from "#lib/ui/Art.svelte";
-import Button from "#lib/ui/Button.svelte";
 import EmptyState from "#lib/ui/EmptyState.svelte";
 import Icon from "#lib/ui/Icon.svelte";
 import { goto } from "#lib/ui/nav.ts";
 import { artwork, home, library, title, watchState } from "#platform";
 import { afterNavigate } from "$app/navigation";
 import { page } from "$app/state";
-import { onMount } from "svelte";
 
 const GENRE_TILES = 8;
 const TYPE_DELAY_MS = 150;
@@ -85,6 +85,9 @@ const sub = (t: Hit) =>
 	t.kind === "series"
 		? [years(t), seasons(t)].join(" · ")
 		: [t.year, t.runtime ? runtime(t.runtime) : ""].filter(Boolean).join(" · ");
+const top = $derived(hits[0]);
+const topMeta = (t: Hit) =>
+	[sub(t), stars(t.rating, t.rating.toLocaleString(getLocale()))].filter(Boolean).join(" · ");
 const kindLabel = (t: Hit) =>
 	t.kind === "series" ? i18n.search_kind_show() : i18n.search_kind_movie();
 
@@ -132,13 +135,7 @@ onMount(() => {
 	</div>
 
 	{#if lib.error !== null}
-		<EmptyState icon="film" title={i18n.home_error_title()} text={loadErrorText(lib.error)}>
-			{#snippet action()}
-				<Button variant="secondary" onclick={() => loadLibrary(port, true)}>
-					{i18n.halt_try_again()}
-				</Button>
-			{/snippet}
-		</EmptyState>
+		<LoadFailed error={lib.error} retry={() => loadLibrary(port, true)} />
 	{:else if empty}
 		<EmptyState icon="film" title={i18n.home_empty_title()} text={i18n.home_empty_text()} />
 	{:else if lib.loaded && !q}
@@ -171,7 +168,20 @@ onMount(() => {
 					count: hits.length,
 				})}
 			</div>
-			{#each hits as t (`${t.kind}:${t.id}`)}
+			{#if top}
+				<button type="button" class="top" onclick={() => open(top)}>
+					<span class="poster"
+						><Art src={artwork(top.kind, top.id, "poster")} kind="poster" /></span
+					>
+					<span class="top-copy">
+						<span class="eyebrow">{i18n.search_top_result({ kind: kindLabel(top) })}</span>
+						<span class="title">{top.title}</span>
+						<span class="facts">{topMeta(top)}</span>
+						<span class="overview">{top.overview}</span>
+					</span>
+				</button>
+			{/if}
+			{#each hits.slice(1) as t (`${t.kind}:${t.id}`)}
 				{@const info = watchInfo(t, t.kind, lib.watch)}
 				<button type="button" class="row" onclick={() => open(t)}>
 					<span class="slp-art slp-mk--thumb thumb">
@@ -377,6 +387,71 @@ h2 {
 	padding: 4px 0 8px;
 	font: 400 11.5px var(--font-mono);
 	color: var(--fg-subtle);
+}
+
+.top {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 14px;
+	align-items: center;
+	margin: 4px 0 10px;
+	padding: 12px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--bg-elevated);
+	color: var(--fg);
+	text-align: left;
+	cursor: pointer;
+}
+
+.top .poster {
+	position: relative;
+	width: 84px;
+	aspect-ratio: 2 / 3;
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+.top-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+
+.top .eyebrow {
+	font: 500 10px var(--font-mono);
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--accent-text);
+}
+
+.top .title {
+	display: -webkit-box;
+	overflow: hidden;
+	font-size: 19px;
+	font-weight: 700;
+	line-height: 1.2;
+	letter-spacing: -0.02em;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+
+.top .facts {
+	font: 400 11.5px var(--font-mono);
+	color: var(--fg-subtle);
+}
+
+.top .overview {
+	display: -webkit-box;
+	overflow: hidden;
+	font-size: 13px;
+	line-height: 1.45;
+	color: var(--fg-muted);
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
 }
 
 .row {

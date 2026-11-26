@@ -679,7 +679,7 @@ paths:
   /admin/library/scan:
     post:
       operationId: adminScan
-      description: Server settings, Library. Starts a scan of one folder, or of all without `folder_id`. A folder already scanning is left alone. Admin only.
+      description: Server settings, Library, and the Scan buttons of a title and a season. Starts a scan of one folder, of the given movies and episodes, or of all without any; `movies` and `episodes` win over `folder_id`. A folder already scanning is left alone. Admin only.
       requestBody:
         required: true
         content:
@@ -688,6 +688,8 @@ paths:
               type: object
               properties:
                 folder_id: { type: string }
+                movies: { type: array, items: { type: integer } }
+                episodes: { type: array, items: { type: integer } }
       responses:
         "202": { description: The scan runs; its progress is in `/admin/library`. }
         "404":
@@ -1104,6 +1106,7 @@ components:
         owner: { type: string, enum: [engine, player], description: "`read_only`: whose config is locked." }
         by: { type: string, description: "`session_stopped`, `server_restarting`: the admin who did it." }
         retry_after: { type: integer, description: "`server_restarting`: seconds before the player retries." }
+        need: { type: string, description: "`transcode_limit`: why this stream needs a conversion slot, as the decision words it." }
     Error:
       type: object
       required: [error]
@@ -1290,8 +1293,8 @@ components:
         id: { type: integer }
         reason:
           type: string
-          enum: [continue, new_episodes, added]
-          description: The billboard's eyebrow, Continue watching, New episodes, or Added today.
+          enum: [continue, next, new_episodes, added]
+          description: The billboard's eyebrow, Continue watching, Up next (the episode after a finished one), New episodes, or Added today.
         season: { type: integer }
         episodes: { type: array, items: { type: integer } }
     Arrival:
@@ -1338,22 +1341,21 @@ components:
       required: [id, kind, at, read]
       properties:
         id: { type: string }
-        kind: { type: string, enum: [episodes, season, movie, upgrade, removed, download, device, server, scan] }
+        kind: { type: string, enum: [episodes, season, movie, upgrade, download, device, server, scan] }
         at: { type: string, description: ISO 8601, UTC }
         read: { type: boolean }
         title:
           type: object
-          description: episodes, season, movie, upgrade, removed, download.
+          description: episodes, season, movie, upgrade, download.
           required: [kind, id]
           properties:
             kind: { type: string, enum: [movies, series] }
             id: { type: integer }
-        name: { type: string, description: "removed: the title's name, since the title may leave the library with its last file." }
-        season: { type: integer, description: "episodes, season, a download or a removal of an episode." }
-        episodes: { type: array, items: { type: integer }, description: "episodes: the numbers added. download, removed: the one episode." }
+        season: { type: integer, description: "episodes, season, a download of an episode." }
+        episodes: { type: array, items: { type: integer }, description: "episodes: the numbers added. download: the one episode." }
         episode_count: { type: integer, description: season. }
         file: { $ref: "#/components/schemas/FileSummary", description: "movie, upgrade: the file now in the library." }
-        previous: { $ref: "#/components/schemas/FileSummary", description: "upgrade: the file it replaced. removed: the file that went." }
+        previous: { $ref: "#/components/schemas/FileSummary", description: "upgrade: the file it replaced." }
         device:
           type: object
           description: "device, and download: the device that made it."

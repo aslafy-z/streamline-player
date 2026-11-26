@@ -52,8 +52,6 @@ fn video_start(plan: &Plan, a: &Analysis) -> f64 {
 const DTS_HEURISTIC_SECS: f64 = 3.0 / 23.0;
 /// Clear of the keyframe on the side the demuxer rounds from, so the seek cannot reach a neighbour.
 const KEYFRAME_SLACK_SECS: f64 = 0.001;
-/// Above AAC's 1024 samples at 22.05 kHz, the longest encoder priming the engine produces.
-const AUDIO_PRIMING_SECS: f64 = 0.05;
 
 pub(crate) fn container_start(a: &Analysis) -> f64 {
     let start = a
@@ -102,14 +100,9 @@ pub fn seek_time(plan: &Plan, a: &Analysis, bounds: &[f64], i: u32) -> f64 {
                 && let Some(dts) = a.keyframe_dts.get(i as usize)
             {
                 return round_micros(dts - KEYFRAME_SLACK_SECS + pull_back - container_start);
-            } else if a.container == "ts" {
+            } else if a.container == "ts" || i == 0 {
+                // No keyframe precedes the first: the demuxer has nowhere earlier to land.
                 0.0
-            } else if i == 0 {
-                // No keyframe precedes the first, so only the next one bounds the target. Staying
-                // past the audio encoder's priming keeps a transcoded track from starting below
-                // zero, which the muxer would make up for by shifting every stream.
-                let gop = a.keyframes.get(1).map_or(a.duration, |next| next - key);
-                (gop / 2.0).min(AUDIO_PRIMING_SECS)
             } else {
                 pull_back + KEYFRAME_SLACK_SECS
             };
@@ -407,7 +400,7 @@ mod tests {
         // The audio starts first: the segments keep the file's times, the first is that longer.
         a.audio[0].start_time = 0.0;
         assert_close(&boundaries(&plan, &a), &[0.0, 2.044, 3.003, 9.0]);
-        assert_close(&[seek_time(&plan, &a, &boundaries(&plan, &a), 0)], &[0.092]);
+        assert_close(&[seek_time(&plan, &a, &boundaries(&plan, &a), 0)], &[0.042]);
     }
 
     #[test]

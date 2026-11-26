@@ -106,6 +106,9 @@ export type Row =
 			title: string;
 			sub: string;
 			user: string;
+			you: boolean;
+			season?: number;
+			episode?: number;
 			short: string;
 			device: string;
 			where: string;
@@ -144,6 +147,8 @@ export type Section = {
 	title: string;
 	icon: string;
 	intro: string;
+	/** One line under the section's name where the sections are a list (phone). */
+	sum: string;
 	count?: number;
 	badge?: number;
 	blocks: Block[];
@@ -215,6 +220,7 @@ export type TextId =
 	| "btn_scan"
 	| "btn_scanning"
 	| "btn_revoke"
+	| "btn_end"
 	| "btn_open"
 	| "btn_make_secret"
 	| "tile_streams"
@@ -231,6 +237,7 @@ export type TextId =
 	| "tile_cache"
 	| "tile_nobody"
 	| "tile_no_requests"
+	| "tile_nothing_kept"
 	| "tile_empty"
 	| "tile_ffmpeg_missing"
 	| "tile_engine_down"
@@ -240,6 +247,8 @@ export type TextId =
 	| "hw_software"
 	| "hw_status_desc"
 	| "kv_version"
+	| "kv_location"
+	| "on_engine"
 	| "kv_status"
 	| "kv_ffmpeg"
 	| "kv_analysis"
@@ -324,6 +333,15 @@ export type Words = {
 	engineBuild(version: string, api: number | undefined): string;
 	analysisVersion(n: number): string;
 	secretSince(date: string): string;
+	pairWaiting(device: string, code: string): string;
+	sumOverview(version: string, secretSet: boolean): string;
+	sumStreams(n: number, video: number, audio: number): string;
+	sumDevices(n: number, waiting: number): string;
+	sumTranscoding(software: boolean, atOnce: number): string;
+	/** `day` is null while no scan has run yet. */
+	sumLibrary(folders: number, day: string | null): string;
+	sumEngine(version: string): string;
+	sumAccess(origins: number, networks: number): string;
 };
 
 type Find = (kind: Kind, id: number) => Title | undefined;
@@ -422,6 +440,10 @@ export function sections(
 	const s = d.settings;
 	const v = (key: string) => s.values[key];
 	const hwOff = v("transcoding.hw_accel") === "none";
+	const listLen = (key: string) => {
+		const x = v(key);
+		return Array.isArray(x) ? x.length : 0;
+	};
 	const pending = s.pending;
 	const restartOn = pending.length > 0;
 	const restartable = canRestart(s);
@@ -559,6 +581,9 @@ export function sections(
 						? [title.year, w.runtime(title.runtime ?? 0)].join(" · ")
 						: "",
 			user: x.user.you ? w.you(x.user.name) : x.user.name,
+			you: x.user.you,
+			season: x.season,
+			episode: x.episode,
 			short: x.user.name.split(" ")[0] ?? x.user.name,
 			device: x.device.name,
 			where: w.t(x.network === "home" ? "net_home" : "net_remote"),
@@ -636,7 +661,7 @@ export function sections(
 						icon: "monitor-smartphone",
 						label: w.t("tile_pairing"),
 						value: String(d.pairings.length),
-						sub: first ? first.name : w.t("tile_no_requests"),
+						sub: first ? w.pairWaiting(first.name, first.user_code) : w.t("tile_no_requests"),
 						go: "devices",
 						tone: first ? "accent" : "muted",
 					}),
@@ -716,7 +741,7 @@ export function sections(
 									icon: "cpu",
 									label: w.t("tile_cache"),
 									value: d.cacheCleared || cache.size === 0 ? w.t("tile_empty") : size(cache.size),
-									sub: d.cacheCleared ? "" : w.streamCount(cache.streams),
+									sub: d.cacheCleared ? w.t("tile_nothing_kept") : w.streamCount(cache.streams),
 									go: "transcoding",
 									tone: "ok",
 								}),
@@ -733,6 +758,7 @@ export function sections(
 		title: w.t("sec_overview"),
 		icon: "server",
 		intro: w.t("sec_overview_intro"),
+		sum: w.sumOverview(o.extension.version, secretSet),
 		blocks: [
 			tilesNow,
 			...(restartOn ? [block({ rows: restartNote })] : []),
@@ -807,6 +833,7 @@ export function sections(
 		title: w.t("sec_streams"),
 		icon: "circle-play",
 		intro: w.t("sec_streams_intro"),
+		sum: w.sumStreams(d.streams.length, nVideo, nAudio),
 		count: d.streams.length,
 		blocks: [
 			block({
@@ -843,7 +870,7 @@ export function sections(
 				? []
 				: [
 						{
-							label: w.t("btn_revoke"),
+							label: w.t(browser ? "btn_end" : "btn_revoke"),
 							act: { do: browser ? "end" : "revoke", id: x.id },
 							tone: "danger",
 							disabled: false,
@@ -862,6 +889,7 @@ export function sections(
 		title: w.t("sec_devices"),
 		icon: "monitor-smartphone",
 		intro: w.t("sec_devices_intro"),
+		sum: w.sumDevices(apps.length, d.pairings.length),
 		count: apps.length,
 		...(d.pairings.length ? { badge: d.pairings.length } : {}),
 		blocks: [
@@ -915,6 +943,7 @@ export function sections(
 		title: w.t("sec_transcoding"),
 		icon: "cpu",
 		intro: w.t("sec_transcoding_intro"),
+		sum: w.sumTranscoding(hwOff, Number(v("stream.max_live") ?? 0)),
 		blocks: [
 			block({
 				title: w.t("blk_hw"),
@@ -950,6 +979,7 @@ export function sections(
 				title: w.t("blk_cache"),
 				desc: w.t("blk_cache_desc"),
 				rows: [
+					kv(w.t("kv_location"), w.t("on_engine")),
 					d.cacheCleared
 						? note("ok", w.t("note_cache_cleared"))
 						: cache
@@ -1023,6 +1053,10 @@ export function sections(
 		title: w.t("sec_library"),
 		icon: "folder",
 		intro: w.t("sec_library_intro"),
+		sum: w.sumLibrary(
+			libFolders.length,
+			last ? new Date(last.at).toLocaleDateString(lang, { weekday: "short" }) : null,
+		),
 		blocks: [
 			block({
 				title: w.t("blk_folders"),
@@ -1082,6 +1116,11 @@ export function sections(
 		title: w.t("sec_engine"),
 		icon: "layers",
 		intro: w.t("sec_engine_intro"),
+		sum: !secretSet
+			? w.t("tile_waiting_secret")
+			: engineUp
+				? w.sumEngine(o.engine.version ?? "—")
+				: w.t("tile_engine_down"),
 		blocks: [
 			block({
 				title: w.t("blk_connection"),
@@ -1117,6 +1156,7 @@ export function sections(
 		title: w.t("sec_access"),
 		icon: "globe",
 		intro: w.t("sec_access_intro"),
+		sum: w.sumAccess(listLen("player.origins"), listLen("network.home")),
 		blocks: [
 			block({
 				title: w.t("blk_web"),

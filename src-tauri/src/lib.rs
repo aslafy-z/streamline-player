@@ -97,37 +97,45 @@ async fn kept_picture(app: &AppHandle, path: &str) -> Result<Vec<u8>, String> {
         .cloned()
 }
 
-/// How long a stored picture is used without asking again: the `max-age` the server sends with it.
-#[cfg(target_os = "android")]
-const PICTURE_FRESH: std::time::Duration = std::time::Duration::from_secs(86_400);
-
-/// Pictures outlive the app on disk, so a screen seen before draws at once; a stale one still
-/// serves when the server cannot be reached.
+/// Pictures outlive the app on disk. The server is asked whether the kept one is still current,
+/// which costs no transfer when it is, and a kept one still serves when the server cannot be
+/// reached.
 #[cfg(target_os = "android")]
 async fn stored_picture(app: &AppHandle, path: &str) -> Result<Vec<u8>, String> {
     let file = app.path().app_cache_dir().map(|dir| {
         dir.join("pictures")
             .join(path.trim_start_matches('/').replace('/', "_"))
     });
-    let stored = file.as_ref().ok().and_then(|f| {
-        let age = std::fs::metadata(f).ok()?.modified().ok()?.elapsed().ok()?;
-        Some((std::fs::read(f).ok()?, age))
+    // The server's `Last-Modified` for the kept file, sent back as is.
+    let stamp = file.as_ref().ok().map(|f| {
+        let mut s = f.clone().into_os_string();
+        s.push(".modified");
+        std::path::PathBuf::from(s)
     });
-    if let Some((bytes, age)) = &stored {
-        if *age < PICTURE_FRESH {
-            return Ok(bytes.clone());
-        }
-    }
-    match app.state::<Api>().picture(path).await {
-        Ok(bytes) => {
-            if let Ok(f) = &file {
+    let stored = file.as_ref().ok().and_then(|f| std::fs::read(f).ok());
+    let since = stored
+        .as_ref()
+        .and(stamp.as_ref())
+        .and_then(|s| std::fs::read_to_string(s).ok());
+    match app
+        .state::<Api>()
+        .picture_since(path, since.as_deref())
+        .await
+    {
+        Ok(None) => stored.ok_or_else(|| "kept picture vanished".to_owned()),
+        Ok(Some((bytes, modified))) => {
+            if let (Ok(f), Some(stamp)) = (&file, &stamp) {
                 // A picture that cannot be stored is only fetched again next time.
                 let _ = f.parent().map(std::fs::create_dir_all);
                 let _ = std::fs::write(f, &bytes);
+                let _ = match modified {
+                    Some(m) => std::fs::write(stamp, m),
+                    None => std::fs::remove_file(stamp),
+                };
             }
             Ok(bytes)
         }
-        Err(e) => stored.map(|(bytes, _)| bytes).ok_or(e),
+        Err(e) => stored.ok_or(e),
     }
 }
 
@@ -158,6 +166,19 @@ fn jpeg(bytes: Result<Vec<u8>, String>) -> tauri::http::Response<Vec<u8>> {
 impl Api {
     /// A picture of the server's, fetched with the device key.
     async fn picture(&self, path: &str) -> Result<Vec<u8>, String> {
+        self.picture_since(path, None)
+            .await?
+            .map(|(bytes, _)| bytes)
+            .ok_or_else(|| "unchanged without a kept copy".to_owned())
+    }
+
+    /// With `since`, the `Last-Modified` of a kept copy: `None` while that copy is current.
+    /// A new picture comes with its own `Last-Modified`.
+    async fn picture_since(
+        &self,
+        path: &str,
+        since: Option<&str>,
+    ) -> Result<Option<(Vec<u8>, Option<String>)>, String> {
         let conn = self.conn().await;
         let mut req = self.http.get(format!(
             "{}/extensions/player/posters{path}",
@@ -166,8 +187,23 @@ impl Api {
         if let Some(key) = &conn.key {
             req = req.header("X-API-Key", key);
         }
-        let bytes = async { req.send().await?.error_for_status()?.bytes().await };
-        bytes.await.map(|b| b.to_vec()).map_err(|e| e.to_string())
+        if let Some(since) = since {
+            req = req.header(reqwest::header::IF_MODIFIED_SINCE, since);
+        }
+        let fetched = async {
+            let resp = req.send().await?;
+            if resp.status() == reqwest::StatusCode::NOT_MODIFIED {
+                return Ok(None);
+            }
+            let resp = resp.error_for_status()?;
+            let modified = resp
+                .headers()
+                .get(reqwest::header::LAST_MODIFIED)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned);
+            Ok(Some((resp.bytes().await?.to_vec(), modified)))
+        };
+        fetched.await.map_err(|e: reqwest::Error| e.to_string())
     }
 
     /// Reads the server address and the key on first use: the key store can block, and on
@@ -516,8 +552,17 @@ async fn admin_library(api: tauri::State<'_, Api>) -> Result<Value, String> {
 }
 
 #[tauri::command]
-async fn admin_scan(api: tauri::State<'_, Api>, folder_id: Option<String>) -> Result<(), String> {
-    let body = folder_id.map_or_else(|| json!({}), |id| json!({ "folder_id": id }));
+async fn admin_scan(
+    api: tauri::State<'_, Api>,
+    folder_id: Option<String>,
+    movies: Option<Vec<i64>>,
+    episodes: Option<Vec<i64>>,
+) -> Result<(), String> {
+    let body = match (movies, episodes, folder_id) {
+        (None, None, Some(id)) => json!({ "folder_id": id }),
+        (None, None, None) => json!({}),
+        (movies, episodes, _) => json!({ "movies": movies, "episodes": episodes }),
+    };
     api.call(reqwest::Method::POST, "/admin/library/scan", Some(body))
         .await
         .map(drop)

@@ -69,7 +69,7 @@ $effect(() => {
 {#if popover.mounted && shown}
 	<div class="layer">
 		<LanguagePopover
-			title={i18n.detail_lang_title()}
+			title={i18n.card_lang_title_for({ title: shown.t.title })}
 			audioLabel={i18n.player_audio()}
 			subsLabel={i18n.player_subtitles()}
 			audio={audio.map((name) => ({ value: name, label: named(name, shown.tracks?.audio ?? []) }))}

@@ -4,7 +4,7 @@ import type { ActivityEvent, ActivityKind, FileSummary, Kind, Title } from "#lib
 export type Filter = "all" | "library" | "downloads" | "system";
 export const FILTERS: Filter[] = ["all", "library", "downloads", "system"];
 
-const LIBRARY: ActivityKind[] = ["episodes", "upgrade", "removed", "movie", "season"];
+const LIBRARY: ActivityKind[] = ["episodes", "upgrade", "movie", "season"];
 const SYSTEM: ActivityKind[] = ["device", "server", "scan"];
 
 export function matches(kind: ActivityKind, f: Filter) {
@@ -48,10 +48,6 @@ export type Words = {
 	seasonAdded(season: number): string;
 	episodeCount(count: number): string;
 	movieAdded: string;
-	movieRemoved: string;
-	episodeRemoved: string;
-	removedFile: string;
-	episodePlace(season: number, list: string): string;
 	upgraded(is4k: boolean): string;
 	replaced(previous: string, quality: string): string;
 	downloadFinished: string;
@@ -80,8 +76,8 @@ export type RowView = {
 	at: string;
 	poster: Title | null;
 	titleKind: Kind | null;
-	badge: "plus" | "sparkles" | "arrow-down-to-line" | "trash-2" | null;
-	badgeTone: "accent" | "warning" | "available" | "failed" | null;
+	badge: "plus" | "sparkles" | "arrow-down-to-line" | null;
+	badgeTone: "accent" | "warning" | "available" | null;
 	icon: string;
 	unread: boolean;
 	open: Open | null;
@@ -133,13 +129,6 @@ const words_of = (e: ActivityEvent, w: Words) => {
 				head: w.upgraded(e.file?.resolution === "2160p"),
 				text: w.replaced(e.previous?.resolution ?? "", quality(e.file)),
 			};
-		case "removed":
-			return e.title?.kind === "series"
-				? {
-						head: w.episodeRemoved,
-						text: w.episodePlace(e.season ?? 1, episodeList(e.episodes ?? [])),
-					}
-				: { head: w.movieRemoved, text: w.removedFile };
 		case "download": {
 			const ep = e.episodes?.[0];
 			return {
@@ -178,24 +167,22 @@ export function rowOf(e: ActivityEvent, find: Find, now: Date, locale: string, w
 	if (e.title && !found)
 		return {
 			...base,
-			name: e.name ?? "",
+			name: "",
 			poster: null,
 			titleKind: null,
 			badge: null,
 			badgeTone: null,
-			icon: e.kind === "removed" ? "trash-2" : "bell",
+			icon: "bell",
 			open: null,
 		};
 	const badge =
 		e.kind === "upgrade"
 			? ({ badge: "sparkles", badgeTone: "warning" } as const)
-			: e.kind === "removed"
-				? ({ badge: "trash-2", badgeTone: "failed" } as const)
-				: e.kind === "download"
-					? ({ badge: "arrow-down-to-line", badgeTone: "available" } as const)
-					: found
-						? ({ badge: "plus", badgeTone: "accent" } as const)
-						: ({ badge: null, badgeTone: null } as const);
+			: e.kind === "download"
+				? ({ badge: "arrow-down-to-line", badgeTone: "available" } as const)
+				: found
+					? ({ badge: "plus", badgeTone: "accent" } as const)
+					: ({ badge: null, badgeTone: null } as const);
 	const icon = found
 		? "bell"
 		: e.kind === "device"

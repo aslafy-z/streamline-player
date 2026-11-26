@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { SectionKey } from "#lib/core/server-view.ts";
+import ScopeMenu from "#lib/shells/phone/ScopeMenu.svelte";
 import Icon, { type IconName } from "#lib/ui/Icon.svelte";
 
 type Item = { key: SectionKey; icon: string; title: string; badge?: number; count?: number };
@@ -27,39 +28,49 @@ let {
 
 <nav aria-label={label} style:top="{top}px" style:max-height="calc(100vh - 104px)">
 	<div class="who">
-		<h1>{title}</h1>
+		<span class="scope"><ScopeMenu here="admin" {title} {host} /></span>
 		<span class="host"><span class="dot" style:background={dot}></span>{host}</span>
 	</div>
-	{#each groups as g (g.name)}
-		<div class="group">
-			{#if g.name}
-				<span class="name">{g.name}</span>
-			{/if}
-			{#each g.items as it (it.key)}
-				<button
-					type="button"
-					class="item"
-					class:on={active === it.key}
-					aria-current={active === it.key ? "true" : undefined}
-					onclick={() => onopen(it.key)}
-				>
-					<Icon name={it.icon as IconName} size={16} stroke={1.75} />
-					<span class="title">{it.title}</span>
-					{#if it.badge}
-						<span class="badge">{it.badge}</span>
-					{:else if it.count !== undefined}
-						<span class="count">{it.count}</span>
-					{/if}
-				</button>
-			{/each}
-		</div>
-	{/each}
+	<div class="list">
+		{#each groups as g (g.name)}
+			<div class="group">
+				{#if g.name}
+					<span class="name">{g.name}</span>
+				{/if}
+				{#each g.items as it (it.key)}
+					<button
+						type="button"
+						class="item"
+						class:on={active === it.key}
+						aria-current={active === it.key ? "true" : undefined}
+						onclick={() => onopen(it.key)}
+					>
+						<Icon name={it.icon as IconName} size={16} stroke={1.75} />
+						<span class="title">{it.title}</span>
+						{#if it.badge}
+							<span class="badge">{it.badge}</span>
+						{:else if it.count !== undefined}
+							<span class="count">{it.count}</span>
+						{/if}
+					</button>
+				{/each}
+			</div>
+		{/each}
+	</div>
 </nav>
 
 <style>
 nav {
 	position: sticky;
 	align-self: start;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+/* The title's menu is wider than the column, so only the list under it scrolls. */
+.list {
+	min-height: 0;
 	overflow-y: auto;
 	display: flex;
 	flex-direction: column;
@@ -67,17 +78,14 @@ nav {
 	padding-bottom: 16px;
 }
 
+.scope {
+	--title-size: 28px;
+}
+
 .who {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-}
-
-h1 {
-	margin: 0;
-	font-size: 28px;
-	font-weight: 700;
-	letter-spacing: -0.025em;
 }
 
 .host {

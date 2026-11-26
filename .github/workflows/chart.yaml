@@ -1,20 +1,81 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Chart
 
-# The chart versions independently of the engine: releases are tags
-# chart-v*.*.*, as in Streamline.
+# Each chart versions on its own: chart-engine-v*.*.* releases
+# streamline-engine, chart-web-v*.*.* streamline-player-web
+# (.taskfiles/release.yaml cuts them).
 on:
   push:
-    tags: ["chart-v*.*.*"]
+    tags: ["chart-engine-v*.*.*", "chart-web-v*.*.*"]
 
 permissions: {}
 
 jobs:
-  publish:
+  chart:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      name: ${{ steps.chart.outputs.name }}
+      version: ${{ steps.chart.outputs.version }}
+    steps:
+      - name: The tag's chart
+        id: chart
+        run: |
+          case "$GITHUB_REF_NAME" in
+            chart-engine-v*) name=streamline-engine ;;
+            chart-web-v*) name=streamline-player-web ;;
+          esac
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#chart-*-v}" >> "$GITHUB_OUTPUT"
+
+  # Its own job: the notes step pipes the Claude installer into bash, and
+  # here the worst it can reach is a read-only token, its own OIDC token and
+  # the notes text — not the token that publishes the release.
+  notes:
+    needs: chart
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
+    env:
+      ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+      ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+      ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+      ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build release notes
+        id: notes
+        uses: ./.github/actions/release-notes
+        with:
+          changelog: deploy/helm/${{ needs.chart.outputs.name }}/CHANGELOG.md
+          version: ${{ needs.chart.outputs.version }}
+          subject: the ${{ needs.chart.outputs.name }} Helm chart
+          footer: |
+
+            ---
+            Install: `helm install ${{ needs.chart.outputs.name }} oci://ghcr.io/streamline-hq/charts/${{ needs.chart.outputs.name }} --version ${{ needs.chart.outputs.version }}`
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: ${{ steps.notes.outputs.file }}
+          if-no-files-found: error
+
+  publish:
+    needs: [chart, notes]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
       packages: write
+    env:
+      CHART: ${{ needs.chart.outputs.name }}
+      VERSION: ${{ needs.chart.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -30,13 +91,11 @@ jobs:
       # If they disagree the push lands on a version nobody asked for.
       - name: Verify tag matches Chart.yaml
         run: |
-          chart_version=$(sed -n 's/^version: *//p' deploy/helm/streamline-engine/Chart.yaml)
-          tag_version="${GITHUB_REF_NAME#chart-v}"
-          if [ "$chart_version" != "$tag_version" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} wants chart ${tag_version}, but Chart.yaml says ${chart_version}"
+          chart_version=$(sed -n 's/^version: *//p' "deploy/helm/$CHART/Chart.yaml")
+          if [ "$chart_version" != "$VERSION" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} wants $CHART ${VERSION}, but Chart.yaml says ${chart_version}"
             exit 1
           fi
-          echo "version=${chart_version}" >> "$GITHUB_ENV"
 
       - name: Log in to GHCR
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
@@ -48,5 +107,22 @@ jobs:
       - name: Package + push chart
         run: |
           set -euo pipefail
-          helm package deploy/helm/streamline-engine --destination "$RUNNER_TEMP"
-          helm push "$RUNNER_TEMP/streamline-engine-${version}.tgz" oci://ghcr.io/streamline-hq/charts
+          helm package "deploy/helm/$CHART" --destination "$RUNNER_TEMP"
+          helm push "$RUNNER_TEMP/$CHART-${VERSION}.tgz" oci://ghcr.io/streamline-hq/charts
+
+      - name: Download release notes
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
+      # --latest=false: the repository's "Latest" is the desktop app, the
+      # release most people come to download.
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" --verify-tag --latest=false
+          --title "$CHART chart v$VERSION"
+          --notes-file "$RUNNER_TEMP/notes/release-notes.md"

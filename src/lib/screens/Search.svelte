@@ -1,10 +1,8 @@
 <script lang="ts">
-import { isTablet } from "#lib/platform/form-factor.svelte.ts";
-import { loadErrorText } from "#lib/core/load-error.ts";
-import { lib, loadLibrary } from "#lib/core/library.svelte.ts";
+import { onMount } from "svelte";
 import { stars, years } from "#lib/core/browse.ts";
 import { runtime } from "#lib/core/format.ts";
-import { getLocale } from "#lib/paraglide/runtime.js";
+import { lib, loadLibrary } from "#lib/core/library.svelte.ts";
 import {
 	genreTiles,
 	type Hit,
@@ -15,18 +13,21 @@ import {
 	tagged,
 } from "#lib/core/search-view.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
-import Button from "#lib/ui/Button.svelte";
+import { getLocale } from "#lib/paraglide/runtime.js";
+import { isTablet } from "#lib/platform/form-factor.svelte.ts";
+import LoadFailed from "#lib/screens/LoadFailed.svelte";
+import { titleCard } from "#lib/screens/title-card.svelte.ts";
 import EmptyState from "#lib/ui/EmptyState.svelte";
+import { gridNav } from "#lib/ui/grid-nav.ts";
+import { cardSrcset, orFull } from "#lib/ui/img.ts";
 import Icon from "#lib/ui/Icon.svelte";
 import { goto } from "#lib/ui/nav.ts";
-import { gridNav } from "#lib/ui/grid-nav.ts";
-import PosterCard from "#lib/ui/PosterCard.svelte";
-import { titleCard } from "#lib/screens/title-card.svelte.ts";
+import PosterCard, { skeleton as posterSkeleton } from "#lib/ui/PosterCard.svelte";
+import { progressive } from "#lib/ui/progressive.svelte.ts";
 import SearchField from "#lib/ui/SearchField.svelte";
 import { artwork, home, library, title, watchState } from "#platform";
 import { afterNavigate } from "$app/navigation";
 import { page } from "$app/state";
-import { onMount } from "svelte";
 
 const PAD_X = $derived(isTablet() ? 44 : 56);
 const TOP = 92;
@@ -87,10 +88,19 @@ const hits = $derived(searchTitles(all, q));
 const top = $derived(hits[0]);
 const movies = $derived(hits.filter((t) => t.kind === "movies"));
 const shows = $derived(hits.filter((t) => t.kind === "series"));
+// One letter can match most of the library: drawn at once, that froze the page for seconds.
+const movieRows = progressive(
+	() => movies,
+	() => "movies",
+);
+const showRows = progressive(
+	() => shows,
+	() => "series",
+);
 const groups = $derived(
 	[
-		{ label: i18n.nav_movies(), items: movies },
-		{ label: i18n.nav_shows(), items: shows },
+		{ label: i18n.nav_movies(), items: movies, rows: movieRows },
+		{ label: i18n.nav_shows(), items: shows, rows: showRows },
 	].filter((g) => g.items.length),
 );
 const tiles = $derived(genreTiles(all));
@@ -150,13 +160,7 @@ onMount(() => {
 	/>
 
 	{#if lib.error !== null}
-		<EmptyState icon="film" title={i18n.home_error_title()} text={loadErrorText(lib.error)}>
-			{#snippet action()}
-				<Button variant="secondary" onclick={() => loadLibrary(port, true)}>
-					{i18n.halt_try_again()}
-				</Button>
-			{/snippet}
-		</EmptyState>
+		<LoadFailed error={lib.error} retry={() => loadLibrary(port, true)} />
 	{:else if empty}
 		<EmptyState icon="film" title={i18n.home_empty_title()} text={i18n.home_empty_text()} />
 	{:else if lib.loaded && !q}
@@ -178,9 +182,14 @@ onMount(() => {
 						<button type="button" class="genre-tile" data-nav onclick={() => ask(g.name, false)}>
 							<img
 								src={artwork(g.cover.kind, g.cover.id, "poster")}
+								srcset={cardSrcset(
+									artwork(g.cover.kind, g.cover.id, "poster-w342"),
+									artwork(g.cover.kind, g.cover.id, "poster"),
+								)}
 								alt=""
 								loading="lazy"
-								onerror={(e) => e.currentTarget.remove()}
+								decoding="async"
+								onerror={orFull((e) => (e.currentTarget as HTMLImageElement).remove())}
 							>
 							<span class="label">
 								<span class="name">{g.name}</span>
@@ -205,8 +214,13 @@ onMount(() => {
 			<button type="button" class="top" data-nav onclick={() => open(top)}>
 				<img
 					src={artwork(top.kind, top.id, "poster")}
+					srcset={cardSrcset(
+						artwork(top.kind, top.id, "poster-w342"),
+						artwork(top.kind, top.id, "poster"),
+					)}
 					alt=""
-					onerror={(e) => e.currentTarget.remove()}
+					decoding="async"
+					onerror={orFull((e) => (e.currentTarget as HTMLImageElement).remove())}
 				>
 				<span class="copy">
 					<span class="eyebrow accent">{i18n.search_top_result({ kind: kindLabel(top) })}</span>
@@ -218,17 +232,22 @@ onMount(() => {
 			{#each groups as g (g.label)}
 				<section>
 					<h2>{g.label} <span class="n">{g.items.length}</span></h2>
-					<div class="grid">
-						{#each g.items as t (`${t.kind}:${t.id}`)}
-							<PosterCard
-								title={t.title}
-								sub={sub(t)}
-								src={artwork(t.kind, t.id, "poster")}
-								{...titleCard(t.kind, t, now)}
-								badge={undefined}
-								nav
-								onclick={() => open(t)}
-							/>
+					<div class="grid" style:padding-bottom="{g.rows.after}px" use:g.rows.track>
+						{#each g.items.slice(0, g.rows.drawn) as t (`${t.kind}:${t.id}`)}
+							{#if g.rows.real(t.id)}
+								<PosterCard
+									title={t.title}
+									sub={sub(t)}
+									src={artwork(t.kind, t.id, "poster")}
+									small={artwork(t.kind, t.id, "poster-w342")}
+									{...titleCard(t.kind, t, now)}
+									badge={undefined}
+									nav
+									onclick={() => open(t)}
+								/>
+							{:else}
+								{@render posterSkeleton(t.title)}
+							{/if}
 						{/each}
 					</div>
 				</section>

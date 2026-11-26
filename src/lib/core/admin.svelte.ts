@@ -191,8 +191,10 @@ export function hideSecret() {
 	if (admin.data) delete admin.data.secretShown;
 }
 
+// The tick moves the playing streams' positions and nothing else, and each one redraws the
+// whole screen: with nothing playing the page stays still.
 export function tickStreams() {
-	if (admin.data) admin.data.tick++;
+	if (admin.data?.streams.some((x) => x.playing)) admin.data.tick++;
 }
 
 export async function loadPendingPairs(port: Pick<AdminPort, "adminPairings">) {

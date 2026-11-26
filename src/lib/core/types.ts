@@ -9,6 +9,8 @@ export type FileSummary = {
 	size?: number;
 	file_count?: number;
 };
+/** What an admin's scan of some titles covers: movie ids and episode ids. */
+export type ScanScope = { movies?: number[]; episodes?: number[] };
 export type Episode = {
 	id: number;
 	number: number;
@@ -115,7 +117,7 @@ export type Me = {
 export type Featured = {
 	kind: Kind;
 	id: number;
-	reason: "continue" | "new_episodes" | "added";
+	reason: "continue" | "next" | "new_episodes" | "added";
 	season?: number;
 	episodes?: number[];
 };
@@ -136,7 +138,6 @@ export type ActivityKind =
 	| "season"
 	| "movie"
 	| "upgrade"
-	| "removed"
 	| "download"
 	| "device"
 	| "server"
@@ -148,8 +149,6 @@ export type ActivityEvent = {
 	at: string;
 	read: boolean;
 	title?: { kind: Kind; id: number };
-	/** A removed title's name: it may have left the library with its last file. */
-	name?: string;
 	season?: number;
 	/** The numbers added; a download's is the one episode. */
 	episodes?: number[];

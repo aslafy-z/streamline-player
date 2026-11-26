@@ -32,7 +32,16 @@ const csp: NonNullable<Parameters<typeof sveltekit>[0]>["csp"] = !native
 		}
 	: undefined;
 
-const { version } = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf8"));
+// Each client releases on its own version line (.taskfiles/release.yaml). The
+// Tauri CLI sets TAURI_ENV_PLATFORM for the build it runs; a web build has none.
+const readJson = (path: string) => JSON.parse(readFileSync(path, "utf8"));
+const tauriPlatform = process.env.TAURI_ENV_PLATFORM;
+const version =
+	tauriPlatform === undefined
+		? readJson("package.json").version
+		: tauriPlatform === "android"
+			? readJson("src-tauri/tauri.android.conf.json").version
+			: /^version = "(.+)"$/m.exec(readFileSync("src-tauri/Cargo.toml", "utf8"))?.[1];
 
 export default defineConfig({
 	define: { "import.meta.env.VITE_APP_VERSION": JSON.stringify(version) },

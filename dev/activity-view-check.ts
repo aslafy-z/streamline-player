@@ -41,10 +41,6 @@ const words: Words = {
 	seasonAdded: (s) => `Season ${s} added`,
 	episodeCount: (n) => plural(n, "1 episode", `${n} episodes`),
 	movieAdded: "Added to Movies",
-	movieRemoved: "Removed from Movies",
-	episodeRemoved: "Episode removed",
-	removedFile: "The file is no longer on the server",
-	episodePlace: (s, l) => `S${s} · ${l}`,
 	upgraded: (k) => (k ? "Upgraded to 4K" : "Upgraded to 1080p"),
 	replaced: (p, q) => `Replaced the ${p} copy with ${q}`,
 	downloadFinished: "Download finished",
@@ -269,14 +265,5 @@ eq(must(lateView.groups[0]).group, "yesterday");
 eq(must(must(lateView.groups[0]).rows[0]).at, "23:50");
 const earlier = view([{ ...a11, at: local(11, 2).toISOString() }], "all");
 eq(must(earlier.groups[0]).label, "Earlier");
-
-// A removal names its title itself: the title may have left the library with its last file.
-const removal = row(
-	ev({ id: "rm", kind: "removed", title: { kind: "movies", id: 987654 }, name: "Gone Film" }, 60),
-);
-eq(removal.head, "Removed from Movies");
-eq(removal.name, "Gone Film");
-eq(removal.icon, "trash-2");
-eq(removal.open, null);
 
 console.log("activity-view-check: ok");

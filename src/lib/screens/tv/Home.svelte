@@ -1,6 +1,7 @@
 <script module lang="ts">
 import type { Kind, Title } from "#lib/core/types.ts";
-import { badges, episodesOf, inProgress, left, meta, pct, stillPos } from "#lib/core/format.ts";
+import { continueWatching, playUrl } from "#lib/core/browse.ts";
+import { badges, left, meta, stillPos } from "#lib/core/format.ts";
 import { artwork, home, library, title as fetchTitle, watchState } from "#platform";
 import { orPoster } from "#lib/ui/img.ts";
 
@@ -34,6 +35,7 @@ import { focusDefault } from "#lib/tv/focus.ts";
 import { onMount, tick } from "svelte";
 
 const SCREEN_H = 1080;
+const GENRE_ROW_LIMIT = 12;
 let loaded = $state(!!cached);
 let failed = $state<string | null>(null);
 let rows = $state.raw<Row[]>(cached ?? []);
@@ -104,60 +106,38 @@ async function load() {
 	await loadLibrary({ library, watchState, home, title: fetchTitle }, true);
 	if (lib.error !== null) throw new Error(lib.error);
 	const { movies, shows, watch } = lib;
-	const seen = new Set<number>();
-	const going = watch.filter(inProgress);
-	const details = new Map(
-		await Promise.all(
-			[...new Set(going.flatMap((w) => w.series_id ?? []))].map(
-				async (id) =>
-					[
-						id,
-						shows.find((s) => s.id === id && s.seasons) ?? (await fetchTitle("series", id)),
-					] as const,
-			),
-		),
-	);
-	const cont: Item[] = [];
-	for (const w of going) {
-		if (w.series_id) {
-			if (seen.has(w.series_id)) continue;
-			seen.add(w.series_id);
-			const t = details.get(w.series_id);
-			const ep = t && episodesOf(t).find((e) => e.id === w.episode_id);
-			if (!t || !ep) continue;
-			cont.push({
-				key: `ep:${ep.id}`,
-				kind: "series",
-				t,
-				eyebrow: i18n.home_continue_episode({
-					season: ep.season,
-					episode: ep.number,
-					title: ep.title,
-				}),
-				img: artwork("series", t.id, "backdrop"),
-				pos: stillPos(ep.number, ep.season),
-				code: i18n.common_episode_code({ season: ep.season, episode: ep.number }),
-				pct: pct(w),
-				left: left(w.duration_seconds - w.position_seconds),
-				href: `/player/series/${t.id}?ep=${ep.id}&resume=1`,
-			});
-		} else {
-			const t = movies.find((m) => m.id === w.movie_id);
-			if (t)
-				cont.push({
+	const cont: Item[] = continueWatching(movies, shows, watch).flatMap((r): Item[] => {
+		const t = (r.kind === "movies" ? movies : shows).find((x) => x.id === r.id);
+		if (!t) return [];
+		const common = {
+			kind: r.kind,
+			t,
+			img: artwork(r.kind, t.id, "backdrop"),
+			pct: r.pct,
+			left: left(r.left),
+			href: playUrl(r.kind, r.id, r.episodeId, !r.next),
+		};
+		if (r.kind === "movies")
+			return [
+				{
+					...common,
 					key: `movie:${t.id}`,
-					kind: "movies",
-					t,
 					eyebrow: i18n.home_continue_watching(),
-					img: artwork("movies", t.id, "backdrop"),
 					pos: "50% 35%",
-					code: String(t.year),
-					pct: pct(w),
-					left: left(w.duration_seconds - w.position_seconds),
-					href: `/player/movies/${t.id}?resume=1`,
-				});
-		}
-	}
+					code: r.code,
+				},
+			];
+		const ep = { season: r.season as number, episode: r.episode as number, title: r.sub };
+		return [
+			{
+				...common,
+				key: `ep:${r.episodeId}`,
+				eyebrow: r.next ? i18n.home_up_next_episode(ep) : i18n.home_continue_episode(ep),
+				pos: stillPos(ep.episode, ep.season),
+				code: i18n.common_episode_code({ season: ep.season, episode: ep.episode }),
+			},
+		];
+	});
 	const recent = (list: Title[]) => [...list].sort((a, b) => b.added_at.localeCompare(a.added_at));
 	const counts = new Map<string, number>();
 	for (const m of [...movies, ...shows])
@@ -193,7 +173,7 @@ async function load() {
 			items: [
 				...movies.filter((t) => t.genres.includes(genre)).map((t) => poster("movies", t, genre)),
 				...shows.filter((t) => t.genres.includes(genre)).map((t) => poster("series", t, genre)),
-			],
+			].slice(0, GENRE_ROW_LIMIT),
 		},
 	].filter((r) => r.items.length);
 }

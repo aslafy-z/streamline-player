@@ -46,6 +46,7 @@ let focused = $state(false);
 			<div class="main server">
 				<Mark size={56} radius={14} ring={false} />
 				<div class="head">
+					<span class="eyebrow">{i18n.welcome_step_1()}</span>
 					<h1>{i18n.welcome_title_server()}</h1>
 					<p class="lead">{i18n.welcome_lead_server()}</p>
 				</div>

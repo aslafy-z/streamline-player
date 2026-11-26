@@ -90,11 +90,17 @@ $effect(() => {
 		style:margin="0 -{padX}px"
 		style:padding="0 {padX - 6}px 4px"
 	>
-		{#each members as c (c.id)}
+		{#each members as c, i (`${c.id}:${i}`)}
 			<button type="button" class="castc" onclick={() => onopen(c.id)}>
 				<span class="img" style:background={c.bg} style:color={c.fg}>
 					{#if !broken[c.id]}
-						<img src={c.photo} alt="" loading="lazy" onerror={() => (broken[c.id] = true)}>
+						<img
+							src={c.photo}
+							alt=""
+							loading="lazy"
+							decoding="async"
+							onerror={() => (broken[c.id] = true)}
+						>
 					{:else}
 						{c.initials}
 					{/if}
@@ -190,6 +196,7 @@ h2 {
 }
 
 .img {
+	position: relative;
 	display: grid;
 	place-items: center;
 	width: 84px;
@@ -203,10 +210,11 @@ h2 {
 }
 
 .img img {
+	position: absolute;
+	inset: 0;
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
-	display: block;
 }
 
 .who {

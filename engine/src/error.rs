@@ -9,6 +9,8 @@ pub struct ApiError {
     pub code: &'static str,
     pub message: String,
     pub retry_after: Option<u64>,
+    /// `transcode_limit`: why the stream needs a slot, in the decision's own words.
+    pub need: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -32,6 +34,8 @@ struct Envelope<'a> {
     code: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     retry_after: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    need: Option<&'a str>,
 }
 
 impl ApiError {
@@ -41,6 +45,7 @@ impl ApiError {
             code,
             message: message.into(),
             retry_after: None,
+            need: None,
         }
     }
 
@@ -84,9 +89,10 @@ impl ApiError {
         )
     }
 
-    pub fn transcode_limit(retry_after: u64) -> Self {
+    pub fn transcode_limit(retry_after: u64, need: Option<String>) -> Self {
         Self {
             retry_after: Some(retry_after),
+            need,
             ..Self::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "transcode_limit",
@@ -173,6 +179,7 @@ impl IntoResponse for ApiError {
             message: &self.message,
             code: self.code,
             retry_after: self.retry_after,
+            need: self.need.as_deref(),
         };
         (self.status, Json(body)).into_response()
     }
@@ -184,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn envelope_shape() {
-        let res = ApiError::transcode_limit(10).into_response();
+        let res = ApiError::transcode_limit(10, Some("x".into())).into_response();
         assert_eq!(res.status(), StatusCode::SERVICE_UNAVAILABLE);
         let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
             .await
@@ -192,6 +199,7 @@ mod tests {
         let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(v["code"], "transcode_limit");
         assert_eq!(v["retry_after"], 10);
+        assert_eq!(v["need"], "x");
         assert!(v["message"].is_string());
     }
 
@@ -201,8 +209,10 @@ mod tests {
             message: "m",
             code: "not_found",
             retry_after: None,
+            need: None,
         })
         .unwrap();
         assert!(body.get("retry_after").is_none());
+        assert!(body.get("need").is_none());
     }
 }

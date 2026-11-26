@@ -35,10 +35,11 @@ import {
 } from "#lib/core/format.ts";
 import { applyWatch, lib, loadLibrary } from "#lib/core/library.svelte.ts";
 import { autoCap, PRESETS, presetOf, rememberedThroughput } from "#lib/core/playback/auto.ts";
-import { audioOutName, codecName, fileMbit, subInfo } from "#lib/core/playback/names.ts";
+import { audioOutName, codecName, fileMbit, modeName, subInfo } from "#lib/core/playback/names.ts";
 import type { Tracks } from "#lib/core/playback/port.ts";
 import { prefs } from "#lib/core/prefs.svelte.ts";
 import { toast } from "#lib/core/toast.svelte.ts";
+import { canScan as isAdmin, scanTitle } from "#lib/screens/scan.ts";
 import type { Decision, Kind, Title } from "#lib/core/types.ts";
 import { m as i18n } from "#lib/paraglide/messages.js";
 import { askPort } from "#lib/screens/downloads-port.ts";
@@ -50,6 +51,8 @@ import Icon from "#lib/ui/Icon.svelte";
 import { goto } from "#lib/ui/nav.ts";
 import NotFound from "#lib/ui/NotFound.svelte";
 import WatchGlyph from "#lib/ui/WatchGlyph.svelte";
+import WatchMarks from "#lib/ui/WatchMarks.svelte";
+import { watchInfo } from "#lib/core/watch-info.ts";
 import {
 	artwork,
 	canDownload,
@@ -145,6 +148,14 @@ $effect(() => {
 		untrack(() => (locked = defaultSeason(found, lib.watch, null)));
 	}
 });
+
+let passthrough = $state<string[]>([]);
+playbackPort
+	.capabilities()
+	.then((c) => {
+		passthrough = (c as { audio?: { passthrough?: string[] } } | null)?.audio?.passthrough ?? [];
+	})
+	.catch(() => {});
 
 $effect(() => {
 	const media = primary?.mediaId;
@@ -386,13 +397,15 @@ const similar = $derived(
 );
 
 const modeShort = (m: TechMode) =>
-	m.kind === "asis"
-		? i18n.detail_phone_mode_as_is()
-		: m.kind === "converted"
-			? i18n.detail_phone_mode_converted()
-			: m.kind === "burn"
-				? i18n.detail_phone_mode_burn()
-				: i18n.detail_phone_mode_shown();
+	m.kind === "pass"
+		? i18n.player_pass_through()
+		: m.kind === "asis"
+			? i18n.detail_phone_mode_as_is()
+			: m.kind === "converted"
+				? i18n.detail_phone_mode_converted()
+				: m.kind === "burn"
+					? i18n.detail_phone_mode_burn()
+					: i18n.detail_phone_mode_shown();
 const modeTone = (m: TechMode) =>
 	m.kind === "converted"
 		? "var(--status-downloading)"
@@ -414,7 +427,11 @@ const facts = $derived.by(() => {
 	return techRows(t, kind, tracks, {
 		video: d ? { copy: d.video.action === "copy", out: codecName(d.video.codec) } : undefined,
 		audio: d
-			? { copy: d.audio.action === "copy", out: audioOutName({ audio: d.audio }) }
+			? {
+					copy: d.audio.action === "copy",
+					out: audioOutName({ audio: d.audio }),
+					pass: passthrough.includes(d.audio.codec),
+				}
 			: undefined,
 		subs: (tracks?.subtitles ?? []).map((s) => {
 			const info = subInfo(s);
@@ -435,7 +452,10 @@ const facts = $derived.by(() => {
 	}));
 });
 
-const tiles = $derived((!series && resuming ? 1 : 0) + (resuming ? 1 : 0) + 1 + (movieDl ? 1 : 0));
+const canScan = $derived(isAdmin());
+const tiles = $derived(
+	(!series && resuming ? 1 : 0) + (resuming ? 1 : 0) + 1 + (movieDl ? 1 : 0) + (canScan ? 1 : 0),
+);
 const showTech = $derived(techOpen ?? prefs.techDetails);
 
 function setSeason(n: number) {
@@ -462,7 +482,11 @@ function setSeason(n: number) {
 		</div>
 	{:else if t && ready}
 		<div class="hero">
-			<Art src={artwork(kind, t.id, "backdrop")} position="50% 30%" />
+			<Art
+				src={artwork(kind, t.id, "backdrop")}
+				fallback={artwork(kind, t.id, "poster")}
+				position="50% 30%"
+			/>
 			<div class="scrim"></div>
 		</div>
 		<button type="button" class="back" aria-label={i18n.common_back()} onclick={back}>
@@ -475,7 +499,7 @@ function setSeason(n: number) {
 			<button type="button" class="cta" disabled={!primary} onclick={play}>
 				<Icon name="play" filled size={18} />{primaryText}
 			</button>
-			<div class="acts" class:wide={!!seriesDl} style:--n={tiles}>
+			<div class="acts" style:--n={tiles}>
 				{#if !series && resuming}
 					<button type="button" class="tile" onclick={() => goto(playUrl("movies", id))}>
 						<Icon name="skip-back" size={19} stroke={1.75} />{i18n.detail_phone_from_start()}
@@ -515,6 +539,16 @@ function setSeason(n: number) {
 						{@render dlGlyph(movieDl.look, 19, 13)}{movieDl.look.short}
 					</button>
 				{/if}
+				{#if canScan}
+					<button
+						type="button"
+						class="tile"
+						onclick={() =>
+							scanTitle(kind, id, i18n.detail_toast_scanning_title({ title: t?.title ?? "" }), eps)}
+					>
+						<Icon name="refresh-cw" size={19} stroke={1.75} />{i18n.detail_scan_short()}
+					</button>
+				{/if}
 				{#if seriesDl}
 					<button
 						type="button"
@@ -538,7 +572,13 @@ function setSeason(n: number) {
 						onclick={() => (techOpen = !showTech)}
 					>
 						<span class="dot" class:copy={full}></span>
-						<span class="what">{decided ? PLAIN[decided.mode] : ""}</span>
+						<span class="what"
+							>{decided
+								? prefs.techDetails
+									? modeName(decided.mode)
+									: PLAIN[decided.mode]
+								: ""}</span
+						>
 						<span class="where">{device ? i18n.detail_on_device({ device }) : ""}</span>
 						<span class="chev" class:open={showTech}
 							><Icon name="chevron-down" size={16} stroke={2} /></span
@@ -570,6 +610,17 @@ function setSeason(n: number) {
 							{i18n.common_season_n({ n: s.number })}
 						</button>
 					{/each}
+					{#if canScan}
+						<button
+							type="button"
+							class="scan"
+							aria-label={i18n.detail_scan_season({ season })}
+							onclick={() =>
+								scanTitle(kind, id, i18n.detail_toast_scanning_season({ season }), seasonEps)}
+						>
+							<Icon name="refresh-cw" size={17} stroke={1.8} />
+						</button>
+					{/if}
 				</div>
 				{#each episodes as e (e.id)}
 					<div class="ep">
@@ -583,8 +634,13 @@ function setSeason(n: number) {
 						>
 							<span class="still">
 								<Art src={artwork("series", id, "backdrop")} position={e.pos} />
-								{#if e.isNew && e.state === "unwatched"}
-									<span class="new">{i18n.home_new()}</span>
+								{#if e.state === "unwatched"}
+									<span class="slp-unread slp-mk--thumb" aria-hidden="true"></span>
+								{/if}
+								{#if e.isNew}
+									<span class="new" class:after-unread={e.state === "unwatched"}
+										>{i18n.home_new()}</span
+									>
 								{/if}
 								{#if e.state === "progress"}
 									<span class="bar"><span style:width="{e.pct}%"></span></span>
@@ -647,11 +703,12 @@ function setSeason(n: number) {
 					{#each similar as it (`${it.kind}:${it.id}`)}
 						<button
 							type="button"
-							class="poster"
+							class="poster slp-mk--phone"
 							aria-label={it.title}
 							onclick={() => goto(`/detail/${it.kind}/${it.id}`)}
 						>
 							<Art src={artwork(it.kind, it.id, "poster")} kind="poster" />
+							<WatchMarks info={watchInfo(it, it.kind, lib.watch)} />
 						</button>
 					{/each}
 				</div>
@@ -667,7 +724,7 @@ function setSeason(n: number) {
 	ring: number = icon,
 )}
 	{#if look.icon}
-		<Icon name={look.icon} size={icon} stroke={1.8} />
+		<Icon name={look.icon} size={icon} stroke={1.9} />
 	{:else}
 		<span class="ring" style:--p="{look.pct}%" style:--d="{ring}px" style:--h="{hole}px">
 			<span class="hole"></span>
@@ -787,10 +844,6 @@ h1 {
 	gap: 8px;
 }
 
-.acts.wide {
-	grid-template-columns: repeat(var(--n), minmax(0, 1fr)) auto;
-}
-
 .tile {
 	position: relative;
 	display: flex;
@@ -838,6 +891,14 @@ h1 {
 	height: var(--h);
 	border-radius: 50%;
 	background: var(--bg-deep);
+}
+
+.tile .hole {
+	background: var(--bg-base);
+}
+
+.glass .hole {
+	background: #1a1a24;
 }
 
 .overview {
@@ -949,6 +1010,21 @@ h1 {
 	scrollbar-width: none;
 }
 
+.scan {
+	flex: none;
+	width: 36px;
+	height: 36px;
+	margin-left: auto;
+	display: grid;
+	place-items: center;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--fg-subtle);
+	cursor: pointer;
+}
+
 .pill {
 	flex: none;
 	height: 36px;
@@ -1016,6 +1092,10 @@ h1 {
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--accent-text);
+}
+
+.new.after-unread {
+	left: 15px;
 }
 
 .bar {
@@ -1113,6 +1193,7 @@ h2 {
 }
 
 .photo {
+	position: relative;
 	display: grid;
 	place-items: center;
 	width: 72px;
@@ -1125,10 +1206,11 @@ h2 {
 }
 
 .photo img {
+	position: absolute;
+	inset: 0;
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
-	display: block;
 }
 
 .who {

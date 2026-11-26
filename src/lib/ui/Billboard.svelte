@@ -146,8 +146,10 @@ const frameStyle = (i: number) => {
 						<span class="track"
 							><span
 								class="fill"
-								style:width="{i === at ? Math.round(progress * 1000) / 10 : 0}%"
-								style:transition={i === at && progress > 0 ? `width ${TICK_MS}ms linear` : "none"}
+								style:transform="scaleX({i === at ? progress : 0})"
+								style:transition={i === at && progress > 0
+									? `transform ${TICK_MS}ms linear`
+									: "none"}
 							></span></span
 						>
 					</button>
@@ -236,6 +238,12 @@ h1 {
 	font-weight: 700;
 	letter-spacing: -0.03em;
 	text-wrap: balance;
+	/* The body is anchored to the bottom: an unclamped long title grows upward under the app bar. */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
 }
 
 .meta {
@@ -389,9 +397,9 @@ p {
 
 .fill {
 	position: absolute;
-	left: 0;
-	top: 0;
-	bottom: 0;
+	inset: 0;
+	/* A width here lays the page out on every frame; a transform stays on the compositor. */
+	transform-origin: left;
 	background: var(--player-ink);
 }
 </style>

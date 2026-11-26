@@ -1,4 +1,5 @@
 <script lang="ts">
+import { otherDevices } from "#lib/core/devices.ts";
 import { ask } from "#lib/core/ask.svelte.ts";
 import { type FieldError, PICTURE_TYPES, pictureProblem, refusal } from "#lib/core/account.ts";
 import { type Caps, chips } from "#lib/core/capabilities.ts";
@@ -31,7 +32,6 @@ import {
 	artwork,
 	authState,
 	canDownload,
-	canMeter,
 	deviceInfo,
 	devices as listDevices,
 	home,
@@ -49,7 +49,6 @@ import {
 } from "#platform";
 import { onMount } from "svelte";
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 const PING_MS = 2000;
 const CUE_SIZE = { S: 15, M: 19, L: 23, XL: 28 };
 const PHONE_CUE_SCALE = 0.85;
@@ -134,11 +133,15 @@ const pingOnce = async () => {
 };
 
 const choice = (key: ChoiceKey, vals: string[]) =>
-	vals.map((v) => ({ value: v, label: shown(key, v) }));
+	vals.map((v) => ({
+		value: v,
+		// A third of a phone's width has no room for the full phrase.
+		label: v === "Original language" ? i18n.value_original_short() : shown(key, v),
+	}));
 const toggle = (key: ToggleKey) => (on: boolean) => setPref(key, on);
 
 const selfDevice = $derived(devices.find((d) => d.current));
-const others = $derived(devices.filter((d) => !d.current));
+const others = $derived(otherDevices(devices));
 const pairPage = $derived(me?.player_url ? `${me.player_url.replace(/\/+$/, "")}/pair` : null);
 const deviceIcon = (d: Device): IconName =>
 	/browser/i.test(d.platform)
@@ -190,9 +193,8 @@ const storage = $derived.by(() => {
 		...v,
 		labels: [
 			i18n.dl_meter_used({ size: gb(dl.storage.used) }),
-			i18n.dl_settings_meter_other({ size: gb(dl.storage.other) }),
 			i18n.dl_meter_free({ size: gb(dl.storage.free) }),
-		] as [string, string, string],
+		] as [string, string],
 	};
 });
 const offlineItems = $derived(dl.items.filter((e) => e.state === "done").length);
@@ -268,7 +270,7 @@ onMount(() => {
 {#snippet fact(label: string, value: string | undefined, desc?: string)}
 	<PhoneRow {label} {desc}>
 		{#snippet control()}
-			<span class="info">{value}</span>
+			<span class="info" title={value}>{value}</span>
 		{/snippet}
 	</PhoneRow>
 {/snippet}
@@ -393,14 +395,12 @@ onMount(() => {
 				QUALITIES,
 				i18n.settings_quality_away_desc(),
 			)}
-			{#if canMeter}
-				{@render select(
-					i18n.settings_cellular(),
-					"cellular",
-					["4 Mbit/s", "8 Mbit/s", "No limit"],
-					i18n.settings_cellular_desc(),
-				)}
-			{/if}
+			{@render segmented(
+				i18n.settings_cellular(),
+				"cellular",
+				["4 Mbit/s", "8 Mbit/s", "No limit"],
+				i18n.settings_cellular_desc(),
+			)}
 			{@render flag(i18n.settings_autoplay(), "autoplay")}
 			{@render flag(i18n.settings_auto_skip(), "autoSkip", i18n.settings_auto_skip_desc())}
 		</div>
@@ -584,11 +584,7 @@ onMount(() => {
 				{@render fact(i18n.settings_name(), info?.name ?? "—")}
 				{@render fact(i18n.settings_platform(), info?.platform ?? "—")}
 			{/if}
-			{@render fact(
-				i18n.settings_video_player(),
-				info?.player ?? "—",
-				IS_WEB ? undefined : i18n.settings_video_player_desc(),
-			)}
+			{@render fact(i18n.settings_video_player(), info?.player ?? "—")}
 			{#if !IS_WEB}
 				{@render fact(i18n.settings_device_key(), keystore, i18n.settings_device_key_desc())}
 			{/if}
@@ -647,26 +643,28 @@ onMount(() => {
 			</button>
 		</section>
 	{/if}
-
-	<footer>
-		{i18n.settings_footer({ version: APP_VERSION, platform: info?.platform ?? "" })}
-	</footer>
 </div>
 
 <style>
 .page {
 	box-sizing: border-box;
 	min-height: 100%;
-	padding: env(safe-area-inset-top) 0 24px;
+	padding: 0 0 24px;
 	background: var(--bg-deep);
 	color: var(--fg);
 }
 
 .top {
+	position: sticky;
+	top: 0;
+	z-index: 2;
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	padding: 6px 12px 0;
+	padding: calc(env(safe-area-inset-top) + 6px) 12px 0;
+	background: color-mix(in srgb, var(--bg-deep) 92%, transparent);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
 }
 
 .back {
@@ -779,12 +777,15 @@ h2 {
 }
 
 .info {
-	flex: none;
-	max-width: 52%;
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 66%;
+	overflow: hidden;
 	font: 400 12px var(--font-mono);
 	color: var(--fg-subtle);
 	text-align: right;
-	overflow-wrap: anywhere;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .tag {
@@ -928,12 +929,5 @@ h2 {
 	background: var(--accent);
 	color: var(--fg-on-accent);
 	font: 500 11px var(--font-mono);
-}
-
-footer {
-	padding: 4px 16px 0;
-	font: 400 11.5px var(--font-mono);
-	color: var(--fg-faint);
-	text-align: center;
 }
 </style>

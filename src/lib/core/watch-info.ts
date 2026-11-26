@@ -17,6 +17,19 @@ const pctOf = (w: Watch | undefined) =>
 
 const underWay = (w: Watch) => !w.watched && w.position_seconds > 0;
 
+// A screen asks about every title on each redraw, a series once per episode: scanning the rows
+// each time is episodes x rows. The store replaces the array on any change, so one index per
+// array stays right.
+const indexes = new WeakMap<Watch[], Map<string, Watch>>();
+function byMedia(watch: Watch[]) {
+	let index = indexes.get(watch);
+	if (!index) {
+		index = new Map(watch.map((w) => [w.media_id, w]));
+		indexes.set(watch, index);
+	}
+	return index;
+}
+
 export function watchInfo(t: Title, kind: Kind, watch: Watch[]): WatchInfo {
 	if (kind === "movies") {
 		const watched = watch.some((w) => w.movie_id === t.id && w.watched);
@@ -29,7 +42,8 @@ export function watchInfo(t: Title, kind: Kind, watch: Watch[]): WatchInfo {
 	let seen: number;
 	let started: number;
 	if (t.seasons) {
-		const rows = files.map((e) => watch.find((w) => w.media_id === e.media_file_id));
+		const index = byMedia(watch);
+		const rows = files.map((e) => index.get(e.media_file_id));
 		total = files.length;
 		seen = rows.filter((w) => w?.watched).length;
 		started = rows.filter((w) => w && (w.watched || w.position_seconds > 0)).length;

@@ -1,0 +1,242 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Release
+
+# One GitHub release per line tag (.taskfiles/release.yaml cuts them). The
+# engine's and the web player's images are image.yaml's, on the same tags;
+# the desktop and Android builds are attached here. The charts are chart.yaml's.
+on:
+  push:
+    tags: ["engine-v*.*.*", "web-v*.*.*", "desktop-v*.*.*", "android-v*.*.*"]
+
+permissions: {}
+
+env:
+  # The devshell's cargo-tauri. Gradle runs `cargo tauri`, so the npm CLI
+  # would not do for Android.
+  TAURI_CLI_VERSION: 2.12.4
+
+jobs:
+  line:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      name: ${{ steps.line.outputs.name }}
+      version: ${{ steps.line.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The tag names the release; the version file is what gets built. The
+      # same checks as release:tag, against the tagged tree.
+      - name: The tag's line, checked against its version file
+        id: line
+        run: |
+          name="${GITHUB_REF_NAME%%-v*}"
+          version="${GITHUB_REF_NAME#*-v}"
+          case "$name" in
+            engine) file=engine/Cargo.toml pattern="^version = \"${version}\"$" ;;
+            desktop) file=src-tauri/Cargo.toml pattern="^version = \"${version}\"$" ;;
+            web) file=package.json pattern="^\t\"version\": \"${version}\"$" ;;
+            android) file=src-tauri/tauri.android.conf.json pattern="^\t\"version\": \"${version}\"$" ;;
+          esac
+          grep -qP "$pattern" "$file" || {
+            echo "::error::tag ${GITHUB_REF_NAME} wants ${name} ${version}, but ${file} does not say so"
+            exit 1
+          }
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  # Its own job: the notes step pipes the Claude installer into bash, and
+  # here the worst it can reach is a read-only token, its own OIDC token and
+  # the notes text — not the token that publishes the release.
+  notes:
+    needs: line
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+      ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+      ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+      ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Image footer
+        id: footer
+        if: contains(fromJSON('["engine","web"]'), needs.line.outputs.name)
+        env:
+          NAME: ${{ needs.line.outputs.name }}
+          VERSION: ${{ needs.line.outputs.version }}
+        run: |
+          {
+            echo 'text<<EOF'
+            echo
+            echo '---'
+            echo "Image: \`ghcr.io/streamline-hq/streamline-player/${NAME}:${VERSION}\`"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build release notes
+        id: notes
+        uses: ./.github/actions/release-notes
+        with:
+          changelog: changelog/${{ needs.line.outputs.name }}.md
+          version: ${{ needs.line.outputs.version }}
+          subject: the Streamline Player ${{ needs.line.outputs.name }}
+          footer: ${{ steps.footer.outputs.text }}
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: ${{ steps.notes.outputs.file }}
+          if-no-files-found: error
+
+  # ponytail: Linux only. Windows and macOS wait for their playback backends;
+  # the AppImage needs the runner's glibc (24.04) or newer.
+  desktop:
+    needs: line
+    if: needs.line.outputs.name == 'desktop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          rust: release-desktop
+          desktop-libs: "true"
+          node: "true"
+      - name: Install the Tauri CLI
+        run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
+      # linuxdeploy is itself an AppImage, and the runner has no FUSE.
+      - name: Bundle
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: cargo tauri build --bundles deb,rpm,appimage
+      - name: Upload the bundles
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-desktop
+          path: |
+            target/release/bundle/deb/*.deb
+            target/release/bundle/rpm/*.rpm
+            target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+  # Gradle builds the release unsigned; it is signed here, after the build,
+  # so the keystore never reaches the generated Android project.
+  android:
+    needs: line
+    if: needs.line.outputs.name == 'android'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      NDK_VERSION: 29.0.14206865
+      OUT: src-tauri/gen/android/app/build/outputs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the signing secrets
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE" ] || [ -z "$PASSWORD" ] || [ -z "$ALIAS" ]; then
+            echo "::error::set ANDROID_KEYSTORE (base64 .jks), ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS"
+            exit 1
+          fi
+      # rustup reads rust-toolchain.toml, whose targets include Android's.
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          rust: release-android
+          node: "true"
+      - name: Install the Tauri CLI
+        run: cargo install tauri-cli --version "$TAURI_CLI_VERSION" --locked
+      # The runner ships the SDK and JDK 17; Gradle fetches the platform and
+      # build tools it lacks, but not the NDK Tauri links with.
+      - name: Android NDK and JDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+      - name: Build
+        run: cargo tauri android build --apk --aab
+      - name: Sign
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          VERSION: ${{ needs.line.outputs.version }}
+        run: |
+          set -euo pipefail
+          ks="$RUNNER_TEMP/release.jks"
+          base64 -d <<< "$KEYSTORE" > "$ks"
+          tools="$(printf '%s\n' "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          mkdir dist
+          "$tools/zipalign" -P 16 -f 4 "$OUT/apk/universal/release/app-universal-release-unsigned.apk" "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" sign --ks "$ks" --ks-pass env:PASSWORD --ks-key-alias "$ALIAS" \
+            --out "dist/streamline-player-$VERSION.apk" "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" verify "dist/streamline-player-$VERSION.apk"
+          cp "$OUT/bundle/universalRelease/app-universal-release.aab" "dist/streamline-player-$VERSION.aab"
+          jarsigner -keystore "$ks" -storepass:env PASSWORD "dist/streamline-player-$VERSION.aab" "$ALIAS"
+          rm "$ks"
+      - name: Upload the packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-android
+          # Not the .idsig apksigner writes beside the APK: that is for adb's
+          # incremental install, not for anyone downloading the release.
+          path: |
+            dist/*.apk
+            dist/*.aab
+          if-no-files-found: error
+
+  publish:
+    needs: [line, notes, desktop, android]
+    # desktop and android are skipped on every other line.
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      NAME: ${{ needs.line.outputs.name }}
+      VERSION: ${{ needs.line.outputs.version }}
+    steps:
+      - name: Download release notes and packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/release
+
+      # Only desktop is "Latest": it is what most people come to download, and
+      # the lines would otherwise take the badge from each other.
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mapfile -t files < <(find "$RUNNER_TEMP"/release/dist-* -type f 2>/dev/null)
+          gh release create "$GITHUB_REF_NAME" "${files[@]}" \
+            --verify-tag --latest="$([ "$NAME" = desktop ] && echo true || echo false)" \
+            --title "Streamline Player $NAME v$VERSION" \
+            --notes-file "$RUNNER_TEMP/release/release-notes/release-notes.md"
