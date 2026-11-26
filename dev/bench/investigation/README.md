@@ -32,7 +32,7 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | The player's window (a GL area under the web view) | done on 2.52, running on 2.54 |
 | WebKitGTK 2.52.6 built from source, to try patches | building |
 | Patch drafts for WebKitGTK | written, not compiled: `patch-drafts/2.52.6/` |
-| Fix in the app | first attempt withdrawn (it hides the page once video shows), second one in progress |
+| Fix in the app | first attempt withdrawn (it hides the page once video shows); second one measured with the real plugin, with and without a GPU |
 | Report (French) and upstream bug draft | pending |
 
 ## Findings so far
@@ -251,6 +251,42 @@ The home page with the area shown: 280 % composited, 186 % not (and not drawn).
 - What follows for the app: create the GL area at the first playback, not at start, so browsing
   pays for neither; and do not turn compositing off in a window that will show video.
   2.54, whose non-composited path was rewritten, is being measured.
+
+### With the real plugin, and the area shown only while something plays
+
+`BENCH_PLAYER=1` loads the player plugin itself (libmpv in its `GtkGLArea`) in the bench app,
+and a page plays the bench's clip through its commands. Two binaries: the plugin as it is, and
+the plugin of `perf/video-layer-on-demand`, which keeps the area hidden until something plays
+and hides it again on stop. The bar page, WebKitGTK 2.52.6, CPU of the app in % of one core.
+
+Without a GPU (X11, llvmpipe), one rep:
+
+| | plugin as it is | area on demand |
+|---|---|---|
+| attached, nothing played yet | 196 % (UI process 127) | 87 % (UI process 7) |
+| playing | 224 % | 225 % |
+| stopped after playing | 181 % (UI process 117) | 141 % (UI process 63) |
+
+With the GPU (Wayland, Radeon 780M, `BENCH_GPU=1`), two reps:
+
+| | plugin as it is | area on demand | GPU load |
+|---|---|---|---|
+| attached, nothing played yet | 12 % | 10 % | 4 % both |
+| playing | 38 % | 38 % | 19 % both |
+| stopped after playing | 12 % | 10 % | 4 % both |
+
+The same page without the plugin at all: 13 % with the GPU, 84 % without.
+
+- **Without a GPU, a window that has not played yet costs what the page costs**: the 110 points
+  the UI process spent drawing the window through llvmpipe are gone. After a first playback the
+  window stays on OpenGL and half of it comes back.
+- **With a GPU nothing is lost and little is gained**: that composition is cheap there.
+- **Playback draws with the GPU in every run, with either plugin**
+  (`shots/2.52.6-gpu-wayland-playing-changed-and-current.png`): the clip advances, the page is
+  over it.
+- **On Xvfb with llvmpipe the picture stays black in most runs, with either plugin**: mpv's load
+  does not complete there. The playing rows without a GPU are therefore the cost of a window
+  that shows the area, not of a decoded video.
 
 ## Candidates still to measure
 
