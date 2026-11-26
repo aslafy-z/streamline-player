@@ -271,6 +271,20 @@ turns `UseDamagingInformationForCompositing` on, which 2.52 has off and 2.54 on,
 - **Not composited, the cost is what is repainted**: 12 % for the bar, and the full-window zoom
   at half of what it costs composited.
 
+The same on Wayland (headless Weston drawing with llvmpipe), WebKitGTK 2.54.3, 2 reps, with
+Weston's own share after the plus sign:
+
+| variant | Home idle | Home scroll | the 44 px bar |
+|---|---|---|---|
+| `wry` | 237 % + 41 % | 227 % + 35 %, 34 fps | 27 % + 70 % |
+| `wry-nocomp` | 274 % + 28 % | 259 % + 14 %, 16 fps | 31 % + 70 % |
+| `wry-nodmabuf` | 106 % + 23 % | 109 % + 32 %, 33 fps | 15 % + 72 % |
+| `wry-never-reload` | 106 % + 23 % | 109 % + 32 %, 32 fps | 15 % + 72 % |
+
+The ranking is the one of X11, `WEBKIT_DISABLE_COMPOSITING_MODE=1` the worst here too. What
+differs is the display server: Weston redraws its whole output on llvmpipe for any frame of any
+client, 70 % of one core for a 44 px bar, whichever way the page is drawn.
+
 ## Without a GPU: the player's own window
 
 The tables above are the bench app's window. The player's has a `GtkGLArea` under the web view,
