@@ -23,6 +23,7 @@ const PARAM_FLIP_Y: c_int = 4;
 const PARAM_WL_DISPLAY: c_int = 9;
 const PARAM_BLOCK_FOR_TARGET_TIME: c_int = 12;
 const GL_FRAMEBUFFER_BINDING: u32 = 0x8CA6;
+const GL_RENDERER: u32 = 0x1F01;
 
 #[repr(C)]
 struct GlInitParams {
@@ -85,6 +86,26 @@ fn wayland_display() -> *mut c_void {
     unsafe { gdk_wayland_display_get_wl_display(d.cast()) }
 }
 
+/// Whether the current GL context draws on the CPU: Mesa's rasterizers, by the name they give.
+fn on_cpu() -> bool {
+    let get_string = unsafe { eglGetProcAddress(c"glGetString".as_ptr()) };
+    if get_string.is_null() {
+        return false;
+    }
+    let get_string: unsafe extern "C" fn(u32) -> *const c_char =
+        unsafe { std::mem::transmute(get_string) };
+    let name = unsafe { get_string(GL_RENDERER) };
+    if name.is_null() {
+        return false;
+    }
+    let name = unsafe { std::ffi::CStr::from_ptr(name) }
+        .to_string_lossy()
+        .to_lowercase();
+    ["llvmpipe", "softpipe", "swrast"]
+        .iter()
+        .any(|cpu| name.contains(cpu))
+}
+
 fn create_render_context(area: &gtk::GLArea, player: &mpv::Mpv) {
     area.make_current();
     if let Some(e) = area.error() {
@@ -96,7 +117,13 @@ fn create_render_context(area: &gtk::GLArea, player: &mpv::Mpv) {
         ctx: ptr::null_mut(),
     };
     // With the Wayland display, VA-API frames reach GL as dmabufs instead of being copied back.
-    let wl = wayland_display();
+    // A CPU rasterizer has no VA-API to take frames from, and on a compositor without a DRM
+    // device libva crashes looking for one.
+    let wl = if on_cpu() {
+        ptr::null_mut()
+    } else {
+        wayland_display()
+    };
     let mut params = vec![
         RenderParam {
             kind: PARAM_API_TYPE,
