@@ -25,18 +25,22 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 
 | step | state |
 |---|---|
-| CPU per thread and per function, `home-idle`, composited and not | done |
+| CPU per thread and per function, composited and not | done |
 | WebKitGTK 2.52 and 2.54 render path, read from source | done, `notes/webkit-render-path.md` |
 | What wry and Tauri set, what the app can reach | done, `notes/wry-tauri.md` |
 | What upstream knows | done, `notes/upstream-research.md` |
-| Candidate settings measured on 2.52 | done |
-| The same on WebKitGTK 2.54.3 (Arch image) | done on X11, Wayland pending |
-| The player's window (a GL area under the web view) | done on 2.52, running on 2.54 |
-| WebKitGTK 2.52.6 built from source, to try patches | building |
-| Patch drafts for WebKitGTK | written, not compiled: `patch-drafts/2.52.6/` |
-| Fix in the app | first attempt withdrawn (it hides the page once video shows); second one measured with the real plugin, with and without a GPU |
-| Report (French) and upstream bug drafts | written: `RAPPORT.md`, `upstream-drafts/`; tables to be replaced by the replay |
-| Replay of every "without a GPU" number, two reps, both images | running (`dev/bench/replay.sh`) |
+| Candidate settings on WebKitGTK 2.52.6 and 2.54.3 | done, replayed with 2 reps: `replay/`, `dev/bench/RESULTS.md` |
+| The player's window (a GL area under the web view) | done, with a stand-in and with the real plugin and mpv, with and without a GPU |
+| App change: the video layer shown only while something plays | draft PRs, fork #6 and upstream #9; playback in the real app not tried |
+| App change: no VA-API over Wayland where OpenGL is the CPU | draft PR, fork #7 |
+| App change: compositing off where OpenGL is the CPU | withdrawn, `app-attempts/` |
+| WebKitGTK 2.52.6 built from source, patches as labels | `stock`, `damage` and `fallback` built; `damage-readback` building; measurements running |
+| Report (French) | `RAPPORT.md` |
+| Upstream report drafts | `upstream-drafts/`, not posted |
+| WebKitGTK 2.54 on Wayland without a GPU | not done |
+
+The numbers under "Findings so far" are the ones taken along the way, one rep each unless said;
+the replay confirmed them within 5 points wherever it covers them.
 
 ## Findings so far
 
