@@ -224,3 +224,95 @@ is in use (`home-idle`):
   compositing the cost follows the surface drawn.
 - **Told it is drawn on the CPU, the page goes from 282 % to 81 %** (88 % on Wayland with a first
   version of the same page). What is left is mostly the change of slide every 8 s.
+
+## Without a GPU, replayed: the ways of drawing the page, on two WebKitGTK releases
+
+Measured 2026-11-26 with `replay.sh`, 2 reps, X11 (Xvfb), in `container.sh`'s two images on one
+laptop (four cores of a Ryzen 7 7840U, no `/dev/dri`): Ubuntu 24.04 with WebKitGTK 2.52.6, GTK
+3.24.41 and Mesa 25.2.8, the versions of the container above, and Arch Linux with WebKitGTK
+2.54.3, GTK 3.24.52 and Mesa 26.3.1. The pages are those of `perf/home-billboard-software`
+(`af4eb1c`), the bench app the same binary in both. Medians; between the two reps no cell moved
+by more than 5 points. `-soft` tells the page it is drawn on the CPU; `wry-never-reload` sets the
+hardware acceleration policy to `NEVER` on the web view and restarts its web process, so the
+page starts with it.
+
+The home page, idle (the billboard rotating) and scrolling:
+
+| variant | 2.52.6 idle | 2.52.6 scroll | 2.52.6 PSS MB | 2.54.3 idle | 2.54.3 scroll | 2.54.3 PSS MB |
+|---|---|---|---|---|---|---|
+| `wry`: nothing set | 279 % | 270 %, 26 fps | 582 | 224 % | 214 %, 39 fps | 646 |
+| `wry-soft`: the page told it is drawn on the CPU | 69 % | 263 %, 36 fps | 586 | 49 % | 206 %, 46 fps | 646 |
+| `wry-nocomp`: `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 106 % | 107 %, 49 fps | 276 | 257 % | 252 %, 18 fps | 610 |
+| `wry-nodmabuf`: `WEBKIT_DISABLE_DMABUF_RENDERER=1` | 106 % | 107 %, 47 fps | 262 | 106 % | 107 %, 46 fps | 402 |
+| `wry-nodmabuf-soft`: the same, and the page told | 14 % | 107 %, 51 fps | 268 | 16 % | 106 %, 45 fps | 398 |
+| `wry-never-reload`: policy `NEVER`, web process restarted | 106 % | 107 %, 48 fps | 278 | 106 % | 107 %, 46 fps | 410 |
+
+One animation on a still page (`pages/anim.html`), 60 fps reached in every cell; `wry-damage`
+turns `UseDamagingInformationForCompositing` on, which 2.52 has off and 2.54 on, and
+`wry-nodamage` turns it off:
+
+| page | 2.52.6 `wry` | 2.52.6 `wry-damage` | 2.52.6 `wry-nodmabuf` | 2.54.3 `wry` | 2.54.3 `wry-nodamage` | 2.54.3 `wry-nodmabuf` |
+|---|---|---|---|---|---|---|
+| nothing moves | 0 % | 0 % | 0 % | 0 % | 0 % | 0 % |
+| 44 px bar | 86 % | 20 % | 12 % | 23 % | 61 % | 13 % |
+| full-window zoom | 144 % | 146 % | 70 % | 118 % | 121 % | 40 % |
+
+- **What turns compositing off depends on the release.** `WEBKIT_DISABLE_COMPOSITING_MODE=1`
+  takes 2.52 to the CPU path (279 → 106 %) and makes 2.54 worse (224 → 257 %, 18 fps scrolling):
+  there it keeps OpenGL for painting. `WEBKIT_DISABLE_DMABUF_RENDERER=1`, and the policy `NEVER`
+  when the page starts with it, give 106 % on both.
+- **The policy set on a web view that has already loaded gives a blank window in 2.54.3** and
+  works in 2.52.6. wry loads the page before an application can reach the settings, hence the
+  restart in `wry-never-reload`.
+- **Telling the page still pays, on every path**: 279 → 69 % composited and 106 → 14 % not, in
+  2.52.6; 224 → 49 % and 106 → 16 % in 2.54.3. It changes nothing while scrolling.
+- **2.54 composites only what changed**: the 44 px bar costs 23 % where 2.52 takes 86 %, and
+  2.52 with the same feature turned on takes 20 %. A full-window animation gains nothing.
+- **Not composited, the cost is what is repainted**: 12 % for the bar, and the full-window zoom
+  at half of what it costs composited.
+
+## Without a GPU: the player's own window
+
+The tables above are the bench app's window. The player's has a `GtkGLArea` under the web view,
+where mpv draws, and GTK 3 draws a window through OpenGL for every frame once it has shown one.
+`BENCH_PLAYER=1` loads the player plugin itself; two binaries, the plugin of `main` and the one of
+`perf/video-layer-on-demand`, which keeps the area hidden until something plays and hides it on
+stop. WebKitGTK 2.52.6, X11, 2 reps; the whole app, with the UI process's share in brackets
+(the web process has the rest).
+
+| | plugin as it is | video layer on demand |
+|---|---|---|
+| home idle | 287 % (UI 62) | 288 % (UI 3) |
+| home scroll | 280 %, 24 fps (UI 56) | 275 %, 27 fps (UI 3) |
+| home idle, the page told | 75 % (UI 19) | 71 % (UI 1) |
+| bar page, nothing played yet | 197 % (UI 126) | 84 % (UI 6) |
+| bar page, the area shown (playing) | 323 % (UI 305) | 323 % (UI 304) |
+| bar page, stopped after playing | 199 % (UI 127) | 148 % (UI 66) |
+
+- **The area costs the UI process about 125 % of one core on a page with one 44 px animation**,
+  whether anything plays or not. Hidden until something plays, that page costs what the bench's
+  own window does (84 against 86 %).
+- **On the home page the four CPUs are taken either way**; what the UI process gives back goes to
+  frames (24 → 27 fps scrolling). Told it is drawn on the CPU, the page draws few frames and
+  the area costs little (75 → 71 %).
+- **Hiding the area after a playback gives back half**: GTK 3 keeps the window on OpenGL for
+  good.
+- **Playing on llvmpipe takes three cores in the UI process alone**, and in about half of the
+  runs on Xvfb the picture stays black, with either plugin: this row is not a usable player.
+
+The same with the GPU (`BENCH_GPU=1`, Weston, Radeon 780M), 2 reps:
+
+| | plugin as it is | video layer on demand | GPU load |
+|---|---|---|---|
+| home idle | 29 % | 28 % | |
+| home scroll | 45 %, 60 fps | 44 %, 60 fps | |
+| bar page, nothing played yet | 12 % | 10 % | 4 % both |
+| bar page, playing | 38 % | 38 % | 19 % both |
+| bar page, stopped after playing | 12 % | 10 % | 4 % both |
+
+With the GPU the clip plays in every run, the page over it, and the area costs nothing to hide
+or to show.
+
+A web view that is not composited is not drawn at all in a window that shows a GL area
+(2.52.6 and 2.54.3, X11), and where its page is transparent it shows black, not what is under
+it: the CPU path of the first table is for windows without a video layer.
