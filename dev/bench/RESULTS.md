@@ -231,8 +231,8 @@ Measured 2026-11-26 with `replay.sh`, 2 reps, X11 (Xvfb), in `container.sh`'s tw
 laptop (four cores of a Ryzen 7 7840U, no `/dev/dri`): Ubuntu 24.04 with WebKitGTK 2.52.6, GTK
 3.24.41 and Mesa 25.2.8, the versions of the container above, and Arch Linux with WebKitGTK
 2.54.3, GTK 3.24.52 and Mesa 26.3.1. The pages are those of `perf/home-billboard-software`
-(`af4eb1c`), the bench app the same binary in both. Medians; between the two reps no cell moved
-by more than 5 points. `-soft` tells the page it is drawn on the CPU; `wry-never-reload` sets the
+(`af4eb1c`), the bench app the same binary in both. Medians; between the two reps a cell moved
+by 10 points at most, and by under 5 in all but a few. `-soft` tells the page it is drawn on the CPU; `wry-never-reload` sets the
 hardware acceleration policy to `NEVER` on the web view and restarts its web process, so the
 page starts with it.
 
@@ -314,5 +314,6 @@ With the GPU the clip plays in every run, the page over it, and the area costs n
 or to show.
 
 A web view that is not composited is not drawn at all in a window that shows a GL area
-(2.52.6 and 2.54.3, X11), and where its page is transparent it shows black, not what is under
-it: the CPU path of the first table is for windows without a video layer.
+(2.52.6, X11), and with `GDK_GL=software-draw`, which brings it back, it shows black where its
+page is transparent, not what is under it: the CPU path of the first table is for windows
+without a video layer.
