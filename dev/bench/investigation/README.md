@@ -29,10 +29,10 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | What upstream knows | done, `notes/upstream-research.md` |
 | Candidate settings measured on 2.52 | done |
 | The same on WebKitGTK 2.54.3 (Arch image) | done on X11, Wayland pending |
-| The player's window (a GL area under the web view) | running |
+| The player's window (a GL area under the web view) | done on 2.52, running on 2.54 |
 | WebKitGTK 2.52.6 built from source, to try patches | building |
 | Patch drafts for WebKitGTK | written, not compiled: `patch-drafts/2.52.6/` |
-| Fix in the app | written, being built and checked |
+| Fix in the app | first attempt withdrawn (it hides the page once video shows), second one in progress |
 | Report (French) and upstream bug draft | pending |
 
 ## Findings so far
@@ -220,6 +220,37 @@ still redraws the whole widget for each frame.
 Home idle, X11, no GPU. Only the DMABuf switch and a policy the page starts with are safe on
 both, and both must be decided before the page exists: an environment variable before the first
 web view, or the policy before the web process is created.
+
+## The player's window: a GL area under the web view
+
+The bench app has no video layer; the player always has one, a `GtkGLArea` under the web view
+(`plugins/tauri-plugin-player/src/view.rs`), attached at start. `BENCH_UNDERLAY` adds the same
+widgets to the bench app, the area cleared to one colour. WebKitGTK 2.52.6, X11, the bar page,
+60 fps everywhere (`profiles/2.52.6-x11/wry-underlay*.json`):
+
+| the GL area | composited: total (UI process, web process) | `WEBKIT_DISABLE_DMABUF_RENDERER=1` |
+|---|---|---|
+| none (the bench until now) | 84 % (6, 78) | 12 %, page drawn |
+| never shown | 82 % (6, 76) | 13 % (5, 8), page drawn |
+| shown | 203 % (132, 71) | 139 % (133, 7), **page not drawn** |
+| shown, then hidden | 143 % (65, 79) | 76 % (70, 7), **page not drawn** |
+| shown, then removed | 143 % (65, 78) | 73 % (67, 7), **page not drawn** |
+
+The home page with the area shown: 280 % composited, 186 % not (and not drawn).
+
+- **A GL area that has been shown puts the whole window on OpenGL in the UI process**: GTK 3
+  then composites the window through GL for each frame, which on llvmpipe is 132 % of one core
+  for a 44 px bar, on top of what the web process costs. The numbers in `RESULTS.md` leave this
+  out: the real app pays it on every page, playing or not.
+- **Hiding or removing the area does not undo it**: the window keeps painting through GL (65 %).
+  Only an area that was never shown costs nothing.
+- **In such a window a web view that is not composited is not drawn at all**
+  (`shots/2.52.6-underlay-seethrough-grid.png`: composited top left, the three ways of turning
+  compositing off elsewhere, all showing the area's colour alone). The CPU path and the video
+  layer do not go together in 2.52, whether the web view is transparent or not.
+- What follows for the app: create the GL area at the first playback, not at start, so browsing
+  pays for neither; and do not turn compositing off in a window that will show video.
+  2.54, whose non-composited path was rewritten, is being measured.
 
 ## Candidates still to measure
 
