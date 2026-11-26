@@ -1,0 +1,21 @@
+# per process
+ 103.1%  user  102.0%  sys    1.1%  pid 19090 [WebKitWebProces] 
+   1.7%  user    1.4%  sys    0.3%  pid 19066 [wry] 
+# per thread pool (threads of one process named alike)
+   4.5%  user    4.2%  sys    0.3%  pid 19090 [WebKitWebProces] WebKitWebProces* x3
+   1.2%  user    1.1%  sys    0.1%  pid 19066 [wry] wry* x6
+   0.5%  user    0.2%  sys    0.3%  pid 19090 [WebKitWebProces] ReceiveQueue* x2
+   0.4%  user    0.2%  sys    0.2%  pid 19066 [wry] ReceiveQueue* x2
+   0.4%  user    0.3%  sys    0.1%  pid 19090 [WebKitWebProces] SkiaGPUWorker* x2
+# per thread
+  92.3%  user   92.1%  sys    0.1%  pid 19090 [WebKitWebProces] thread llvmpipe-0
+   5.4%  user    5.1%  sys    0.3%  pid 19090 [WebKitWebProces] thread eadedCompositor
+   4.3%  user    4.1%  sys    0.3%  pid 19090 [WebKitWebProces] thread WebKitWebProces
+   1.2%  user    1.1%  sys    0.1%  pid 19066 [wry] thread wry
+   0.5%  user    0.2%  sys    0.3%  pid 19090 [WebKitWebProces] thread ReceiveQueue
+   0.4%  user    0.2%  sys    0.2%  pid 19066 [wry] thread ReceiveQueue
+   0.2%  user    0.2%  sys    0.0%  pid 19090 [WebKitWebProces] thread SkiaGPUWorker
+   0.2%  user    0.1%  sys    0.1%  pid 19090 [WebKitWebProces] thread WebKitWebProces
+   0.2%  user    0.1%  sys    0.1%  pid 19090 [WebKitWebProces] thread SkiaGPUWorker
+   0.1%  user    0.1%  sys    0.1%  pid 19066 [wry] thread VBlankMonitor
+   0.1%  user    0.1%  sys    0.0%  pid 19090 [WebKitWebProces] thread JITWorker

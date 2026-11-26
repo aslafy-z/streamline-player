@@ -1,0 +1,300 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 8K of event 'cycles'
+# Event count (approx.): 70254365096
+#
+# Children      Self  Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+# ........  ........  ..........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    99.25%     0.00%  [.] g_main_dispatch.lto_priv.0
+    97.07%     0.00%  [.] WTF::RunLoop::$_3::__invoke(_GSource*, int (*)(void*), void*)
+    95.48%     0.00%  [.] WTF::RunLoop::RunLoop()::$_0::__invoke(void*)
+    95.46%     0.00%  [.] WTF::RunLoop::performWork()
+    95.31%     0.00%  [.] IPC::Connection::dispatchMessage(WTF::UniqueRef<IPC::Decoder>)
+    95.27%     0.00%  [.] IPC::Connection::dispatchMessage(IPC::Decoder&)
+    95.25%     0.01%  [.] IPC::MessageReceiverMap::dispatchMessage(IPC::Connection&, IPC::Decoder&)
+    93.93%     0.00%  [.] WTF::RunLoop::run()
+    93.92%     0.00%  [.] WTF::RunLoop::runGLibMainLoopIteration(WTF::RunLoop::MayBlock)
+    93.49%     0.00%  [.] g_main_context_dispatch
+    93.12%     0.00%  [.] __libc_start_main
+    93.12%     0.00%  [.] _start
+    93.12%     0.00%  [.] int WebKit::AuxiliaryProcessMain<WebKit::WebProcessMainGtk>(int, char**)
+    91.48%     0.00%  [.] IPC::Connection::dispatchOneIncomingMessage()
+    91.45%     0.00%  [.] WebKit::AuxiliaryProcess::didReceiveMessage(IPC::Connection&, IPC::Decoder&)
+    91.45%     0.00%  [.] WebKit::AuxiliaryProcess::dispatchMessage(IPC::Connection&, IPC::Decoder&)
+    91.42%     0.00%  [.] WebKit::DrawingArea::didReceiveMessage(IPC::Connection&, IPC::Decoder&)
+    91.42%     0.00%  [.] WebKit::DrawingAreaCoordinatedGraphics::display()
+    91.38%     0.00%  [.] WebKit::DrawingAreaCoordinatedGraphics::display(WebKit::UpdateInfo&)
+    88.83%     0.00%  [.] WebKit::WebPage::drawRect(WebCore::GraphicsContext&, WebCore::IntRect const&)
+    88.82%     0.00%  [.] WebCore::LocalFrameView::paintContents(WebCore::GraphicsContext&, WebCore::IntRect const&, WebCore::Widget::SecurityOriginPaintPolicy, WebCore::RegionContext*)
+    88.82%     0.00%  [.] WebCore::ScrollView::paint(WebCore::GraphicsContext&, WebCore::IntRect const&, WebCore::Widget::SecurityOriginPaintPolicy, WebCore::RegionContext*)
+    88.81%     0.04%  [.] WebCore::RenderLayer::paintLayerContents(WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+    88.81%     0.00%  [.] WebCore::RenderLayer::paint(WebCore::GraphicsContext&, WebCore::LayoutRect const&, WebCore::LayoutSize const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::RenderObject*, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>, WebCore::RenderLayer::SecurityOriginPaintPolicy, WebCore::RegionContext*)
+    88.78%     0.01%  [.] WebCore::RenderLayer::paintList(WebCore::RenderLayer::LayerList, WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+    86.42%     0.07%  [.] WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+    86.37%     0.00%  [.] WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+    79.63%     0.04%  [.] skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+    79.11%     0.00%  [.] SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+    79.11%     0.00%  [.] antifilldot8(int, int, int, int, SkBlitter*, bool)
+    74.80%     0.00%  [.] 0x00007f5ac1dee1ca
+    72.49%     0.04%  [.] WebCore::RenderBox::paintBoxDecorations(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+    70.76%     0.03%  [.] void WebCore::BackgroundPainter::paintFillLayersImpl<WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> >(WebCore::Color const&, WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::CompositeOperator, WebCore::RenderElement*) const
+    70.68%     0.02%  [.] void WebCore::BackgroundPainter::paintFillLayerImpl<WebCore::Style::BackgroundLayer>(WebCore::Color const&, WebCore::FillLayerToPaint<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::InlineIterator::InlineBoxIterator const&, WebCore::LayoutRect const&, WebCore::CompositeOperator, WebCore::RenderElement*, WebCore::BaseBackgroundColorUsage) const
+    70.33%     0.03%  [.] SkCanvas::onDrawRect(SkRect const&, SkPaint const&)
+    70.33%     0.00%  [.] SkCanvas::drawRect(SkRect const&, SkPaint const&)
+    70.28%     0.00%  [.] SkBitmapDevice::drawRect(SkRect const&, SkPaint const&)
+    61.71%     0.03%  [.] WebCore::BackgroundPainter::paintBackground(WebCore::LayoutRect const&, WebCore::BleedAvoidance) const
+    60.82%     0.00%  [.] std::_Function_handler<void (unsigned long, unsigned long, unsigned long, unsigned long), SkRasterPipeline::compile() const::$_1>::_M_invoke(std::_Any_data const&, unsigned long&&, unsigned long&&, unsigned long&&, unsigned long&&)
+    60.80%     0.00%  [.] SkRasterPipelineBlitter::blitRect(int, int, int, int)
+    60.58%     0.00%  [.] WebCore::GradientImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+    60.58%     0.00%  [.] WebCore::Image::drawTiled(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatPoint const&, WebCore::FloatSize const&, WebCore::FloatSize const&, WebCore::ImagePaintingOptions)
+    60.52%     0.00%  [.] WebCore::Gradient::fill(WebCore::GraphicsContext&, WebCore::FloatRect const&)
+    56.97%     0.00%  [.] WebCore::RenderLayer::paintBackgroundForFragments(WTF::Vector<WebCore::LayerFragment, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WebCore::GraphicsContext&, WebCore::GraphicsContext&, WebCore::LayoutRect const&, bool, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::RenderObject*)
+    56.64%     1.74%  [.] skx::lowp::start_pipeline(unsigned long, unsigned long, unsigned long, unsigned long, SkRasterPipelineStage*, SkSpan<SkRasterPipelineContexts::MemoryCtxPatch>, unsigned char*)
+    31.69%    31.63%  [.] skx::lowp::gradient(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+    29.90%     0.01%  [.] WebCore::RenderLayer::paintForegroundForFragments(WTF::Vector<WebCore::LayerFragment, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WebCore::GraphicsContext&, WebCore::GraphicsContext&, WebCore::LayoutRect const&, bool, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::RenderObject*)
+    29.61%     0.03%  [.] WebCore::RenderLayer::paintForegroundForFragmentsWithPhase(WebCore::PaintPhase, WTF::Vector<WebCore::LayerFragment, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::RenderObject*)
+    29.49%     0.01%  [.] WebCore::RenderBlock::paintContents(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+    29.44%     0.03%  [.] WebCore::RenderBlock::paintChild(WebCore::RenderBox&, WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool, WebCore::RenderBlock::PaintBlockType)
+    29.40%     0.01%  [.] WebCore::RenderElement::paintAsInlineBlock(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+    27.24%     0.12%  [.] WebCore::RenderLayer::paintLayerWithEffects(WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+    27.09%     0.00%  [.] WebCore::RenderLayer::paintLayerByApplyingTransform(WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>, WebCore::LayoutSize const&)
+    24.35%     0.00%  [.] WebCore::RenderGrid::paintChildren(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool)
+    18.32%     0.00%  [.] 0x00007f5ac1dee1ca
+    11.41%     0.00%  [.] skcpu::Draw::drawBitmap(SkBitmap const&, SkMatrix const&, SkRect const*, SkSamplingOptions const&, SkPaint const&) const
+    10.45%     0.01%  [.] SkCanvas::onDrawImageRect2(SkImage const*, SkRect const&, SkRect const&, SkSamplingOptions const&, SkPaint const*, SkCanvas::SrcRectConstraint)
+    10.43%     0.00%  [.] SkBitmapDevice::drawBitmap(SkBitmap const&, SkMatrix const&, SkRect const*, SkSamplingOptions const&, SkPaint const&)
+    10.43%     0.00%  [.] SkBitmapDevice::drawImageRect(SkImage const*, SkRect const*, SkRect const&, SkSamplingOptions const&, SkPaint const&, SkCanvas::SrcRectConstraint)
+    10.05%     0.03%  [.] WebCore::RenderReplaced::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+     9.85%     0.00%  [.] WebCore::GraphicsContext::fillRect(WebCore::FloatRect const&, WebCore::Color const&, WebCore::CompositeOperator, WebCore::BlendMode)
+     9.85%     0.00%  [.] WebCore::GraphicsContextSkia::fillRect(WebCore::FloatRect const&, WebCore::Color const&)
+     9.69%     1.69%  [.] erms::rect_memset32(unsigned int*, unsigned int, int, unsigned long, int)
+     9.61%     0.00%  [.] WebCore::RenderImage::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+     9.36%     0.00%  [.] WebCore::RenderImage::paintReplaced(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+     9.28%     0.00%  [.] WebCore::RenderImage::paintIntoRect(WebCore::PaintInfo&, WebCore::FloatRect const&)
+     9.20%     0.00%  [.] WebCore::GraphicsContext::drawImage(WebCore::Image&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+     9.17%     0.00%  [.] WebCore::BitmapImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+     9.11%     0.02%  [.] WebCore::BackgroundPainter::paintRootBoxFillLayers() const
+     9.08%     0.00%  [.] WebCore::GraphicsContextSkia::drawNativeImage(WebCore::NativeImage&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+     8.34%     0.06%  [.] BitmapProcShaderContext::shadeSpan(int, int, unsigned int*, int)
+     8.27%     0.00%  [.] SkARGB32_Shader_Blitter::blitRect(int, int, int, int)
+     7.46%     0.00%  [.] 0xffffffffb26012a6
+     7.25%     0.00%  [.] 0xffffffffb3ae7b7f
+     6.83%     0.00%  [.] 0xffffffffb293864b
+     6.64%     0.01%  [.] 0xffffffffb2c9cdf7
+     6.19%     0.00%  [.] 0xffffffffb2c9c72c
+     5.92%     0.01%  [.] g_main_context_iteration
+     5.92%     0.00%  [.] _RNvNtNtCsin33qUhDIjK_3gtk4auto9functions17main_iteration_do
+     5.92%     0.00%  [.] gtk_main_iteration_do
+     5.91%     0.01%  [.] g_main_context_iterate_unlocked.isra.0
+     5.79%     5.79%  [.] skx::lowp::evenly_spaced_2_stop_gradient(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     5.77%     5.73%  [.] ssse3::S32_alpha_D32_filter_DX(SkBitmapProcState const&, unsigned int const*, int, unsigned int*)
+     5.17%     0.01%  [.] WebCore::RenderFlexibleBox::paintChildren(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool)
+     4.80%     0.00%  [.] 0x00007f4300000145
+     4.77%     0.00%  [.] 0xffffffffb2c943c7
+     4.76%     0.00%  [.] 0xffffffffb2c936f4
+     4.67%     0.00%  [.] 0xffffffffb2c631ef
+     4.54%     4.52%  [.] skx::lowp::srcover(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     4.22%     0.00%  [.] 0xffffffffb2c62f08
+     4.03%     0.00%  [.] 0xffffffffb260012f
+     3.92%     0.00%  [.] 0xffffffffb3ae0873
+     3.83%     0.00%  [.] IPC::Connection::dispatchIncomingMessages()
+     3.80%     0.00%  [.] WebKit::WebProcessProxy::didReceiveMessage(IPC::Connection&, IPC::Decoder&)
+     3.80%     0.00%  [.] WebKit::WebProcessProxy::dispatchMessage(IPC::Connection&, IPC::Decoder&)
+     3.78%     0.00%  [.] WebKit::DrawingAreaProxy::didReceiveMessage(IPC::Connection&, IPC::Decoder&)
+     3.62%     0.00%  [.] WebCore::LayoutIntegration::InlineContentPainter::paint()
+     3.62%     0.00%  [.] WebCore::LayoutIntegration::LineLayout::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::RenderInline const*)
+     3.60%     0.01%  [.] WebCore::LayoutIntegration::InlineContentPainter::paintDisplayBox(WebCore::InlineDisplay::Box const&)
+     3.51%     0.03%  [.] WebCore::TextBoxPainter::paint()
+     3.48%     0.00%  [.] WebCore::TextBoxPainter::paintForeground(WebCore::StyledMarkedText const&)
+     3.48%     0.00%  [.] WebCore::TextBoxPainter::paintForegroundAndDecorations()
+     3.42%     0.00%  [.] WebCore::GraphicsContextSkia::drawOutsetShadow(SkPaint&, WTF::Function<void (SkPaint const&)>&&)
+     3.39%     0.00%  [.] WebCore::TextPainter::paintTextAndEmphasisMarksIfNeeded(WebCore::TextRun const&, WebCore::FloatRect const&, WebCore::FloatPoint const&, unsigned int, unsigned int, WebCore::TextPaintStyle const&, WebCore::Style::Shadows<WebCore::Style::TextShadow> const&, WebCore::Style::AppleColorFilter const&)
+     3.39%     0.00%  [.] WebCore::TextPainter::paintTextWithShadows(WebCore::Style::Shadows<WebCore::Style::TextShadow> const*, WebCore::Style::AppleColorFilter const&, WebCore::FontCascade const&, WebCore::TextRun const&, WebCore::FloatRect const&, WebCore::FloatPoint const&, unsigned int, unsigned int, WTF::AtomString const&, float, bool)
+     3.38%     0.00%  [.] WebCore::GraphicsContext::drawDisplayList(WebCore::DisplayList::DisplayList const&, WebCore::ControlFactory&)
+     3.38%     0.00%  [.] WebCore::GraphicsContextSkia::drawSkiaText(sk_sp<SkTextBlob> const&, float, float, bool, bool)
+     3.38%     0.00%  [.] WebCore::TextPainter::paintTextOrEmphasisMarks(WebCore::FontCascade const&, WebCore::TextRun const&, WTF::AtomString const&, float, WebCore::FloatPoint const&, unsigned int, unsigned int)
+     3.38%     0.00%  [.] _ZN7WebCore11DisplayList9applyItemERNS_15GraphicsContextERNS_14ControlFactoryERKN5mpark7variantIJNS0_22ApplyDeviceScaleFactorENS0_22BeginTransparencyLayerENS0_39BeginTransparencyLayerWithCompositeModeENS0_9ClearRectENS0_4ClipENS0_15ClipRoundedRectENS0_7ClipOutENS0_18ClipOutRoundedRectENS0_13ClipOutToPathENS0_8ClipPathENS0_17ClipToImageBufferENS0_14ConcatenateCTMENS0_15DrawControlPartENS0_25DrawDotsForDocumentMarkerENS0_11DrawEllipseENS0_23DrawFilteredImageBufferENS0_17DrawFocusRingPathENS0_18DrawFocusRingRectsENS0_10DrawGlyphsENS0_15DrawDisplayListENS0_15DrawPlaceholderENS0_15DrawImageBufferENS0_8DrawLineENS0_16DrawLinesForTextENS0_15DrawNativeImageENS0_8DrawPathENS0_22DrawPatternNativeImageENS0_22DrawPatternImageBufferENS0_8DrawRectENS0_15DrawSystemImageENS0_20EndTransparencyLayerENS0_18FillCompositedRectENS0_11FillEllipseENS0_8FillPathENS0_8FillRectENS0_17FillRectWithColorENS0_20FillRectWithGradientENS0_37FillRectWithGradientAndSpaceTransformENS0_23FillRectWithRoundedHoleENS0_15FillRoundedRectENS0_9ResetClipENS0_7RestoreENS0_6RotateENS0_4SaveENS0_5ScaleENS0_6SetCTMENS0_18SetInlineFillColorENS0_15SetInlineStrokeENS0_10SetLineCapENS0_11SetLineDashENS0_11SetLineJoinENS0_13SetMiterLimitENS0_8SetStateENS0_13StrokeEllipseENS0_10StrokePathENS0_10StrokeRectENS0_9TranslateENS0_9BeginPageENS0_7EndPageENS0_13SetURLForRectENS0_12DrawTextBlobEEEE
+     3.37%     0.03%  [.] SkCanvas::internalRestore()
+     3.31%     0.01%  [.] SkCanvas::onDrawTextBlob(SkTextBlob const*, float, float, SkPaint const&)
+     3.31%     0.00%  [.] SkCanvas::drawTextBlob(SkTextBlob const*, float, float, SkPaint const&)
+     3.27%     0.00%  [.] SkCanvas::onDrawGlyphRunList(sktext::GlyphRunList const&, SkPaint const&)
+     3.21%     3.18%  [.] skx::lowp::store_8888(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     3.17%     3.17%  [.] skx::lowp::clamp_x_1(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     2.94%     0.01%  [.] AutoLayerForImageFilter::~AutoLayerForImageFilter()
+     2.86%     0.00%  [.] SkCanvas::internalDrawDeviceWithFilter(SkDevice*, SkDevice*, SkSpan<sk_sp<SkImageFilter> >, SkPaint const&, SkCanvas::DeviceCompatibleWithFilter, SkColorInfo const&, float, SkTileMode, bool)
+     2.51%     2.17%  [.] void filter_scale<&(clamp(int, int)), &(clamp(int, int)), &(extract_low_bits_clamp_clamp(int, int)), true>(SkBitmapProcState const&, unsigned int*, int, int, int)
+     2.40%     2.39%  [.] skx::lowp::xy_to_radius(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     2.21%     2.19%  [.] skx::lowp::seed_shader(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     2.15%     0.03%  [.] (anonymous namespace)::SkMatrixTransformImageFilter::onFilterImage(skif::Context const&) const
+     2.14%     2.14%  [.] skx::lowp::load_8888_dst(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     2.14%     0.01%  [.] SkImageFilter_Base::filterImage(skif::Context const&) const
+     2.11%     0.00%  [.] SkAAClipBlitter::blitRect(int, int, int, int)
+     2.10%     0.00%  [.] (anonymous namespace)::SkColorFilterImageFilter::onFilterImage(skif::Context const&) const
+     2.10%     0.00%  [.] SkImageFilter_Base::getChildOutput(int, skif::Context const&) const
+     2.07%     0.00%  [.] 0xffffffffb2c60680
+     2.07%     0.00%  [.] (anonymous namespace)::SkBlurImageFilter::onFilterImage(skif::Context const&) const
+     2.07%     0.00%  [.] skif::FilterResult::Builder::blur(skif::LayerSpace<SkSize> const&)
+     2.05%     0.00%  [.] (anonymous namespace)::Raster8888BlurAlgorithm::blur(SkSize, sk_sp<SkSpecialImage>, SkIRect const&, SkTileMode, SkIRect const&) const
+     2.02%     0.00%  [.] 0xffffffffb2c5d290
+     2.01%     0.01%  [.] 0xffffffffb2d14884
+     2.00%     0.00%  [.] WebKit::DrawingAreaProxyCoordinatedGraphics::update(unsigned long, WebKit::UpdateInfo&&)
+     1.96%     0.00%  [.] WebKit::DrawingAreaProxyCoordinatedGraphics::incorporateUpdate(WebKit::UpdateInfo&&)
+     1.91%     0.00%  [.] g_signal_emit
+     1.91%     0.00%  [.] g_signal_emit_valist
+     1.91%     0.00%  [.] g_timeout_dispatch
+     1.90%     0.00%  [.] WebKit::BackingStore::incorporateUpdate(WebKit::UpdateInfo&&)
+     1.90%     0.01%  [.] signal_emit_valist_unlocked
+     1.90%     0.04%  [.] 0xffffffffb2d11506
+     1.90%     0.00%  [.] SkScan::AntiFillRect(SkRect const&, SkRasterClip const&, SkBlitter*)
+     1.87%     0.01%  [.] WebCore::RenderBlock::paintChildren(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool)
+     1.86%     0.00%  [k] 0x00007ffdb65f2780
+     1.85%     0.00%  [k] 0x3f80000000000200
+     1.78%     0.01%  [.] __close
+     1.78%     0.00%  [.] std::_Optional_payload_base<std::tuple<unsigned long, WebKit::UpdateInfo> >::_M_destroy()
+     1.78%     0.00%  [.] 0xffffffffb2d7b8b7
+     1.78%     0.00%  [.] 0xffffffffb2d859b6
+     1.78%     0.00%  [.] 0xffffffffb2daae34
+     1.78%     0.00%  [.] 0xffffffffb2dabaab
+     1.75%     0.00%  [.] 0xffffffffb2c64a5e
+     1.75%     0.00%  [.] 0xffffffffb2db0f5b
+     1.73%     1.72%  [.] (anonymous namespace)::ThreeBoxApproxPass::blurSegment(int, void const*, int, void*, int)
+     1.70%     0.05%  [.] void (anonymous namespace)::Pass::blur<unsigned int>(int, int, int, unsigned int const*, int, unsigned int*, int)
+     1.60%     0.00%  [.] gtk_main_do_event
+     1.55%     0.01%  [.] WTF::RunLoop::TimerBase::TimerBase(WTF::Ref<WTF::RunLoop, WTF::RawPtrTraits<WTF::RunLoop>, WTF::DefaultRefDerefTraits<WTF::RunLoop> >&&, WTF::ASCIILiteral)::$_0::__invoke(void*)
+     1.55%     0.01%  [.] 0xffffffffb2cd33e9
+     1.54%     0.00%  [.] 0x00007f436596bc6d
+     1.51%     0.00%  [.] WTF::ThreadSafeRefCounted<WebCore::ShareableBitmap, (WTF::DestructionThread)0>::deref() const
+     1.49%     0.00%  [.] WebCore::ThreadTimers::sharedTimerFiredInternal()
+     1.49%     0.00%  [.] __munmap
+     1.49%     0.00%  [.] 0xffffffffb2ca157b
+     1.49%     0.00%  [.] 0xffffffffb2cc5d13
+     1.48%     0.00%  [.] 0xffffffffb2cc36d6
+     1.47%     0.00%  [.] 0xffffffffb2cc1a51
+     1.47%     0.00%  [.] 0xffffffffb2cc3565
+     1.44%     0.00%  [.] 0000000000000000
+     1.43%     0.00%  [.] 0x0000556dcebe4d30
+     1.42%     0.00%  [.] 0x0000556dceb046c0
+     1.41%     0.00%  [.] 0x0000000600000003
+     1.40%     0.00%  [.] g_closure_invoke
+     1.40%     0.00%  [.] signal_emit_unlocked_R.isra.0
+     1.36%     0.00%  [.] WebCore::ShareableBitmap::paint(WebCore::GraphicsContext&, float, WebCore::IntPoint const&, WebCore::IntRect const&)
+     1.32%     0.00%  [.] 0x00007f436597fb58
+     1.31%     0.00%  [.] 0x00007f4365989201
+     1.31%     0.00%  [.] 0xffffffffb2c91e51
+     1.31%     0.00%  [.] 0xffffffffb2cbfeb3
+     1.29%     0.00%  [.] 0x00007f4365972407
+     1.29%     0.00%  [.] 0x00007f4365984929
+     1.29%     0.00%  [.] 0x00007f4365988ff5
+     1.27%     0.00%  [.] WebKit::WebPage::updateRendering()
+     1.25%     0.02%  [.] WebCore::Page::updateRendering()
+     1.25%     0.00%  [.] SkRasterPipelineBlitter::blitAntiH(int, int, unsigned char const*, short const*)
+     1.24%     0.01%  [.] gtk_container_propagate_draw
+     1.20%     1.19%  [k] 0xffffffffb3adab3b
+     1.19%     0.03%  [.] WebCore::MicrotaskQueue::performMicrotaskCheckpoint()
+     1.14%     0.00%  [.] 0x00007f4300000145
+     1.13%     0.00%  [.] 0x00007f435f6b0f3f
+     1.13%     0.00%  [.] webkitWebViewBaseDraw(_GtkWidget*, _cairo*)
+     1.13%     0.00%  [.] _cairo_surface_paint
+     1.13%     0.00%  [.] 0x00007f435f6acfa1
+     1.12%     0.00%  [.] WebKit::DrawingAreaProxyCoordinatedGraphics::paint(_cairo*, WebCore::IntRect const&, WebCore::Region&)
+     1.12%     0.00%  [.] _cairo_compositor_paint
+     1.12%     0.00%  [.] 0x00007f435f69a466
+     1.12%     0.00%  [.] _cairo_traps_compositor_paint
+     1.11%     0.01%  [.] _cairo_default_context_fill
+     1.11%     0.00%  [.] 0x00007f435f3e80a4
+     1.11%     0.00%  [.] clip_and_composite_boxes.part.0
+     1.11%     0.00%  [.] WebKit::BackingStore::paint(_cairo*, WebCore::IntRect const&)
+     1.11%     0.00%  [.] _cairo_gstate_fill
+     1.11%     0.00%  [.] cairo_fill
+     1.10%     0.01%  [.] WTF::Detail::CallableWrapper<WebCore::Timer::Timer<WebCore::WindowEventLoop, WebCore::WindowEventLoop>(WebCore::WindowEventLoop&, void (WebCore::WindowEventLoop::*)()) requires (WTF::HasRefPtrMemberFunctions<WebCore::WindowEventLoop>::value&&(!WTF::HasThreadSafeWeakPtrFunctions<WebCore::WindowEventLoop>::value))&&WTF::HasWeakPtrFunctions<WebCore::WindowEventLoop>::value::{lambda()#1}, void>::call()
+     1.09%     0.02%  [.] draw_image_boxes
+     1.09%     0.00%  [.] WebCore::EventLoop::run(std::optional<WTF::ApproximateTime>)
+     1.09%     0.00%  [.] WebCore::WindowEventLoop::didReachTimeToRun()
+     1.06%     0.00%  [.] 0xffffffffb2cc8753
+     1.06%     0.00%  [.] 0xffffffffb2cd0620
+     1.05%     1.04%  [.] sse2_blt.part.0.lto_priv.0
+     1.05%     0.00%  [.] pixman_image_composite32
+     1.05%     0.00%  [.] sse2_composite_copy_area.lto_priv.0
+     1.05%     0.01%  [.] 0xffffffffb2c644d9
+     1.04%     0.00%  [.] SkBitmapDevice::drawSpecial(SkSpecialImage*, SkMatrix const&, SkSamplingOptions const&, SkPaint const&, SkCanvas::SrcRectConstraint)
+     1.02%     0.00%  [.] WTF::Detail::CallableWrapper<WebCore::Document::considerSpeculationRules()::$_0, void>::call()
+     1.02%     0.00%  [.] WebCore::CollectionIndexCache<WebCore::GenericCachedHTMLCollection<(WebCore::CollectionTraversalType)0>, WebCore::ElementDescendantIterator<WebCore::Element> >::nodeAt(WebCore::GenericCachedHTMLCollection<(WebCore::CollectionTraversalType)0> const&, unsigned int)
+     1.02%     0.00%  [.] WebCore::Document::processSpeculationRules()
+     1.02%     0.00%  [.] WebCore::EventLoopFunctionMicrotaskDispatcher::run(JSC::QueuedTask&)
+     0.99%     0.00%  [.] 0x00007f435f465f14
+     0.99%     0.01%  [.] SkScan::AntiFillPath(SkPathRaw const&, SkRegion const&, SkBlitter*, bool)
+     0.99%     0.00%  [.] 0x00007f435f6ace94
+     0.98%     0.86%  [.] WebCore::ElementDescendantIterator<WebCore::Element> WebCore::CollectionTraversal<(WebCore::CollectionTraversalType)0>::begin<WebCore::GenericCachedHTMLCollection<(WebCore::CollectionTraversalType)0> >(WebCore::GenericCachedHTMLCollection<(WebCore::CollectionTraversalType)0> const&, WebCore::ContainerNode&)
+     0.98%     0.00%  [.] 0xffffffffb2c464c3
+     0.98%     0.00%  [.] 0x00007f435f413005
+     0.97%     0.00%  [.] SkScan::AAAFillPath(SkPathRaw const&, SkBlitter*, SkIRect const&, SkIRect const&, bool)
+     0.94%     0.00%  [.] 0x00007f435d0b297f
+     0.93%     0.00%  [.] 0x00007f435f412a31
+     0.93%     0.00%  [.] 0x00007f435f466745
+     0.93%     0.00%  [.] 0x00007f435f4796a6
+     0.92%     0.00%  [.] WTF::Thread::entryPoint(WTF::Thread::NewThreadContext*)
+     0.92%     0.00%  [.] WTF::wtfThreadEntryPoint(void*)
+     0.90%     0.23%  [.] aaa_fill_path(SkPathRaw const&, SkIRect const&, AdditiveBlitter*, int, int, bool, bool, bool)
+     0.89%     0.01%  [.] WebCore::Page::layoutIfNeeded(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>)
+     0.87%     0.00%  [.] WebCore::Document::updateLayout(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>, WebCore::Element const*)
+     0.87%     0.00%  [.] WebCore::LocalFrameView::updateLayoutAndStyleIfNeededRecursive(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>)
+     0.76%     0.76%  [.] skx::lowp::just_return(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     0.74%     0.01%  [.] SkARGB32_Shader_Blitter::blitAntiH(int, int, unsigned char const*, short const*)
+     0.73%     0.00%  [.] 0xffffffffb2c30f8d
+     0.73%     0.00%  [.] SkCanvas::clipPath(SkPath const&, SkClipOp, bool)
+     0.72%     0.00%  [.] WebCore::GraphicsContextSkia::clipPath(WebCore::Path const&, WebCore::WindRule)
+     0.72%     0.72%  [.] skx::lowp::matrix_scale_translate(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     0.71%     0.70%  [.] skx::lowp::clamp_01(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     0.70%     0.00%  [.] 0xffffffffb2c60733
+     0.70%     0.01%  [.] WebCore::BackgroundPainter::paintBoxShadow(WebCore::LayoutRect const&, WebCore::RenderStyle const&, WebCore::Style::ShadowStyle, WebCore::RectEdges<bool>) const
+     0.69%     0.00%  [.] skif::FilterResult::draw(skif::Context const&, SkDevice*, SkBlender const*) const
+     0.69%     0.00%  [.] skif::FilterResult::draw(skif::Context const&, SkDevice*, bool, SkBlender const*) const
+     0.68%     0.00%  [.] SkRasterClip::op(SkPath const&, SkMatrix const&, SkClipOp, bool)
+     0.66%     0.00%  [.] skcpu::Draw::drawPath(SkPath const&, SkPaint const&, SkMatrix const*, SkDrawCoverage, SkBlitter*) const
+     0.66%     0.00%  [.] 0xffffffffb260128d
+     0.65%     0.00%  [.] WebCore::GraphicsContext::clipRoundedRect(WebCore::FloatRoundedRect const&)
+     0.64%     0.00%  [.] 0xffffffffb2c606b9
+     0.61%     0.01%  [.] SkAAClip::setPath(SkPath const&, SkIRect const&, bool)
+     0.60%     0.00%  [.] 0xffffffffb2c644eb
+     0.59%     0.00%  [.] WebCore::BorderShape::fillOuterShape(WebCore::GraphicsContext&, WebCore::Color const&, float) const
+     0.59%     0.00%  [.] WebCore::GraphicsContext::fillRoundedRect(WebCore::FloatRoundedRect const&, WebCore::Color const&, WebCore::BlendMode)
+     0.59%     0.00%  [.] WebCore::GraphicsContextSkia::fillRoundedRectImpl(WebCore::FloatRoundedRect const&, WebCore::Color const&)
+     0.58%     0.58%  [.] hsw::blit_row_s32a_opaque(unsigned int*, unsigned int const*, int, unsigned int)
+     0.58%     0.00%  [.] 0xffffffffb2c91479
+     0.57%     0.00%  [.] SkAAClip::Builder::blitPath(SkAAClip*, SkPath const&, bool)
+     0.56%     0.56%  [.] skx::lowp::swap_rb_dst(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     0.56%     0.56%  [.] 0x00000000001a197f
+     0.56%     0.00%  [.] SkCanvas::onDrawRRect(SkRRect const&, SkPaint const&)
+     0.55%     0.55%  [.] skx::lowp::swap_rb(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     0.55%     0.00%  [.] WebCore::LocalFrameViewLayoutContext::layout(bool)
+     0.54%     0.01%  [.] SkCanvas::onClipRRect(SkRRect const&, SkClipOp, SkCanvas::ClipEdgeStyle)
+     0.54%     0.00%  [.] WebCore::Document::resolveStyle(WebCore::Document::ResolveStyleType)
+     0.54%     0.00%  [.] WebCore::Document::updateStyleIfNeeded()
+     0.53%     0.01%  [.] skcpu::Draw::drawDevPath(SkPathRaw const&, SkPaint const&, SkDrawCoverage, SkBlitter*, bool) const
+     0.53%     0.00%  [.] SkRasterClip::op(SkRRect const&, SkMatrix const&, SkClipOp, bool)
+     0.52%     0.00%  [.] WebCore::LocalFrameViewLayoutContext::performLayout(bool)
+     0.52%     0.01%  [.] 0xffffffffb2c9442a
+     0.52%     0.00%  [.] SkBitmapDevice::onDrawGlyphRunList(SkCanvas*, sktext::GlyphRunList const&, SkPaint const&)
+     0.51%     0.51%  [k] 0xffffffffb3ae38ac
+     0.49%     0.05%  [.] skcpu::GlyphRunListPainter::drawForBitmapDevice(SkCanvas*, skcpu::BitmapDevicePainter const*, sktext::GlyphRunList const&, SkPaint const&, SkMatrix const&)
+     0.47%     0.01%  [.] 0xffffffffb2c94440
+     0.47%     0.15%  [.] WebCore::RenderLayer::convertToLayerCoords(WebCore::RenderLayer const*, WebCore::LayoutPoint const&, WebCore::RenderLayer::ColumnOffsetAdjustment) const
+     0.47%     0.01%  [.] SkCanvas::restore()
+     0.47%     0.00%  [.] SkBitmapDevice::drawPath(SkPath const&, SkPaint const&)
+     0.46%     0.04%  [.] WebCore::RenderLayer::collectFragments(WTF::Vector<WebCore::LayerFragment, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc>&, WebCore::RenderLayer const*, WebCore::LayoutRect const&, WebCore::RenderLayer::PaginationInclusionMode, WebCore::ClipRectsType, WTF::OptionSet<WebCore::RenderLayer::ClipRectsOption, (WTF::ConcurrencyTag)0>, WebCore::LayoutSize const&, WebCore::LayoutRect const*, WebCore::ShouldApplyRootOffsetToFragments)
+     0.45%     0.00%  [.] SkCanvas::onDrawPath(SkPath const&, SkPaint const&)
+     0.45%     0.00%  [.] WebCore::RenderLayer::clipToRect(WebCore::GraphicsContext&, WebCore::GraphicsContextStateSaver&, WebCore::RegionContextStateSaver&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::ClipRect const&, WebCore::BorderRadiusClippingRule)
+     0.44%     0.00%  [.] SkScan::FillIRect(SkIRect const&, SkRegion const*, SkBlitter*)
+     0.44%     0.00%  [.] 0xffffffffb2c30e58
+     0.43%     0.00%  [.] WebCore::BorderShape::clipToInnerShape(WebCore::GraphicsContext&, float) const
+     0.41%     0.41%  [.] SkBitmapProcStateAutoMapper::SkBitmapProcStateAutoMapper(SkBitmapProcState const&, int, int, SkPoint*)
+     0.40%     0.00%  [.] WTF::Detail::CallableWrapper<WebCore::GraphicsContextSkia::fillRoundedRectImpl(WebCore::FloatRoundedRect const&, WebCore::Color const&)::$_0, void, SkPaint const&>::call(SkPaint const&)
+     0.40%     0.01%  [.] WebCore::BorderPainter::paintSides(WebCore::BorderShape const&, WebCore::BorderPainter::Sides const&) const
+     0.40%     0.00%  [.] WebCore::BorderPainter::paintBorder(WebCore::LayoutRect const&, WebCore::RenderStyle const&, WebCore::BleedAvoidance, WebCore::RectEdges<bool>) const
+#
+# (Cannot load tips.txt file, please install perf!)
+#

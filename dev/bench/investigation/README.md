@@ -27,7 +27,7 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | WebKitGTK 2.52 and 2.54 render path, read from source | done, `notes/webkit-render-path.md` |
 | What wry and Tauri set, what the app can reach | done, `notes/wry-tauri.md` |
 | What upstream knows | done, `notes/upstream-research.md` |
-| Candidate settings measured on 2.52 | next |
+| Candidate settings measured on 2.52 | home page done, single-animation pages running |
 | The same on WebKitGTK 2.54 | pending |
 | Fix in the app | pending |
 | Report (French) and upstream bug draft | pending |
@@ -85,13 +85,46 @@ the bench shows (a 44 px bar costs what a full-window zoom costs).
   Tauri exposes neither it nor WebKit's settings. An application reaches them through
   `with_webview` (`webkit2gtk::SettingsExt::set_hardware_acceleration_policy`).
 
-## Candidates to measure
+### Without compositing the time is Skia on the main thread (measured)
+
+`home-idle`, `wry-nocomp`: 96 % on the web process's main thread, 82 % of the samples in
+`libwebkit2gtk` itself. The page is repainted by Skia's CPU pipeline: its gradient stages take
+about 45 % of the samples (`skx::lowp::gradient` alone 31 %), the scaled backdrop about 8 %
+(`S32_alpha_D32_filter_DX`, `filter_scale`), blending and stores the rest. The UI process copies
+the result with pixman (`sse2_blt`, 1.3 %). What this mode costs is what the page paints, so the
+page can act on it: the billboard's gradients cost more than its picture.
+
+## Candidates measured on the home page
+
+WebKitGTK 2.52.6, X11, one rep, `home` scenario (`profiles/2.52.6-x11/*.json`). CPU in % of one
+core for the app's process tree.
+
+| variant | what it sets | Home idle | Home scroll | PSS MB |
+|---|---|---|---|---|
+| `wry` | nothing | 269 % | 264 %, 26 fps | 693 |
+| `wry-nocomp` | `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 106 % | 107 %, 52 fps | 370 |
+| `wry-never` | policy `NEVER` set by the app through `with_webview`, after the view exists | 107 % | 106 %, 53 fps | 395 |
+| `wry-damage` | `UseDamagingInformationForCompositing` on | 259 % | 263 %, 27 fps | 679 |
+| `wry-lp2` | `LP_NUM_THREADS=2` | 187 % | 184 %, 18 fps | 673 |
+| `wry-lp1` | `LP_NUM_THREADS=1` | 105 % | 107 %, 12 fps | 674 |
+
+- **Policy `NEVER` set by the application is the environment variable**, to the point: same CPU,
+  same frame rate, same memory. It does not have to be set before the web view is created, so the
+  app needs neither an early environment variable nor a restart.
+- **Limiting composition to the damaged region does nothing for this page**: its animation is a
+  full-window zoom, so the damaged region is the window. The single-animation pages say what it
+  does when little changes.
+- **Fewer llvmpipe threads buy CPU with frames**: one thread costs what compositing off costs
+  (105 %) and scrolls at 12 fps where compositing off scrolls at 52. The work per frame is the
+  same, there is only less of the machine to do it on. Composited mode takes whatever cores it is
+  given: it is bound by the work, not by a frame clock.
+
+## Candidates still to measure
 
 | candidate | where it acts | expected (assumed) |
 |---|---|---|
-| `UseDamagingInformationForCompositing` on, through `webkit_settings_set_feature_enabled` | composition and clear limited to the damaged box | cost follows the changed area for composition; readback and UI redraw stay whole |
-| hardware acceleration policy `NEVER`, set by the app | same path as `WEBKIT_DISABLE_COMPOSITING_MODE=1` on 2.52 | 105 % in place of 282 % |
-| `LP_NUM_THREADS` | llvmpipe's thread count | same work on fewer threads: less CPU, fewer frames |
+| `UseDamagingInformationForCompositing` on a page where little changes | composition and clear limited to the damaged box | cost follows the changed area for composition; readback and UI redraw stay whole |
+| window size | every stage of the composited path | cost per frame proportional to the window's area |
 | WebKitGTK 2.54 | Skia compositor, damage on by default, non-composited path rewritten | to measure; the source says `WEBKIT_DISABLE_COMPOSITING_MODE=1` no longer leaves GL there, only policy `NEVER` does |
 
 ## Files

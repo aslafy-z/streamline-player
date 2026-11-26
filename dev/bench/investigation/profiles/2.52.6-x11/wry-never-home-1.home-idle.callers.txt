@@ -1,0 +1,242 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 8K of event 'cycles'
+# Event count (approx.): 70254365096
+#
+# Overhead  Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+# ........  ......................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    31.63%  [.] skx::lowp::gradient(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+            |          
+             --31.41%--skx::lowp::start_pipeline(unsigned long, unsigned long, unsigned long, unsigned long, SkRasterPipelineStage*, SkSpan<SkRasterPipelineContexts::MemoryCtxPatch>, unsigned char*)
+                       std::_Function_handler<void (unsigned long, unsigned long, unsigned long, unsigned long), SkRasterPipeline::compile() const::$_1>::_M_invoke(std::_Any_data const&, unsigned long&&, unsigned long&&, unsigned long&&, unsigned long&&)
+                       |          
+                        --31.40%--SkRasterPipelineBlitter::blitRect(int, int, int, int)
+                                  |          
+                                   --31.04%--antifilldot8(int, int, int, int, SkBlitter*, bool)
+                                             SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                                             skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                                             SkBitmapDevice::drawRect(SkRect const&, SkPaint const&)
+                                             SkCanvas::onDrawRect(SkRect const&, SkPaint const&)
+                                             SkCanvas::drawRect(SkRect const&, SkPaint const&)
+                                             WebCore::Gradient::fill(WebCore::GraphicsContext&, WebCore::FloatRect const&)
+                                             WebCore::GradientImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                             WebCore::Image::drawTiled(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatPoint const&, WebCore::FloatSize const&, WebCore::FloatSize const&, WebCore::ImagePaintingOptions)
+                                             void WebCore::BackgroundPainter::paintFillLayerImpl<WebCore::Style::BackgroundLayer>(WebCore::Color const&, WebCore::FillLayerToPaint<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::InlineIterator::InlineBoxIterator const&, WebCore::LayoutRect const&, WebCore::CompositeOperator, WebCore::RenderElement*, WebCore::BaseBackgroundColorUsage) const
+                                             void WebCore::BackgroundPainter::paintFillLayersImpl<WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> >(WebCore::Color const&, WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::CompositeOperator, WebCore::RenderElement*) const
+                                             WebCore::BackgroundPainter::paintBackground(WebCore::LayoutRect const&, WebCore::BleedAvoidance) const
+                                             WebCore::RenderBox::paintBoxDecorations(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                             WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                             WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                             WebCore::RenderLayer::paintBackgroundForFragments(WTF::Vector<WebCore::LayerFragment, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WebCore::GraphicsContext&, WebCore::GraphicsContext&, WebCore::LayoutRect const&, bool, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::RenderObject*)
+                                             WebCore::RenderLayer::paintLayerContents(WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+                                             WebCore::RenderLayer::paintList(WebCore::RenderLayer::LayerList, WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+                                             WebCore::RenderLayer::paintLayerContents(WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+                                             WebCore::RenderLayer::paintList(WebCore::RenderLayer::LayerList, WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+     5.79%  [.] skx::lowp::evenly_spaced_2_stop_gradient(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+            |          
+             --5.78%--skx::lowp::start_pipeline(unsigned long, unsigned long, unsigned long, unsigned long, SkRasterPipelineStage*, SkSpan<SkRasterPipelineContexts::MemoryCtxPatch>, unsigned char*)
+                       std::_Function_handler<void (unsigned long, unsigned long, unsigned long, unsigned long), SkRasterPipeline::compile() const::$_1>::_M_invoke(std::_Any_data const&, unsigned long&&, unsigned long&&, unsigned long&&, unsigned long&&)
+                       |          
+                        --5.75%--SkRasterPipelineBlitter::blitRect(int, int, int, int)
+                                  |          
+                                   --5.59%--antifilldot8(int, int, int, int, SkBlitter*, bool)
+                                             SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                                             skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                                             SkBitmapDevice::drawRect(SkRect const&, SkPaint const&)
+                                             SkCanvas::onDrawRect(SkRect const&, SkPaint const&)
+                                             SkCanvas::drawRect(SkRect const&, SkPaint const&)
+                                             WebCore::Gradient::fill(WebCore::GraphicsContext&, WebCore::FloatRect const&)
+                                             WebCore::GradientImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                             WebCore::Image::drawTiled(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatPoint const&, WebCore::FloatSize const&, WebCore::FloatSize const&, WebCore::ImagePaintingOptions)
+                                             void WebCore::BackgroundPainter::paintFillLayerImpl<WebCore::Style::BackgroundLayer>(WebCore::Color const&, WebCore::FillLayerToPaint<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::InlineIterator::InlineBoxIterator const&, WebCore::LayoutRect const&, WebCore::CompositeOperator, WebCore::RenderElement*, WebCore::BaseBackgroundColorUsage) const
+                                             void WebCore::BackgroundPainter::paintFillLayersImpl<WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> >(WebCore::Color const&, WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::CompositeOperator, WebCore::RenderElement*) const
+                                             WebCore::BackgroundPainter::paintBackground(WebCore::LayoutRect const&, WebCore::BleedAvoidance) const
+                                             WebCore::RenderBox::paintBoxDecorations(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                             WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                             WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                             WebCore::RenderElement::paintAsInlineBlock(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                             WebCore::RenderBlock::paintChild(WebCore::RenderBox&, WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool, WebCore::RenderBlock::PaintBlockType)
+                                             WebCore::RenderGrid::paintChildren(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool)
+                                             WebCore::RenderBlock::paintContents(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                             WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+     5.73%  [.] ssse3::S32_alpha_D32_filter_DX(SkBitmapProcState const&, unsigned int const*, int, unsigned int*)
+            |          
+             --5.68%--BitmapProcShaderContext::shadeSpan(int, int, unsigned int*, int)
+                       |          
+                        --5.21%--SkARGB32_Shader_Blitter::blitRect(int, int, int, int)
+                                  antifilldot8(int, int, int, int, SkBlitter*, bool)
+                                  SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                                  skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                                  skcpu::Draw::drawBitmap(SkBitmap const&, SkMatrix const&, SkRect const*, SkSamplingOptions const&, SkPaint const&) const
+                                  SkBitmapDevice::drawBitmap(SkBitmap const&, SkMatrix const&, SkRect const*, SkSamplingOptions const&, SkPaint const&)
+                                  SkBitmapDevice::drawImageRect(SkImage const*, SkRect const*, SkRect const&, SkSamplingOptions const&, SkPaint const&, SkCanvas::SrcRectConstraint)
+                                  SkCanvas::onDrawImageRect2(SkImage const*, SkRect const&, SkRect const&, SkSamplingOptions const&, SkPaint const*, SkCanvas::SrcRectConstraint)
+                                  WebCore::GraphicsContextSkia::drawNativeImage(WebCore::NativeImage&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::BitmapImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::GraphicsContext::drawImage(WebCore::Image&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::RenderImage::paintIntoRect(WebCore::PaintInfo&, WebCore::FloatRect const&)
+                                  WebCore::RenderImage::paintReplaced(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderReplaced::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderImage::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderElement::paintAsInlineBlock(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintChild(WebCore::RenderBox&, WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool, WebCore::RenderBlock::PaintBlockType)
+                                  WebCore::RenderGrid::paintChildren(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool)
+                                  WebCore::RenderBlock::paintContents(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderLayer::paintForegroundForFragmentsWithPhase(WebCore::PaintPhase, WTF::Vector<WebCore::LayerFragment, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::RenderObject*)
+     4.52%  [.] skx::lowp::srcover(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+            |          
+             --4.51%--skx::lowp::start_pipeline(unsigned long, unsigned long, unsigned long, unsigned long, SkRasterPipelineStage*, SkSpan<SkRasterPipelineContexts::MemoryCtxPatch>, unsigned char*)
+                       std::_Function_handler<void (unsigned long, unsigned long, unsigned long, unsigned long), SkRasterPipeline::compile() const::$_1>::_M_invoke(std::_Any_data const&, unsigned long&&, unsigned long&&, unsigned long&&, unsigned long&&)
+                       SkRasterPipelineBlitter::blitRect(int, int, int, int)
+                       |          
+                        --4.42%--antifilldot8(int, int, int, int, SkBlitter*, bool)
+                                  SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                                  skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                                  SkBitmapDevice::drawRect(SkRect const&, SkPaint const&)
+                                  SkCanvas::onDrawRect(SkRect const&, SkPaint const&)
+                                  SkCanvas::drawRect(SkRect const&, SkPaint const&)
+                                  WebCore::Gradient::fill(WebCore::GraphicsContext&, WebCore::FloatRect const&)
+                                  WebCore::GradientImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::Image::drawTiled(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatPoint const&, WebCore::FloatSize const&, WebCore::FloatSize const&, WebCore::ImagePaintingOptions)
+                                  void WebCore::BackgroundPainter::paintFillLayerImpl<WebCore::Style::BackgroundLayer>(WebCore::Color const&, WebCore::FillLayerToPaint<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::InlineIterator::InlineBoxIterator const&, WebCore::LayoutRect const&, WebCore::CompositeOperator, WebCore::RenderElement*, WebCore::BaseBackgroundColorUsage) const
+                                  void WebCore::BackgroundPainter::paintFillLayersImpl<WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> >(WebCore::Color const&, WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::CompositeOperator, WebCore::RenderElement*) const
+                                  WebCore::BackgroundPainter::paintBackground(WebCore::LayoutRect const&, WebCore::BleedAvoidance) const
+                                  WebCore::RenderBox::paintBoxDecorations(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  |          
+                                   --3.98%--WebCore::RenderLayer::paintBackgroundForFragments(WTF::Vector<WebCore::LayerFragment, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WebCore::GraphicsContext&, WebCore::GraphicsContext&, WebCore::LayoutRect const&, bool, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::RenderObject*)
+                                             WebCore::RenderLayer::paintLayerContents(WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+                                             WebCore::RenderLayer::paintList(WebCore::RenderLayer::LayerList, WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+                                             WebCore::RenderLayer::paintLayerContents(WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+                                             WebCore::RenderLayer::paintList(WebCore::RenderLayer::LayerList, WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::RenderLayer::PaintLayerFlag, (WTF::ConcurrencyTag)0>)
+     3.18%  [.] skx::lowp::store_8888(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+            |          
+             --2.80%--skx::lowp::start_pipeline(unsigned long, unsigned long, unsigned long, unsigned long, SkRasterPipelineStage*, SkSpan<SkRasterPipelineContexts::MemoryCtxPatch>, unsigned char*)
+                       std::_Function_handler<void (unsigned long, unsigned long, unsigned long, unsigned long), SkRasterPipeline::compile() const::$_1>::_M_invoke(std::_Any_data const&, unsigned long&&, unsigned long&&, unsigned long&&, unsigned long&&)
+                       SkRasterPipelineBlitter::blitRect(int, int, int, int)
+                       |          
+                        --2.64%--antifilldot8(int, int, int, int, SkBlitter*, bool)
+                                  SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                                  skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                                  SkBitmapDevice::drawRect(SkRect const&, SkPaint const&)
+                                  SkCanvas::onDrawRect(SkRect const&, SkPaint const&)
+                                  SkCanvas::drawRect(SkRect const&, SkPaint const&)
+                                  WebCore::Gradient::fill(WebCore::GraphicsContext&, WebCore::FloatRect const&)
+                                  WebCore::GradientImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::Image::drawTiled(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatPoint const&, WebCore::FloatSize const&, WebCore::FloatSize const&, WebCore::ImagePaintingOptions)
+                                  void WebCore::BackgroundPainter::paintFillLayerImpl<WebCore::Style::BackgroundLayer>(WebCore::Color const&, WebCore::FillLayerToPaint<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::InlineIterator::InlineBoxIterator const&, WebCore::LayoutRect const&, WebCore::CompositeOperator, WebCore::RenderElement*, WebCore::BaseBackgroundColorUsage) const
+                                  void WebCore::BackgroundPainter::paintFillLayersImpl<WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> >(WebCore::Color const&, WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::CompositeOperator, WebCore::RenderElement*) const
+                                  WebCore::BackgroundPainter::paintBackground(WebCore::LayoutRect const&, WebCore::BleedAvoidance) const
+                                  WebCore::RenderBox::paintBoxDecorations(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+     3.17%  [.] skx::lowp::clamp_x_1(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+            |
+            ---skx::lowp::start_pipeline(unsigned long, unsigned long, unsigned long, unsigned long, SkRasterPipelineStage*, SkSpan<SkRasterPipelineContexts::MemoryCtxPatch>, unsigned char*)
+               std::_Function_handler<void (unsigned long, unsigned long, unsigned long, unsigned long), SkRasterPipeline::compile() const::$_1>::_M_invoke(std::_Any_data const&, unsigned long&&, unsigned long&&, unsigned long&&, unsigned long&&)
+               SkRasterPipelineBlitter::blitRect(int, int, int, int)
+               |          
+                --3.10%--antifilldot8(int, int, int, int, SkBlitter*, bool)
+                          SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                          skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                          SkBitmapDevice::drawRect(SkRect const&, SkPaint const&)
+                          SkCanvas::onDrawRect(SkRect const&, SkPaint const&)
+                          SkCanvas::drawRect(SkRect const&, SkPaint const&)
+                          WebCore::Gradient::fill(WebCore::GraphicsContext&, WebCore::FloatRect const&)
+                          WebCore::GradientImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                          WebCore::Image::drawTiled(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatPoint const&, WebCore::FloatSize const&, WebCore::FloatSize const&, WebCore::ImagePaintingOptions)
+                          void WebCore::BackgroundPainter::paintFillLayerImpl<WebCore::Style::BackgroundLayer>(WebCore::Color const&, WebCore::FillLayerToPaint<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::InlineIterator::InlineBoxIterator const&, WebCore::LayoutRect const&, WebCore::CompositeOperator, WebCore::RenderElement*, WebCore::BaseBackgroundColorUsage) const
+                          void WebCore::BackgroundPainter::paintFillLayersImpl<WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> >(WebCore::Color const&, WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::CompositeOperator, WebCore::RenderElement*) const
+                          WebCore::BackgroundPainter::paintBackground(WebCore::LayoutRect const&, WebCore::BleedAvoidance) const
+                          WebCore::RenderBox::paintBoxDecorations(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                          WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                          WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                          WebCore::RenderElement::paintAsInlineBlock(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                          WebCore::RenderBlock::paintChild(WebCore::RenderBox&, WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool, WebCore::RenderBlock::PaintBlockType)
+                          WebCore::RenderGrid::paintChildren(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool)
+                          WebCore::RenderBlock::paintContents(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                          WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+     2.39%  [.] skx::lowp::xy_to_radius(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+            |          
+             --2.28%--skx::lowp::start_pipeline(unsigned long, unsigned long, unsigned long, unsigned long, SkRasterPipelineStage*, SkSpan<SkRasterPipelineContexts::MemoryCtxPatch>, unsigned char*)
+                       std::_Function_handler<void (unsigned long, unsigned long, unsigned long, unsigned long), SkRasterPipeline::compile() const::$_1>::_M_invoke(std::_Any_data const&, unsigned long&&, unsigned long&&, unsigned long&&, unsigned long&&)
+                       SkRasterPipelineBlitter::blitRect(int, int, int, int)
+                       |          
+                        --2.20%--antifilldot8(int, int, int, int, SkBlitter*, bool)
+                                  SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                                  skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                                  SkBitmapDevice::drawRect(SkRect const&, SkPaint const&)
+                                  SkCanvas::onDrawRect(SkRect const&, SkPaint const&)
+                                  SkCanvas::drawRect(SkRect const&, SkPaint const&)
+                                  WebCore::Gradient::fill(WebCore::GraphicsContext&, WebCore::FloatRect const&)
+                                  WebCore::GradientImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::Image::drawTiled(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatPoint const&, WebCore::FloatSize const&, WebCore::FloatSize const&, WebCore::ImagePaintingOptions)
+                                  void WebCore::BackgroundPainter::paintFillLayerImpl<WebCore::Style::BackgroundLayer>(WebCore::Color const&, WebCore::FillLayerToPaint<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::InlineIterator::InlineBoxIterator const&, WebCore::LayoutRect const&, WebCore::CompositeOperator, WebCore::RenderElement*, WebCore::BaseBackgroundColorUsage) const
+                                  void WebCore::BackgroundPainter::paintFillLayersImpl<WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> >(WebCore::Color const&, WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::CompositeOperator, WebCore::RenderElement*) const
+                                  WebCore::BackgroundPainter::paintBackground(WebCore::LayoutRect const&, WebCore::BleedAvoidance) const
+                                  WebCore::RenderBox::paintBoxDecorations(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderElement::paintAsInlineBlock(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintChild(WebCore::RenderBox&, WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool, WebCore::RenderBlock::PaintBlockType)
+                                  WebCore::RenderGrid::paintChildren(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool)
+                                  WebCore::RenderBlock::paintContents(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+     2.19%  [.] skx::lowp::seed_shader(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+     2.17%  [.] void filter_scale<&(clamp(int, int)), &(clamp(int, int)), &(extract_low_bits_clamp_clamp(int, int)), true>(SkBitmapProcState const&, unsigned int*, int, int, int)
+            |          
+             --2.16%--BitmapProcShaderContext::shadeSpan(int, int, unsigned int*, int)
+                       |          
+                        --2.02%--SkARGB32_Shader_Blitter::blitRect(int, int, int, int)
+                                  antifilldot8(int, int, int, int, SkBlitter*, bool)
+                                  SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                                  skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                                  skcpu::Draw::drawBitmap(SkBitmap const&, SkMatrix const&, SkRect const*, SkSamplingOptions const&, SkPaint const&) const
+                                  SkBitmapDevice::drawBitmap(SkBitmap const&, SkMatrix const&, SkRect const*, SkSamplingOptions const&, SkPaint const&)
+                                  SkBitmapDevice::drawImageRect(SkImage const*, SkRect const*, SkRect const&, SkSamplingOptions const&, SkPaint const&, SkCanvas::SrcRectConstraint)
+                                  SkCanvas::onDrawImageRect2(SkImage const*, SkRect const&, SkRect const&, SkSamplingOptions const&, SkPaint const*, SkCanvas::SrcRectConstraint)
+                                  WebCore::GraphicsContextSkia::drawNativeImage(WebCore::NativeImage&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::BitmapImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::GraphicsContext::drawImage(WebCore::Image&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::RenderImage::paintIntoRect(WebCore::PaintInfo&, WebCore::FloatRect const&)
+                                  WebCore::RenderImage::paintReplaced(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderReplaced::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderImage::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderElement::paintAsInlineBlock(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintChild(WebCore::RenderBox&, WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool, WebCore::RenderBlock::PaintBlockType)
+                                  WebCore::RenderGrid::paintChildren(WebCore::PaintInfo&, WebCore::LayoutPoint const&, WebCore::PaintInfo&, bool)
+                                  WebCore::RenderBlock::paintContents(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderLayer::paintForegroundForFragmentsWithPhase(WebCore::PaintPhase, WTF::Vector<WebCore::LayerFragment, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WebCore::GraphicsContext&, WebCore::RenderLayer::LayerPaintingInfo const&, WTF::OptionSet<WebCore::PaintBehavior, (WTF::ConcurrencyTag)0>, WebCore::RenderObject*)
+     2.14%  [.] skx::lowp::load_8888_dst(SkRasterPipelineStage*, unsigned long, unsigned long, unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16), unsigned short __vector(16))
+            |          
+             --2.12%--skx::lowp::start_pipeline(unsigned long, unsigned long, unsigned long, unsigned long, SkRasterPipelineStage*, SkSpan<SkRasterPipelineContexts::MemoryCtxPatch>, unsigned char*)
+                       std::_Function_handler<void (unsigned long, unsigned long, unsigned long, unsigned long), SkRasterPipeline::compile() const::$_1>::_M_invoke(std::_Any_data const&, unsigned long&&, unsigned long&&, unsigned long&&, unsigned long&&)
+                       SkRasterPipelineBlitter::blitRect(int, int, int, int)
+                       |          
+                        --2.05%--antifilldot8(int, int, int, int, SkBlitter*, bool)
+                                  SkScan::AntiFillRect(SkRect const&, SkRegion const*, SkBlitter*)
+                                  skcpu::Draw::drawRect(SkRect const&, SkPaint const&, SkMatrix const*, SkRect const*) const
+                                  SkBitmapDevice::drawRect(SkRect const&, SkPaint const&)
+                                  SkCanvas::onDrawRect(SkRect const&, SkPaint const&)
+                                  SkCanvas::drawRect(SkRect const&, SkPaint const&)
+                                  WebCore::Gradient::fill(WebCore::GraphicsContext&, WebCore::FloatRect const&)
+                                  WebCore::GradientImage::draw(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatRect const&, WebCore::ImagePaintingOptions)
+                                  WebCore::Image::drawTiled(WebCore::GraphicsContext&, WebCore::FloatRect const&, WebCore::FloatPoint const&, WebCore::FloatSize const&, WebCore::FloatSize const&, WebCore::ImagePaintingOptions)
+                                  void WebCore::BackgroundPainter::paintFillLayerImpl<WebCore::Style::BackgroundLayer>(WebCore::Color const&, WebCore::FillLayerToPaint<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::InlineIterator::InlineBoxIterator const&, WebCore::LayoutRect const&, WebCore::CompositeOperator, WebCore::RenderElement*, WebCore::BaseBackgroundColorUsage) const
+                                  void WebCore::BackgroundPainter::paintFillLayersImpl<WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> >(WebCore::Color const&, WebCore::Style::CoordinatedValueList<WebCore::Style::BackgroundLayer> const&, WebCore::LayoutRect const&, WebCore::BleedAvoidance, WebCore::CompositeOperator, WebCore::RenderElement*) const
+                                  WebCore::BackgroundPainter::paintBackground(WebCore::LayoutRect const&, WebCore::BleedAvoidance) const
+                                  WebCore::RenderBox::paintBoxDecorations(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paintObject(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+                                  WebCore::RenderBlock::paint(WebCore::PaintInfo&, WebCore::LayoutPoint const&)
+#
+# (Cannot load tips.txt file, please install perf!)
+#
