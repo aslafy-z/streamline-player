@@ -288,6 +288,44 @@ The same page without the plugin at all: 13 % with the GPU, 84 % without.
   does not complete there. The playing rows without a GPU are therefore the cost of a window
   that shows the area, not of a decoded video.
 
+### Why GTK 3 does this (read, GTK 3.24.41)
+
+- A window paints through OpenGL as soon as it has a paint GL context:
+  `window->current_paint.use_gl = window->impl_window->gl_paint_context != NULL`
+  (`gdk/gdkwindow.c:2965`). `gdk_window_get_paint_gl_context` creates it on first use
+  (`:2855-2888`), which a `GtkGLArea` does when it is realized, and only the window's
+  destruction drops it (`:2106-2111`). That is why hiding or removing the area changes nothing:
+  the toplevel keeps the context.
+- At the end of each paint the window's own drawing, a cairo surface, is uploaded as a texture
+  and drawn over what the GL area drew, then the buffers are swapped (`:3050-3075`).
+- On X11 the region to repaint grows to the whole window whenever the back buffer's age is
+  unknown: `if (buffer_age == 0) invalidate_all = TRUE`
+  (`gdk/x11/gdkglcontext-x11.c:122-184`). Assumed, not checked: llvmpipe's GLX on Xvfb reports
+  no buffer age, which would make every frame a whole-window upload and explain the 130 %.
+- Every widget drawn after the GL area has its clip cleared to transparent in that surface and
+  marked "to blend" (`gdk_window_mark_paint_from_clip`, `gdk/gdkwindow.c:3385-3436`, called from
+  `gtk/gtkwidget.c:7058`). What the widget then draws is blended over the GL content.
+
+`GDK_GL=software-draw` has GDK read the GL area back into the cairo surface and draw the window
+without the texture pass. Tried on the bench's stand-in window, on two other cores (compare the
+rows with each other only; `shots/2.52.6-gdk-software-draw-grid.png`):
+
+| the bar page, composited | UI process | with `GDK_GL=software-draw` |
+|---|---|---|
+| no GL area | 7 % | |
+| area shown | 141 % | 78 % |
+| area shown and redrawn 30 times a second, page see-through | 146 % | 77 % |
+| area shown, then hidden | 79 % | 72 % |
+
+- **It halves the cost of a shown area and does not remove it**; a window that has shown one
+  still pays about 70 %.
+- **It brings a non-composited web view back on screen** next to a GL area (bottom row of the
+  screenshot), and shows why that path cannot carry the player: where the page is transparent
+  the window is black, not the video. WebKitGTK's non-composited backing store paints with
+  `CAIRO_OPERATOR_SOURCE` (`UIProcess/cairo/BackingStoreCairo.cpp:82-90`), which replaces what
+  is under it. Seeing through a web view takes accelerated compositing.
+- Why the non-composited view is not drawn at all without that variable is not explained.
+
 ## Candidates still to measure
 
 | candidate | where it acts | expected (assumed) |
