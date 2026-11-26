@@ -22,6 +22,7 @@ PHASES = [
     "player-controls",
     "player-watching",
     "player-scrub",
+    *(f"anim-{kind}{frames}" for kind in ("still", "spin", "bar", "width", "zoom") for frames in ("", "-frames")),
 ]
 
 

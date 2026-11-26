@@ -71,6 +71,8 @@ check one before trusting a new setup, a blank page measures nothing.
 were measured in: Ubuntu 24.04 with its own WebKitGTK and Mesa, four CPUs, no `/dev/dri`, so
 llvmpipe draws everything. The image also carries perf and the debug symbols of WebKitGTK and
 Mesa. Builds and results live in `~/.cache/streamline-bench` (`BENCH_CACHE`), mounted at `/bench`.
+`BENCH_DISTRO=arch` is a second image for the WebKitGTK and Mesa releases Ubuntu does not carry:
+it runs what the first one built and keeps its results apart (`results-arch`).
 
 ```sh
 dev/bench/container.sh build && dev/bench/container.sh up
@@ -103,8 +105,11 @@ WebKitGTK's hardware acceleration policy and `BENCH_FEATURES=Name=1,Other=0` its
 it, which is where an application can reach them.
 
 Variants are the table at the top of `matrix.sh`: WebKitGTK environment variables (the names
-WebKitGTK 2.52 reads, from `strings` on the library) and Chromium switches for CEF
-(`BENCH_CEF_ARGS`, comma-separated, applied to the browser process).
+WebKitGTK 2.52 reads, from `strings` on the library), what the bench app sets on the web view
+(`BENCH_ACCEL`, `BENCH_FEATURES`), Mesa's `LP_NUM_THREADS`, and Chromium switches for CEF
+(`BENCH_CEF_ARGS`, comma-separated, applied to the browser process). `SCENARIOS` takes `nav`,
+`home` (the two home phases of `nav` alone), `player` and `anim-<kind>` (one page of
+`pages/anim.html`, held); `HOOK=<phase>:dev/bench/profile.sh` captures a phase of every run.
 
 `threads.py <pid> <seconds>` prints CPU per process, per thread pool and per thread of a process
 tree, busiest first, split into user and system time.

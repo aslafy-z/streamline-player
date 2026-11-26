@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Runs variants × scenarios × reps: dev/bench/matrix.sh x11|wayland [reps] [variant-regex]
-# SCENARIOS="nav player" (the default) narrows the scenarios.
+# SCENARIOS="nav player" (the default) narrows the scenarios: nav, home (its two home phases
+# alone), player, and anim-bar|zoom|spin|width|still (one page of pages/anim.html, held).
+# HOOK=<phase>:dev/bench/profile.sh captures that phase of every run (README).
 # Needs stack.sh up, display.sh <same display> started and runtimes.sh built. Results go to
-# $BENCH_OUT/results/<display>/<variant>-<scenario>-<rep>.json; aggregate.py makes the tables.
+# $BENCH_RESULTS/<display>/<variant>-<scenario>-<rep>.json (BENCH_RESULTS: $BENCH_OUT/results by
+# default); aggregate.py makes the tables.
 # Reps are interleaved (every variant once, then again) so drift spreads across variants.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
@@ -11,11 +14,15 @@ display=${1:?x11|wayland}
 reps=${2:-1}
 only=${3:-.}
 bin=$out/bin
-res=$out/results/$display
+res=${BENCH_RESULTS:-$out/results}/$display
 mkdir -p "$res"
 
 # variant -> environment. A name ending in -reduce adds --reduce (animations and transitions off);
 # one ending in -soft adds --soft (the page is told it is drawn on the CPU, as the real app tells it).
+# Beside WebKitGTK's own variables: BENCH_ACCEL and BENCH_FEATURES are what the bench app sets on
+# the web view's settings (never: hardware acceleration policy NEVER; damage: composition limited
+# to the damaged region, off by default in 2.52 and on in 2.54), LP_NUM_THREADS is llvmpipe's
+# rasterizer thread count, BENCH_SIZE the window.
 declare -A ENVS=(
 	[wry]=""
 	[wry-reduce]=""
@@ -33,6 +40,19 @@ declare -A ENVS=(
 	[wry-vblank]="WEBKIT_FORCE_VBLANK_TIMER=1"
 	[wry-shm]="WEBKIT_DMABUF_RENDERER_FORCE_SHM=1"
 	[wry-msaa0]="WEBKIT_SKIA_MSAA_SAMPLE_COUNT=0"
+	[wry-never]="BENCH_ACCEL=never"
+	[wry-damage]="BENCH_FEATURES=UseDamagingInformationForCompositing=1"
+	[wry-damage-skiacpu]="BENCH_FEATURES=UseDamagingInformationForCompositing=1 WEBKIT_SKIA_ENABLE_CPU_RENDERING=1"
+	[wry-damage-lp1]="BENCH_FEATURES=UseDamagingInformationForCompositing=1 LP_NUM_THREADS=1"
+	[wry-nodamage]="BENCH_FEATURES=UseDamagingInformationForCompositing=0"
+	[wry-lp0]="LP_NUM_THREADS=0"
+	[wry-lp1]="LP_NUM_THREADS=1"
+	[wry-lp2]="LP_NUM_THREADS=2"
+	[wry-gpupaint0]="WEBKIT_SKIA_GPU_PAINTING_THREADS=0"
+	[wry-s720]="BENCH_SIZE=720x450"
+	[wry-s1920]="BENCH_SIZE=1920x1080"
+	[wry-nocomp-s720]="WEBKIT_DISABLE_COMPOSITING_MODE=1 BENCH_SIZE=720x450"
+	[wry-nocomp-s1920]="WEBKIT_DISABLE_COMPOSITING_MODE=1 BENCH_SIZE=1920x1080"
 	[cef]=""
 	[cef-reduce]=""
 	[cef-swiftshader]="BENCH_CEF_ARGS=ignore-gpu-blocklist,use-gl=angle,use-angle=swiftshader,enable-unsafe-swiftshader"
@@ -46,6 +66,8 @@ declare -A ENVS=(
 )
 ORDER="wry wry-reduce wry-soft wry-nocomp wry-nocomp-soft wry-nocomp-t4 wry-nocomp-reduce wry-nocomp-t4-reduce wry-nodmabuf
 wry-skiacpu wry-skiacpu-t1 wry-skiacpu-t4 wry-fps30 wry-vblank wry-shm wry-msaa0
+wry-never wry-damage wry-damage-skiacpu wry-damage-lp1 wry-nodamage wry-lp0 wry-lp1 wry-lp2 wry-gpupaint0
+wry-s720 wry-s1920 wry-nocomp-s720 wry-nocomp-s1920
 cef cef-reduce cef-swiftshader cef-raster1 cef-raster4 cef-1proc cef-lowend cef-nosmooth qt qt-reduce"
 
 # The display each runtime gets. Under Wayland, wry and Qt go native; CEF has no Wayland path in
@@ -79,7 +101,11 @@ for rep in $(seq 1 "$reps"); do
 			[[ $name == *-soft ]] && red="--soft"
 			shot=""
 			[ "$display" = x11 ] && [ "$rep" = 1 ] && shot="SHOT=$out/shots/$display"
-			args="$here/runner.mjs --name $name --scenario $sc --out $res/$name-$sc-$rep.json --timeout 220 $red"
+			scenario="--scenario $sc"
+			[[ $sc == anim-* ]] && scenario="--scenario hold --label $sc --url http://127.0.0.1:1440/_bench/anim.html?kind=${sc#anim-}"
+			hook=""
+			[ -n "${HOOK:-}" ] && hook="--hook $HOOK"
+			args="$here/runner.mjs --name $name $scenario --out $res/$name-$sc-$rep.json --timeout 220 $red $hook"
 			if [ "$display" = wayland ]; then
 				xw=$(fresh)
 				DISP_CEF="$base DISPLAY=$xw"

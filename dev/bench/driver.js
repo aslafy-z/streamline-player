@@ -138,9 +138,18 @@
 		// One page left alone, for the pages under dev/bench/pages (runner: --url): its cost with
 		// the engine's frame clock quiet, then again with a frame counter running.
 		async hold() {
+			const name = cfg.label ?? "hold";
 			await sleep(3000);
-			await phase("hold", 20000, idle, { measureFrames: false });
-			await phase("hold-frames", 10000, idle);
+			await phase(name, 20000, idle, { measureFrames: false });
+			await phase(`${name}-frames`, 10000, idle);
+		},
+		// The home page alone: the first and third phases of nav.
+		async home() {
+			await until(() => document.querySelector(".hero"));
+			window.dispatchEvent(new Event("focus"));
+			await sleep(3000);
+			await phase("home-idle", 20000, idle, { measureFrames: false });
+			await phase("home-scroll", 15000, scrollLoop(() => document.querySelector(".hero")?.closest(".content") ?? scroller()));
 		},
 		async player() {
 			window.__picture = true;
