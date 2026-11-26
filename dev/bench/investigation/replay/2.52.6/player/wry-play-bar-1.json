@@ -1,0 +1,76 @@
+{
+  "name": "wry",
+  "scenario": "hold",
+  "reduce": false,
+  "phases": [
+    {
+      "phase": "play-bar",
+      "wall_s": 20,
+      "cpu_pct": 327.2,
+      "x_pct": 8.5,
+      "gpu_pct": 0,
+      "by_process": {
+        "wry": 308.8,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 18.4
+      },
+      "pss_mb": 495,
+      "procs": 3,
+      "ms": 20000
+    },
+    {
+      "phase": "play-bar-frames",
+      "wall_s": 10,
+      "cpu_pct": 326.2,
+      "x_pct": 8.8,
+      "gpu_pct": 0,
+      "by_process": {
+        "wry": 305.6,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 20.7
+      },
+      "pss_mb": 499,
+      "procs": 3,
+      "ms": 10001,
+      "frames": 603,
+      "long": 1,
+      "worst": 84,
+      "fps": 60.3
+    }
+  ],
+  "errors": [],
+  "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+  "ready": {
+    "ev": "ready",
+    "gl": "Apple GPU",
+    "dpr": 1,
+    "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+    "url": "http://127.0.0.1:1440/_bench/anim.html?kind=bar&bg=none&play=file:///bench/out/media/h.mkv",
+    "shimActive": true,
+    "internals": [
+      "plugins"
+    ]
+  },
+  "dom": {
+    "play-bar": {
+      "path": "/_bench/anim.html",
+      "hero": false,
+      "imgs": 0,
+      "hidden": false,
+      "focus": false,
+      "vis": "visible",
+      "text": "One animation on a still page. The rest of this window never changes: a webview "
+    },
+    "play-bar-frames": {
+      "path": "/_bench/anim.html",
+      "hero": false,
+      "imgs": 0,
+      "hidden": false,
+      "focus": false,
+      "vis": "visible",
+      "text": "One animation on a still page. The rest of this window never changes: a webview "
+    }
+  },
+  "end": "done",
+  "app_log": "\n(wry:52713): dbind-WARNING **: 04:47:04.670: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files\nlibEGL warning: DRI3 error: Could not get DRI3 device\nlibEGL warning: Ensure your X server supports DRI3 to get accelerated rendering\n[libmpv_render] Suspected software renderer or indirect context.\nCannot load libcuda.so.1\n[ffmpeg] AVHWDeviceContext: Cannot load libcuda.so.1\n[ffmpeg] AVHWDeviceContext: Could not dynamically load CUDA\n[vaapi] libva: vaGetDriverNames() failed with unknown libva error\nFailed to open VDPAU backend libvdpau_nvidia.so: cannot open shared object file: No such file or directory\n[W][40241.594615] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client-rt.conf: No such file or directory\n[E][40241.594624] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client-rt.conf: No such file or directory\nALSA lib confmisc.c:855:(parse_card) cannot find card '0'\nALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory\nALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings\nALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory\nALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name\nALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory\nALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory\nALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default\n[ao/alsa] Playback open error: No such file or directory\n[ao/jack] cannot open server\nALSA lib confmisc.c:855:(parse_card) cannot find card '0'\nALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory\nALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings\nALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory\nALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name\nALSA lib conf.c:5208:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory\nALSA lib conf.c:5731:(snd_config_expand) Evaluate error: No such file or directory\nALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default\n[ao/sdl] could not open audio: ALSA: Couldn't open audio device: No such file or directory\n[ao] Failed to initialize audio driver 'sdl'\nCould not open/initialize audio device -> no sound.\n"
+}

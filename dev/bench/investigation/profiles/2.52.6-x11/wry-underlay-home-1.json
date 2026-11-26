@@ -1,0 +1,74 @@
+{
+  "name": "wry-underlay",
+  "scenario": "home",
+  "reduce": false,
+  "phases": [
+    {
+      "phase": "home-idle",
+      "wall_s": 20,
+      "cpu_pct": 279.7,
+      "x_pct": 16.9,
+      "by_process": {
+        "wry": 58.7,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 221
+      },
+      "pss_mb": 735,
+      "procs": 3,
+      "ms": 20002
+    },
+    {
+      "phase": "home-scroll",
+      "wall_s": 15,
+      "cpu_pct": 273.2,
+      "x_pct": 16.8,
+      "by_process": {
+        "wry": 58.3,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 214.9
+      },
+      "pss_mb": 786,
+      "procs": 3,
+      "ms": 15020,
+      "frames": 301,
+      "long": 219,
+      "worst": 105,
+      "fps": 20
+    }
+  ],
+  "errors": [],
+  "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+  "ready": {
+    "ev": "ready",
+    "gl": "Apple GPU",
+    "dpr": 1,
+    "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+    "url": "http://127.0.0.1:1440/",
+    "shimActive": true,
+    "internals": [
+      "plugins"
+    ]
+  },
+  "dom": {
+    "home-idle": {
+      "path": "/",
+      "hero": true,
+      "imgs": 34,
+      "hidden": false,
+      "focus": false,
+      "vis": "visible",
+      "text": " CONTINUE WATCHING Severance 2022– · 2 seasons · Apple TV+ · ★ 8.4 4K Dolby Vi"
+    },
+    "home-scroll": {
+      "path": "/",
+      "hero": true,
+      "imgs": 34,
+      "hidden": false,
+      "focus": false,
+      "vis": "visible",
+      "text": " RECENTLY ADDED Furiosa: A Mad Max Saga 2024 · 2h 29m · R · ★ 7.5 4K HDR Dolby"
+    }
+  },
+  "end": "done",
+  "app_log": "\n(wry:14151): dbind-WARNING **: 02:38:17.626: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files\nlibEGL warning: DRI3 error: Could not get DRI3 device\nlibEGL warning: Ensure your X server supports DRI3 to get accelerated rendering\n"
+}

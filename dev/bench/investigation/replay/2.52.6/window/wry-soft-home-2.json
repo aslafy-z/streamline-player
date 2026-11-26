@@ -1,0 +1,76 @@
+{
+  "name": "wry-soft",
+  "scenario": "home",
+  "reduce": false,
+  "phases": [
+    {
+      "phase": "home-idle",
+      "wall_s": 20,
+      "cpu_pct": 69.4,
+      "x_pct": 2.9,
+      "gpu_pct": 0,
+      "by_process": {
+        "wry": 1,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 68.4
+      },
+      "pss_mb": 583,
+      "procs": 3,
+      "ms": 20000
+    },
+    {
+      "phase": "home-scroll",
+      "wall_s": 15,
+      "cpu_pct": 262.5,
+      "x_pct": 9.5,
+      "gpu_pct": 0,
+      "by_process": {
+        "wry": 3.3,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 259.2
+      },
+      "pss_mb": 624,
+      "procs": 3,
+      "ms": 15015,
+      "frames": 547,
+      "long": 44,
+      "worst": 75,
+      "fps": 36.4
+    }
+  ],
+  "errors": [],
+  "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+  "ready": {
+    "ev": "ready",
+    "gl": "Apple GPU",
+    "dpr": 1,
+    "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+    "url": "http://127.0.0.1:1440/",
+    "shimActive": true,
+    "internals": [
+      "plugins"
+    ]
+  },
+  "dom": {
+    "home-idle": {
+      "path": "/",
+      "hero": true,
+      "imgs": 34,
+      "hidden": false,
+      "focus": true,
+      "vis": "visible",
+      "text": " CONTINUE WATCHING Severance 2022– · 2 seasons · Apple TV+ · ★ 8.4 4K Dolby Vi"
+    },
+    "home-scroll": {
+      "path": "/",
+      "hero": true,
+      "imgs": 34,
+      "hidden": false,
+      "focus": true,
+      "vis": "visible",
+      "text": " RECENTLY ADDED Furiosa: A Mad Max Saga 2024 · 2h 29m · R · ★ 7.5 4K HDR Dolby"
+    }
+  },
+  "end": "done",
+  "app_log": "\n(wry:51392): dbind-WARNING **: 04:42:10.355: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files\nlibEGL warning: DRI3 error: Could not get DRI3 device\nlibEGL warning: Ensure your X server supports DRI3 to get accelerated rendering\n"
+}

@@ -1,0 +1,74 @@
+{
+  "name": "wry-skiacpu",
+  "scenario": "hold",
+  "reduce": false,
+  "phases": [
+    {
+      "phase": "anim-bar",
+      "wall_s": 20,
+      "cpu_pct": 97.4,
+      "x_pct": 15.7,
+      "by_process": {
+        "wry": 6.2,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 91.2
+      },
+      "pss_mb": 350,
+      "procs": 3,
+      "ms": 20000
+    },
+    {
+      "phase": "anim-bar-frames",
+      "wall_s": 10,
+      "cpu_pct": 100.3,
+      "x_pct": 16.2,
+      "by_process": {
+        "wry": 6.3,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 94
+      },
+      "pss_mb": 353,
+      "procs": 3,
+      "ms": 10000,
+      "frames": 605,
+      "long": 0,
+      "worst": 21,
+      "fps": 60.5
+    }
+  ],
+  "errors": [],
+  "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+  "ready": {
+    "ev": "ready",
+    "gl": "Apple GPU",
+    "dpr": 1,
+    "ua": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+    "url": "http://127.0.0.1:1440/_bench/anim.html?kind=bar",
+    "shimActive": true,
+    "internals": [
+      "plugins"
+    ]
+  },
+  "dom": {
+    "anim-bar": {
+      "path": "/_bench/anim.html",
+      "hero": false,
+      "imgs": 0,
+      "hidden": false,
+      "focus": true,
+      "vis": "visible",
+      "text": "One animation on a still page. The rest of this window never changes: a webview "
+    },
+    "anim-bar-frames": {
+      "path": "/_bench/anim.html",
+      "hero": false,
+      "imgs": 0,
+      "hidden": false,
+      "focus": true,
+      "vis": "visible",
+      "text": "One animation on a still page. The rest of this window never changes: a webview "
+    }
+  },
+  "end": "done",
+  "app_log": "\n(wry:4137): dbind-WARNING **: 01:51:21.841: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files\nlibEGL warning: DRI3 error: Could not get DRI3 device\nlibEGL warning: Ensure your X server supports DRI3 to get accelerated rendering\n"
+}

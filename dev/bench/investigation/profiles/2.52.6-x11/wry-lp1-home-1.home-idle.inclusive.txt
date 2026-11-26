@@ -1,0 +1,177 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 8K of event 'cycles'
+# Event count (approx.): 69535316819
+#
+# Children      Self  Symbol                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+# ........  ........  ..........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+#
+    95.74%     0.00%  [.] 0x00007fcae2404e8c
+    95.74%     0.00%  [.] 0x00007fcae2377b64
+    91.64%     0.00%  [.] impl_thrd_routine
+    91.63%     0.00%  [.] thread_function
+    91.45%     0.09%  [.] rasterize_scene
+    41.42%     4.56%  [.] lp_rast_shade_quads_all
+    41.23%     0.50%  [.] lp_rast_triangle_1
+    40.72%     2.09%  [.] lp_rast_shade_tile
+     7.24%     0.03%  [.] WTF::RunLoop::runGLibMainLoopIteration(WTF::RunLoop::MayBlock)
+     7.24%     0.00%  [.] WTF::RunLoop::run()
+     6.15%     0.01%  [.] g_main_dispatch.lto_priv.0
+     6.10%     0.44%  [.] lp_rast_shade_quads_mask_sample
+     5.93%     0.18%  [.] lp_rast_triangle_2
+     5.34%     0.00%  [.] g_main_context_dispatch
+     5.23%     0.00%  [.] WTF::RunLoop::$_3::__invoke(_GSource*, int (*)(void*), void*)
+     5.04%     0.00%  [.] WTF::RunLoop::TimerBase::TimerBase(WTF::Ref<WTF::RunLoop, WTF::RawPtrTraits<WTF::RunLoop>, WTF::DefaultRefDerefTraits<WTF::RunLoop> >&&, WTF::ASCIILiteral)::$_0::__invoke(void*)
+     4.29%     4.28%  [.] 0x00007fca3aaa2766
+     4.27%     0.00%  [.] WTF::Thread::entryPoint(WTF::Thread::NewThreadContext*)
+     4.27%     0.00%  [.] WTF::wtfThreadEntryPoint(void*)
+     4.24%     4.22%  [.] 0x00007fca3aaa2774
+     3.75%     0.00%  [.] WTF::Detail::CallableWrapper<WTF::RunLoop::Timer::Timer<WebKit::ThreadedCompositor>(WTF::Ref<WTF::RunLoop, WTF::RawPtrTraits<WTF::RunLoop>, WTF::DefaultRefDerefTraits<WTF::RunLoop> >&&, WTF::ASCIILiteral, WebKit::ThreadedCompositor*, void (WebKit::ThreadedCompositor::*)()) requires WTF::HasThreadSafeWeakPtrFunctions<WebKit::ThreadedCompositor>::value::{lambda()#1}, void>::call()
+     3.75%     0.00%  [.] WebKit::ThreadedCompositor::renderLayerTree()
+     3.15%     0.00%  [.] __libc_start_main
+     3.15%     0.00%  [.] _start
+     3.15%     0.00%  [.] int WebKit::AuxiliaryProcessMain<WebKit::WebProcessMainGtk>(int, char**)
+     3.15%     0.00%  [.] 0x00007fcae23051ca
+     2.91%     0.00%  [.] WebKit::ThreadedCompositor::paintToCurrentGLContext(WebCore::TransformationMatrix const&, WebCore::IntSize const&, WTF::OptionSet<WebCore::CompositionReason, (WTF::ConcurrencyTag)0> const&)
+     2.70%     2.70%  [.] 0x00007fca600090f6
+     2.20%     2.19%  [.] 0x00007fca600090ec
+     2.10%     0.00%  [.] WebCore::TextureMapperLayer::paint(WebCore::TextureMapper&)
+     2.07%     0.10%  [.] WebCore::TextureMapperLayer::paintRecursive(WebCore::TextureMapperPaintOptions&)
+     2.07%     0.04%  [.] WebCore::TextureMapperLayer::paintSelfAndChildren(WebCore::TextureMapperPaintOptions&)
+     2.07%     0.01%  [.] WebCore::TextureMapperLayer::paintSelfAndChildrenWithReplica(WebCore::TextureMapperPaintOptions&)
+     1.75%     1.73%  [.] 0x00007fca3e438766
+     1.71%     1.68%  [.] 0x00007fca3aaa2782
+     1.70%     0.01%  [.] WebCore::Document::updateStyleIfNeeded()
+     1.69%     0.00%  [.] WebCore::Document::resolveStyle(WebCore::Document::ResolveStyleType)
+     1.65%     0.01%  [.] WTF::RunLoop::notifyActivity(WTF::RunLoop::Activity)
+     1.59%     1.59%  [.] 0x00007fca3aaa2872
+     1.54%     0.00%  [.] WebKit::LayerTreeHost::updateRendering()
+     1.45%     0.00%  [.] WebCore::RenderLayerCompositor::updateCompositingLayers(WebCore::CompositingUpdateType, WebCore::RenderLayer*)
+     1.41%     0.00%  [.] WebCore::LocalFrameViewLayoutContext::updateCompositingLayersAfterStyleChange()
+     1.37%     1.36%  [.] 0x00007fca3aaa287c
+     1.35%     0.01%  [.] WebCore::TextureMapper::draw(WebCore::FloatRect const&, WebCore::TransformationMatrix const&, WebCore::TextureMapperShaderProgram&, unsigned int, WTF::OptionSet<WebCore::TextureMapperFlags, (WTF::ConcurrencyTag)0>)
+     1.30%     1.30%  [.] 0x00007fca3e438774
+     1.29%     0.00%  [.] _mesa_draw_arrays.part.0
+     1.26%     0.00%  [.] WebCore::ThreadTimers::sharedTimerFiredInternal()
+     1.26%     1.26%  [.] 0x00007fca3aaa2687
+     1.25%     0.00%  [.] lp_linear_rasterize_bin
+     1.25%     0.02%  [.] WebCore::TextureMapper::drawTexture(WebCore::BitmapTexture const&, WebCore::FloatRect const&, WebCore::TransformationMatrix const&, float, WebCore::TextureMapper::AllEdgesExposed)
+     1.24%     0.01%  [.] WebCore::TextureMapperLayer::paintSelf(WebCore::TextureMapperPaintOptions&)
+     1.24%     0.04%  [.] shade_quads
+     1.24%     0.00%  [.] lp_rast_linear_rect_fallback
+     1.24%     0.00%  [.] WebCore::TextureMapper::drawTexture(unsigned int, WTF::OptionSet<WebCore::TextureMapperFlags, (WTF::ConcurrencyTag)0>, WebCore::FloatRect const&, WebCore::TransformationMatrix const&, float, WebCore::TextureMapper::AllEdgesExposed)
+     1.22%     0.01%  [.] WebCore::TextureMapperLayer::paintSelfChildrenReplicaFilterAndMask(WebCore::TextureMapperPaintOptions&)
+     1.22%     0.01%  [.] WebCore::TextureMapperLayer::paintSelfChildrenFilterAndMask(WebCore::TextureMapperPaintOptions&)
+     1.22%     0.00%  [.] WebCore::TextureMapperLayer::paintBackdrop(WebCore::TextureMapperPaintOptions&)
+     1.21%     0.02%  [.] WebCore::CoordinatedBackingStore::paintToTextureMapper(WebCore::TextureMapper&, WebCore::FloatRect const&, WebCore::TransformationMatrix const&, float)
+     1.21%     0.01%  [.] WebCore::TextureMapper::drawTexturedQuadWithProgram(WebCore::TextureMapperShaderProgram&, WTF::Vector<std::pair<unsigned int, unsigned int>, 0ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WTF::OptionSet<WebCore::TextureMapperFlags, (WTF::ConcurrencyTag)0>, WebCore::FloatRect const&, WebCore::TransformationMatrix const&, float)
+     1.20%     0.00%  [.] WebCore::TextureMapperLayer::paintSelfAndChildrenWithIntermediateSurface(WebCore::TextureMapperPaintOptions&, WebCore::IntRect const&)
+     1.13%     0.00%  [.] WebCore::TextureMapperLayer::paintIntoSurface(WebCore::TextureMapperPaintOptions&)
+     1.09%     0.00%  [.] WebCore::Page::updateRendering()
+     1.09%     0.00%  [.] WebKit::WebPage::updateRendering()
+     1.03%     0.00%  [.] lp_rast_linear_rect
+     1.02%     0.00%  [.] WebCore::Document::updateLayout(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>, WebCore::Element const*)
+     1.01%     1.01%  [.] 0x00007fca3aaa2880
+     1.01%     0.00%  [.] WebCore::LocalFrameView::updateLayoutAndStyleIfNeededRecursive(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>)
+     1.01%     0.00%  [.] WebCore::Page::layoutIfNeeded(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>)
+     1.00%     1.00%  [.] 0x00007fca3aaa26e0
+     0.98%     0.98%  [.] 0x00007fca3aaa251c
+     0.96%     0.01%  [.] WebCore::RenderLayerCompositor::computeCompositingRequirements(WebCore::RenderLayer*, WebCore::RenderLayer&, WebCore::LayerOverlapMap&, WebCore::RenderLayerCompositor::CompositingState&, WebCore::RenderLayerCompositor::BackingSharingState&)
+     0.89%     0.00%  [.] _RNvNtNtCsin33qUhDIjK_3gtk4auto9functions17main_iteration_do
+     0.89%     0.00%  [.] g_main_context_iterate_unlocked.isra.0
+     0.89%     0.00%  [.] g_main_context_iteration
+     0.89%     0.00%  [.] gtk_main_iteration_do
+     0.89%     0.00%  [k] 0x00007f8800000145
+     0.86%     0.08%  [.] lp_rast_triangle_3
+     0.85%     0.85%  [.] 0x00007fca3aaa2790
+     0.79%     0.00%  [k] 0000000000000000
+     0.78%     0.78%  [.] 0x00007fca3aaa2884
+     0.77%     0.77%  [.] 0x00007fca60009108
+     0.76%     0.00%  [.] WTF::Detail::CallableWrapper<WebCore::Document::Document(WebCore::LocalFrame*, WebCore::Settings const&, WTF::URL const&, WTF::OptionSet<WebCore::DocumentClass, (WTF::ConcurrencyTag)0>, WTF::OptionSet<WebCore::Document::ConstructionFlag, (WTF::ConcurrencyTag)0>, std::optional<WebCore::ProcessQualified<WTF::UUID> >)::$_0, void>::call()
+     0.75%     0.75%  [.] 0x00007fca3aaa2736
+     0.73%     0.00%  [.] WebKit::AcceleratedSurface::didRenderFrame()
+     0.73%     0.73%  [.] 0x00007fca3aaa2740
+     0.73%     0.73%  [.] 0x00007fca3e438872
+     0.72%     0.72%  [.] 0x00007fca3aaa2869
+     0.70%     0.70%  [.] 0x00007fca600091c3
+     0.69%     0.02%  [.] signal_emit_valist_unlocked
+     0.69%     0.00%  [.] g_signal_emit
+     0.69%     0.00%  [.] g_signal_emit_valist
+     0.69%     0.00%  [.] g_timeout_dispatch
+     0.69%     0.00%  [.] 0x00007f8829dfbc6d
+     0.68%     0.00%  [.] WebKit::AcceleratedSurface::RenderTargetSHMImage::didRenderFrame(WTF::Vector<WebCore::IntRect, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc>&&)
+     0.68%     0.00%  [.] _mesa_ReadPixels
+     0.68%     0.00%  [.] _mesa_ReadnPixelsARB
+     0.67%     0.66%  [.] convert_ubyte_rgba_to_bgra
+     0.67%     0.00%  [.] _mesa_readpixels
+     0.67%     0.00%  [.] st_ReadPixels
+     0.63%     0.63%  [.] 0x00007fca3e438782
+     0.61%     0.01%  [.] llvmpipe_draw_vbo
+     0.60%     0.60%  [.] 0x00007fca3aaa26f3
+     0.60%     0.59%  [.] 0x00007fca600091c7
+     0.58%     0.00%  [.] 0x00007f8829e0fb58
+     0.57%     0.00%  [.] 0x00007f8829e02407
+     0.57%     0.00%  [.] 0x00007f8829e14929
+     0.57%     0.00%  [.] 0x00007f8829e18ff5
+     0.57%     0.00%  [.] 0x00007f8829e19201
+     0.56%     0.00%  [.] gtk_main_do_event
+     0.56%     0.00%  [.] 0xffffffffb260012f
+     0.55%     0.55%  [.] 0x00007fca600090c6
+     0.55%     0.00%  [.] st_prepare_draw
+     0.54%     0.54%  [.] 0x00007fca600091d1
+     0.54%     0.54%  [.] 0x00007fca3aaa2748
+     0.53%     0.53%  [.] 0x00007fca3e43887c
+     0.51%     0.00%  [.] 0x00007f8823b40f3f
+     0.51%     0.51%  [.] 0x00007fca3aaa251e
+     0.50%     0.00%  [.] g_closure_invoke
+     0.50%     0.00%  [.] gtk_container_propagate_draw
+     0.50%     0.00%  [.] signal_emit_unlocked_R.isra.0
+     0.50%     0.00%  [.] 0x00007f88238780a4
+     0.50%     0.00%  [.] 0x00007f88238a3005
+     0.50%     0.00%  [.] 0x00007f88238f5f14
+     0.50%     0.00%  [.] 0x00007f8823b2a466
+     0.50%     0.00%  [.] 0x00007f8823b3ce94
+     0.50%     0.00%  [.] 0x00007f8823b3cfa1
+     0.50%     0.50%  [.] 0x00007fca600091d5
+     0.49%     0.00%  [.] WebKit::AcceleratedBackingStore::paint(_cairo*, WebCore::IntRect const&)
+     0.49%     0.00%  [.] webkitWebViewBaseDraw(_GtkWidget*, _cairo*)
+     0.49%     0.00%  [.] 0x00007f88238a2a31
+     0.49%     0.00%  [.] 0x00007f88238f6745
+     0.49%     0.00%  [.] 0x00007f88239096a6
+     0.49%     0.00%  [.] WebCore::RenderLayerCompositor::updateBackingAndHierarchy(WebCore::RenderLayer&, WTF::Vector<WTF::Ref<WebCore::GraphicsLayer, WTF::RawPtrTraits<WebCore::GraphicsLayer>, WTF::DefaultRefDerefTraits<WebCore::GraphicsLayer> >, 0ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc>&, WebCore::RenderLayerCompositor::UpdateBackingTraversalState&, WebCore::ScrollingTreeState&, WTF::OptionSet<WebCore::RenderLayerCompositor::UpdateLevel, (WTF::ConcurrencyTag)0>)
+     0.49%     0.49%  [.] sse2_blt.part.0.lto_priv.0
+     0.49%     0.00%  [.] WebKit::AcceleratedBackingStore::Buffer::paint(_cairo*, WebCore::IntRect const&) const
+     0.49%     0.00%  [.] _cairo_compositor_paint
+     0.49%     0.00%  [.] _cairo_default_context_fill
+     0.49%     0.00%  [.] _cairo_gstate_fill
+     0.49%     0.00%  [.] _cairo_surface_paint
+     0.49%     0.00%  [.] _cairo_traps_compositor_paint
+     0.49%     0.00%  [.] _cairo_xlib_surface_draw_image
+     0.49%     0.00%  [.] cairo_fill
+     0.49%     0.00%  [.] clip_and_composite_boxes.part.0
+     0.49%     0.00%  [.] pixman_image_composite32
+     0.49%     0.00%  [.] sse2_composite_copy_area.lto_priv.0
+     0.49%     0.00%  [.] surface_source
+     0.48%     0.00%  [.] 0xffffffffb3ae0873
+     0.48%     0.00%  [.] WebCore::TextureMapperLayer::prepareForPainting(WebCore::TextureMapper&)
+     0.47%     0.47%  [.] 0x00007fca600010f6
+     0.47%     0.00%  [.] draw_vbo
+     0.45%     0.45%  [.] 0x00007fca3aaa2406
+     0.45%     0.00%  [.] WebKit::WebPage::finalizeRenderingUpdate(WTF::OptionSet<WebCore::FinalizeRenderingUpdateFlags, (WTF::ConcurrencyTag)0>)
+     0.45%     0.00%  [.] draw_instances
+     0.45%     0.00%  [.] draw_pt_arrays.isra.0
+     0.45%     0.45%  [.] 0x00007fca600010ec
+     0.44%     0.44%  [.] 0x00007fca3aaa26aa
+     0.44%     0.00%  [.] WebCore::Page::finalizeRenderingUpdate(WTF::OptionSet<WebCore::FinalizeRenderingUpdateFlags, (WTF::ConcurrencyTag)0>)
+     0.44%     0.00%  [.] WebCore::Page::finalizeRenderingUpdateForRootFrame(WebCore::LocalFrame&, WTF::OptionSet<WebCore::FinalizeRenderingUpdateFlags, (WTF::ConcurrencyTag)0>)
+     0.43%     0.43%  [.] 0x00007fca3aaa26f9
+     0.43%     0.11%  [.] WebCore::TextureMapperLayer::computeTransformsRecursive(WebCore::TextureMapperLayer::ComputeTransformData&)
+     0.42%     0.42%  [.] 0x00007fca600090bc
+     0.41%     0.00%  [.] WebCore::MicrotaskQueue::performMicrotaskCheckpoint()
+     0.41%     0.41%  [.] 0x00007fca3e43851c
+#
+# (Cannot load tips.txt file, please install perf!)
+#

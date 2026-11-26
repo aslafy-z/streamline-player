@@ -1,0 +1,16 @@
+# per process
+  96.5%  user   86.1%  sys   10.3%  pid 18658 [WebKitWebProces] 
+  10.0%  user    4.7%  sys    5.3%  pid 18622 [wry] 
+# per thread pool (threads of one process named alike)
+  95.5%  user   85.6%  sys    9.9%  pid 18658 [WebKitWebProces] WebKitWebProces* x6
+   8.7%  user    3.9%  sys    4.9%  pid 18622 [wry] wry* x9
+   1.1%  user    0.7%  sys    0.3%  pid 18622 [wry] ReceiveQueue* x2
+   0.9%  user    0.5%  sys    0.5%  pid 18658 [WebKitWebProces] ReceiveQueue* x2
+# per thread
+  95.4%  user   85.5%  sys    9.9%  pid 18658 [WebKitWebProces] thread WebKitWebProces
+   8.7%  user    3.9%  sys    4.9%  pid 18622 [wry] thread wry
+   1.1%  user    0.7%  sys    0.3%  pid 18622 [wry] thread ReceiveQueue
+   0.9%  user    0.5%  sys    0.5%  pid 18658 [WebKitWebProces] thread ReceiveQueue
+   0.2%  user    0.1%  sys    0.1%  pid 18622 [wry] thread VBlankMonitor
+   0.1%  user    0.1%  sys    0.0%  pid 18658 [WebKitWebProces] thread WebKitWebProces
+   0.1%  user    0.1%  sys    0.0%  pid 18658 [WebKitWebProces] thread JITWorker

@@ -1,0 +1,107 @@
+Withdrawn: turn accelerated compositing off where OpenGL is a CPU rasterizer.
+
+Against perf/home-billboard-software (it reuses that branch's renderer probe). At the start of
+`run`, before Tauri creates a web view, the app probed OpenGL and, on a software rasterizer,
+replaced itself with a copy started with WEBKIT_DISABLE_DMABUF_RENDERER=1.
+
+It does what it says: the restart happens, the web process no longer runs llvmpipe. And it
+leaves the real app with a black window (shots/real-2.52.6-settle.png, against
+shots/real-2.52.6-composited.png): the player's GtkGLArea puts the window on OpenGL, and GTK 3
+does not draw a non-composited web view in such a window. Kept for the record.
+
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index cc7e7f4..3167883 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -917,6 +917,8 @@ pub(crate) fn with_roots(builder: reqwest::ClientBuilder) -> reqwest::ClientBuil
+ 
+ #[cfg_attr(mobile, tauri::mobile_entry_point)]
+ pub fn run() {
++    #[cfg(target_os = "linux")]
++    rendering::settle();
+     tauri::Builder::default()
+         .plugin(tauri_plugin_player::init())
+         .plugin(tauri_plugin_opener::init())
+diff --git a/src-tauri/src/rendering.rs b/src-tauri/src/rendering.rs
+index 59c7daf..838b6f4 100644
+--- a/src-tauri/src/rendering.rs
++++ b/src-tauri/src/rendering.rs
+@@ -1,5 +1,6 @@
+-//! Whether the webview draws on the CPU. WebKitGTK names no renderer to the page (WebGL answers
+-//! "Apple GPU" on llvmpipe too), so the page asks here.
++//! Whether the webview draws on the CPU, and how. WebKitGTK names no renderer to the page (WebGL
++//! answers "Apple GPU" on llvmpipe too), so the page asks here; and it composites through OpenGL
++//! whatever OpenGL is, so `settle` turns that off where OpenGL is the CPU.
+ 
+ #[cfg(target_os = "linux")]
+ mod gl {
+@@ -36,20 +37,65 @@ mod gl {
+         name
+     }
+ 
++    /// Probed once. GTK thread only, GTK initialised.
+     pub fn on_cpu() -> bool {
+-        renderer().is_some_and(|name| {
+-            let name = name.to_lowercase();
+-            ON_CPU.iter().any(|cpu| name.contains(cpu))
++        static ON_CPU_HERE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++        *ON_CPU_HERE.get_or_init(|| {
++            renderer().is_some_and(|name| {
++                let name = name.to_lowercase();
++                ON_CPU.iter().any(|cpu| name.contains(cpu))
++            })
+         })
+     }
+ }
+ 
++/// WebKitGTK's switch for a page painted without OpenGL: with no buffer to hand to the window, it
++/// leaves accelerated compositing off. `WEBKIT_DISABLE_COMPOSITING_MODE` does the same up to 2.52
++/// and keeps OpenGL from 2.54 on.
++#[cfg(target_os = "linux")]
++const NO_GL: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
++/// Set on the restart `settle` makes: this process already knows it draws on the CPU.
++#[cfg(target_os = "linux")]
++const SETTLED: &str = "STREAMLINE_PLAYER_ON_CPU";
++
++/// Where OpenGL is a CPU rasterizer, restarts the app with WebKitGTK's accelerated compositing
++/// off. Call it first, before Tauri creates a web view.
++///
++/// Composited, WebKitGTK draws the whole window through OpenGL for every frame and reads it back:
++/// on llvmpipe any animation takes about three cores. Without compositing the page is painted by
++/// Skia on the CPU, only where it changed. With a GPU compositing is the cheaper of the two, so
++/// nothing changes there.
++///
++/// WebKitGTK reads the switch when the first web view is created, wry leaves no hook before that,
++/// and the probe starts GTK's and Mesa's threads, after which the environment is no longer safe
++/// to change: the app replaces itself with a copy that starts with the switch set.
++#[cfg(target_os = "linux")]
++pub fn settle() {
++    use std::os::unix::process::CommandExt;
++    let set = |name| std::env::var_os(name).is_some();
++    if set(SETTLED) || set(NO_GL) {
++        return;
++    }
++    if gtk::init().is_err() || !gl::on_cpu() {
++        return;
++    }
++    let Ok(app) = std::env::current_exe() else {
++        return;
++    };
++    let failed = std::process::Command::new(app)
++        .args(std::env::args_os().skip(1))
++        .env(NO_GL, "1")
++        .env(SETTLED, "1")
++        .exec();
++    eprintln!("could not restart without accelerated compositing: {failed}");
++}
++
+ /// Read once at startup, on the main thread.
+ pub struct OnCpu(pub bool);
+ 
+ pub fn detect() -> OnCpu {
+     #[cfg(target_os = "linux")]
+-    return OnCpu(gl::on_cpu());
++    return OnCpu(std::env::var_os(SETTLED).is_some() || gl::on_cpu());
+     #[cfg(not(target_os = "linux"))]
+     OnCpu(false)
+ }

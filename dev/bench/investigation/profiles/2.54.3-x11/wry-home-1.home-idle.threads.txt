@@ -1,0 +1,23 @@
+# per process
+ 209.5%  user  201.5%  sys    8.0%  pid 586 [WebKitWebProces] 
+   4.9%  user    4.1%  sys    0.8%  pid 550 [wry] 
+# per thread pool (threads of one process named alike)
+ 174.0%  user  168.7%  sys    5.3%  pid 586 [WebKitWebProces] llvmpipe* x4
+  28.5%  user   26.9%  sys    1.7%  pid 586 [WebKitWebProces] eadedCompositor* x7
+   6.1%  user    5.7%  sys    0.5%  pid 586 [WebKitWebProces] WebKitWebProces* x4
+   4.1%  user    3.7%  sys    0.3%  pid 550 [wry] wry* x8
+   0.8%  user    0.4%  sys    0.4%  pid 550 [wry] ReceiveQueue* x2
+   0.8%  user    0.3%  sys    0.5%  pid 586 [WebKitWebProces] ReceiveQueue* x2
+# per thread
+  46.9%  user   45.9%  sys    1.1%  pid 586 [WebKitWebProces] thread llvmpipe-0
+  45.3%  user   44.1%  sys    1.3%  pid 586 [WebKitWebProces] thread llvmpipe-1
+  42.5%  user   41.2%  sys    1.3%  pid 586 [WebKitWebProces] thread llvmpipe-2
+  39.2%  user   37.6%  sys    1.6%  pid 586 [WebKitWebProces] thread llvmpipe-3
+  28.5%  user   26.9%  sys    1.7%  pid 586 [WebKitWebProces] thread eadedCompositor
+   6.0%  user    5.6%  sys    0.4%  pid 586 [WebKitWebProces] thread WebKitWebProces
+   4.1%  user    3.7%  sys    0.3%  pid 550 [wry] thread wry
+   0.8%  user    0.4%  sys    0.4%  pid 550 [wry] thread ReceiveQueue
+   0.8%  user    0.3%  sys    0.5%  pid 586 [WebKitWebProces] thread ReceiveQueue
+   0.1%  user    0.1%  sys    0.1%  pid 586 [WebKitWebProces] thread WebKitWebProces
+   0.1%  user    0.0%  sys    0.1%  pid 586 [WebKitWebProces] thread WebKitW:disk$0
+   0.1%  user    0.0%  sys    0.1%  pid 550 [wry] thread VBlankMonitor

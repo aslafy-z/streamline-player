@@ -1,0 +1,20 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 8K of event 'cycles'
+# Event count (approx.): 69440573099
+#
+# Overhead  Command          Shared Object                      
+# ........  ...............  ...................................
+#
+    82.27%  WebKitWebProces  libwebkit2gtk-4.1.so.0.21.10       
+     9.46%  WebKitWebProces  [unknown]                          
+     3.24%  wry              [unknown]                          
+     1.27%  wry              libpixman-1.so.0.42.2              
+     0.86%  WebKitWebProces  libc.so.6                          
+     0.71%  wry              libc.so.6                          
+#
+# (Cannot load tips.txt file, please install perf!)
+#
