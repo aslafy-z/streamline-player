@@ -11,7 +11,10 @@
 // features, for a policy the page has to start with (WebKitGTK 2.54 picks its renderer once).
 // BENCH_UNDERLAY (wry): opaque|seethrough puts a GtkGLArea under the web view, as the player
 // does for mpv's picture; seethrough also makes the web view's background transparent, as the
-// player does while it plays. BENCH_UNDERLAY_FPS redraws the area that often, as a video would.
+// player does while it plays; hidden adds the area without ever showing it.
+// BENCH_UNDERLAY_FPS redraws the area that often, as a video would. BENCH_UNDERLAY_THEN=hide|drop
+// hides the area, or takes it out of the window, 1.5 s after the start: what is left of its
+// cost once nothing plays.
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(feature = "qt")]
@@ -91,7 +94,7 @@ mod underlay {
     }
     const GL_COLOR_BUFFER_BIT: u32 = 0x4000;
 
-    pub fn attach(webview: &webkit2gtk::WebView, see_through: bool, fps: Option<u32>) {
+    pub fn attach(webview: &webkit2gtk::WebView, kind: &str, then: Option<String>, fps: Option<u32>) {
         let Some(parent) = webview.parent().and_downcast::<gtk::Container>() else {
             eprintln!("the webview has no container; no underlay");
             return;
@@ -130,10 +133,23 @@ mod underlay {
                 );
             }
         }
-        if see_through {
+        if kind == "seethrough" {
             webview.set_background_color(&gtk::gdk::RGBA::new(0.0, 0.0, 0.0, 0.0));
         }
+        if kind == "hidden" {
+            area.set_no_show_all(true);
+        }
         overlay.show_all();
+        if let Some(then) = then {
+            let (area, overlay) = (area.clone(), overlay.clone());
+            gtk::glib::timeout_add_local_once(std::time::Duration::from_millis(1500), move || {
+                match then.as_str() {
+                    "hide" => area.hide(),
+                    "drop" => overlay.remove(&area),
+                    _ => {}
+                }
+            });
+        }
         if let Some(fps) = fps.filter(|fps| *fps > 0) {
             let period = std::time::Duration::from_micros(1_000_000 / u64::from(fps));
             gtk::glib::timeout_add_local(period, move || {
@@ -163,7 +179,7 @@ fn tune(window: &tauri::WebviewWindow, url: String) {
         .with_webview(move |webview| {
             let webview = webview.inner();
             if let Some(kind) = &underlay {
-                underlay::attach(&webview, kind == "seethrough", fps);
+                underlay::attach(&webview, kind, std::env::var("BENCH_UNDERLAY_THEN").ok(), fps);
             }
             let Some(settings) = webview.settings() else {
                 return;
