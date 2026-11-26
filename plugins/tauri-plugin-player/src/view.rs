@@ -179,7 +179,8 @@ fn render(area: &gtk::GLArea) -> glib::Propagation {
     glib::Propagation::Stop
 }
 
-/// Puts the GL area under `webview`. Runs on the GTK thread.
+/// Puts the GL area under `webview`, hidden until something plays (`see_through`). Runs on the
+/// GTK thread.
 pub fn attach(webview: webkit2gtk::WebView, player: Arc<mpv::Mpv>) {
     let Some(parent) = webview.parent().and_downcast::<gtk::Container>() else {
         eprintln!("the webview has no container; no video layer");
@@ -223,14 +224,24 @@ pub fn attach(webview: webkit2gtk::WebView, player: Arc<mpv::Mpv>) {
         use webkit2gtk::SettingsExt;
         settings.set_enable_write_console_messages_to_stdout(true);
     }
+    // Once GTK3 has drawn a GL area in a window, it draws that whole window through OpenGL for
+    // every frame, and goes on after the area is hidden. A window that never played has none.
+    area.set_no_show_all(true);
     overlay.show_all();
     AREA.with(|a| *a.borrow_mut() = Some(area));
     WEBVIEW.with(|w| *w.borrow_mut() = Some(webview));
 }
 
-/// Lets the picture show through the page. A see-through webview makes GTK3 upload the whole
-/// window to GL on every frame, so it stays opaque while nothing plays.
+/// Shows the picture and lets it through the page, or takes both back. A see-through webview
+/// makes GTK3 upload the whole window to GL on every frame, and a GL area on show has GTK3 draw
+/// it on every frame: while nothing plays the page is opaque and the area hidden. The area's
+/// first show is what realizes it, which is when mpv gets its render context.
 pub fn see_through(on: bool) {
+    AREA.with(|a| {
+        if let Some(a) = a.borrow().as_ref() {
+            a.set_visible(on);
+        }
+    });
     WEBVIEW.with(|w| {
         if let Some(w) = w.borrow().as_ref() {
             let alpha = if on { 0.0 } else { 1.0 };
