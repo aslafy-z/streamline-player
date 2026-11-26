@@ -65,11 +65,49 @@ with the display in the environment. `--reduce` turns every animation and transi
 reports `prefers-reduced-motion` as set. `SHOT=<dir>` grabs an X11 screenshot at each phase start:
 check one before trusting a new setup, a blank page measures nothing.
 
+### In a container without a GPU
+
+`container.sh` runs all of the above on a machine that has a GPU, as the container the results
+were measured in: Ubuntu 24.04 with its own WebKitGTK and Mesa, four CPUs, no `/dev/dri`, so
+llvmpipe draws everything. The image also carries perf and the debug symbols of WebKitGTK and
+Mesa. Builds and results live in `~/.cache/streamline-bench` (`BENCH_CACHE`), mounted at `/bench`.
+
+```sh
+dev/bench/container.sh build && dev/bench/container.sh up
+dev/bench/container.sh run dev/bench/runtimes.sh wry          # then stack.sh, display.sh, matrix.sh the same way
+```
+
+### Where a phase spends its CPU
+
+`runner.mjs --hook <phase>:dev/bench/profile.sh` captures that phase: CPU per thread, user and
+system (`threads.py`), and perf samples with call graphs. `report.sh <capture>.perf.data` turns
+the samples into tables per thread and library, per function, and per call tree. llvmpipe's
+shaders are code it compiles at run time: perf attributes them to `[JIT]` and cannot name them.
+
+### One animation on a still page
+
+`pages/anim.html?kind=bar|zoom|spin|width|still` costs the webview itself rather than the app's
+pages: one animation, nothing else changing. `stack.sh prepare` serves it beside the build; the
+`hold` scenario leaves a page alone for 20 s, then 10 s more with a frame counter:
+
+```sh
+node dev/bench/runner.mjs --name wry --bin $BENCH_OUT/bin/wry --scenario hold \
+  --url 'http://127.0.0.1:1440/_bench/anim.html?kind=bar'
+```
+
+### What the bench app reads
+
+`BENCH_SIZE=1440x900` sets the window's inner size. On wry, `BENCH_ACCEL=never|always` sets
+WebKitGTK's hardware acceleration policy and `BENCH_FEATURES=Name=1,Other=0` its runtime features
+(`BENCH_FEATURES=list` prints them), both through the web view's settings once Tauri has created
+it, which is where an application can reach them.
+
 Variants are the table at the top of `matrix.sh`: WebKitGTK environment variables (the names
 WebKitGTK 2.52 reads, from `strings` on the library) and Chromium switches for CEF
 (`BENCH_CEF_ARGS`, comma-separated, applied to the browser process).
 
-`threads.py <pid> <seconds>` prints CPU per thread of a process tree, busiest first.
+`threads.py <pid> <seconds>` prints CPU per process, per thread pool and per thread of a process
+tree, busiest first, split into user and system time.
 
 ## Known traps
 

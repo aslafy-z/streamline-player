@@ -52,6 +52,8 @@ wry() {
 		[dependencies]
 		# The player's own pin (src-tauri/Cargo.toml).
 		tauri = "=2.12.5"
+		# The policy setter of BENCH_ACCEL; the version Tauri's own dependencies lock.
+		webkit2gtk = { version = "2.0.2", features = ["v2_16"] }
 
 		[features]
 		default = ["wry"]
