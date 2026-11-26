@@ -135,6 +135,13 @@
 				}
 			});
 		},
+		// One page left alone, for the pages under dev/bench/pages (runner: --url): its cost with
+		// the engine's frame clock quiet, then again with a frame counter running.
+		async hold() {
+			await sleep(3000);
+			await phase("hold", 20000, idle, { measureFrames: false });
+			await phase("hold-frames", 10000, idle);
+		},
 		async player() {
 			window.__picture = true;
 			window.__fakeTick = true;

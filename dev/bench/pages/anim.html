@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- One animation on an otherwise still page, to cost the webview itself rather than the app's
+     pages: anim.html?kind=bar|zoom|spin|width|still
+       bar    a 44 px bar, scaled along x by a CSS animation (a compositor animation on its own layer)
+       zoom   a full-window backdrop, scaled by a CSS animation (same, over every pixel)
+       spin   a 32 px spinner, rotated by a CSS animation
+       width  the 44 px bar animated through its width: no layer, repainted by the main thread
+       still  nothing moves -->
+<meta charset="utf-8" />
+<title>bench: one animation</title>
+<style>
+	html, body { margin: 0; height: 100%; background: #101014; color: #ddd; font: 16px sans-serif; overflow: hidden; }
+	.backdrop { position: absolute; inset: 0; background: linear-gradient(120deg, #233 0%, #638 45%, #c63 100%); }
+	.text { position: absolute; left: 48px; top: 48px; max-width: 40em; line-height: 1.5; }
+	.bar { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; background: #e33; transform-origin: left; }
+	.spinner { position: absolute; right: 48px; top: 48px; width: 32px; height: 32px; border: 4px solid #fff; border-top-color: transparent; border-radius: 50%; }
+	@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+	@keyframes widen { from { width: 0; } to { width: 100%; } }
+	@keyframes zoom { from { transform: scale(1); } to { transform: scale(1.08); } }
+	@keyframes turn { to { transform: rotate(1turn); } }
+	.kind-bar .bar { animation: grow 8s linear infinite; }
+	.kind-width .bar { right: auto; animation: widen 8s linear infinite; }
+	.kind-zoom .backdrop { animation: zoom 8s linear infinite alternate; }
+	.kind-spin .spinner { animation: turn 1s linear infinite; }
+	.kind-still .spinner, .kind-bar .spinner, .kind-width .spinner, .kind-zoom .spinner { display: none; }
+	.kind-still .bar, .kind-zoom .bar, .kind-spin .bar { display: none; }
+</style>
+<div class="backdrop"></div>
+<p class="text">One animation on a still page. The rest of this window never changes: a webview that
+tracks what changed has only the moving part to draw.</p>
+<div class="bar"></div>
+<div class="spinner"></div>
+<script>
+	document.documentElement.className = "kind-" + (new URLSearchParams(location.search).get("kind") ?? "bar");
+</script>

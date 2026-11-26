@@ -45,6 +45,8 @@ prepare() {
 	TAURI_ENV_PLATFORM=linux pnpm build
 	rm -rf "$out/desktop-build"
 	cp -r build "$out/desktop-build"
+	# The single-animation pages, served beside the build: runner.mjs --url …/_bench/anim.html
+	cp -r dev/bench/pages "$out/desktop-build/_bench"
 	# Tauri's __TAURI_INTERNALS__ is frozen: the page must look for the shim's under another name.
 	grep -rl "__TAURI_" "$out/desktop-build" | xargs -r sed -i 's/__TAURI_/__BENCHT_/g'
 	sed "s|/tmp/streamline-player|$media|g" dev/engine.yaml >"$out/engine.yaml"
