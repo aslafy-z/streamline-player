@@ -34,7 +34,7 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | App change: the video layer shown only while something plays | draft PRs, fork #6 and upstream #9; playback in the real app not tried |
 | App change: no VA-API over Wayland where OpenGL is the CPU | draft PR, fork #7 |
 | App change: compositing off where OpenGL is the CPU | withdrawn, `app-attempts/` |
-| WebKitGTK 2.52.6 built from source, patches as labels | `stock`, `damage` and `fallback` built; `damage-readback` building; measurements running |
+| WebKitGTK 2.52.6 built from source, patches as labels | done: five builds measured, one patch corrected |
 | Report (French) | `RAPPORT.md` |
 | Upstream report drafts | `upstream-drafts/`, not posted |
 | WebKitGTK 2.54 on Wayland without a GPU | not done |
@@ -343,6 +343,38 @@ Wayland display for VA-API; libva 2.20 crashes on a compositor with no DRM devic
 the app starts and plays the clip (frame 152 at 6.3 s in the screenshot taken). With the area
 shown on demand alone, the crash only moves to the first playback.
 
+## WebKitGTK 2.52.6 built from source, with the patches
+
+`dev/bench/webkit.sh` builds the release tarball as Ubuntu configures it, then the patch sets of
+`dev/bench/webkit-patches/2.52.6` (the files of `patch-drafts/2.52.6` here are the same). The
+unpatched build lands on the package's numbers, so it stands as the witness. 2 reps, X11, no
+GPU; the app's processes, with the X server's share after the plus sign
+(`profiles/webkit-built/`):
+
+| build | the 44 px bar | full-window zoom | Home idle | Home scroll |
+|---|---|---|---|---|
+| `stock` | 82 % + 15 % | 147 % + 15 % | 285 % + 10 % | 274 % + 8 %, 28 fps |
+| `damage` (0001, 0002) | 22 % + 18 % | 141 % + 16 % | 271 % + 11 % | 274 % + 9 %, 31 fps |
+| `damage-readback` (+ 0003) | 17 % + 16 % | 141 % + 16 % | 271 % + 11 % | 274 % + 9 %, 30 fps |
+| `damage-readback-redraw` (+ 0004) | 14 % + 2 % | 136 % + 15 % | 274 % + 8 % | 276 % + 8 %, 31 fps |
+| `fallback` (0005) | 15 % + 1 % | 65 % + 9 % | 106 % + 5 % | 105 % + 8 %, 54 fps |
+
+- **Damage carried to the end makes the composited path as cheap as the CPU path when little
+  changes** (14 + 2 against 15 + 1), and keeps compositing, which a window with a video layer
+  needs. Each step takes its part: composition in the web process (76 → 15 %), the readback
+  (15 → 10 %), the redraw (the X server, 16 → 2 %).
+- **It gives nothing when the whole window changes.** There only leaving OpenGL helps, and the
+  fallback patch does that with no variable set: 285 → 106 %.
+- **The fallback hides the page of a window that has a GL area**, as the variables that turn
+  compositing off do (checked in the lab container); `WEBKIT_FORCE_COMPOSITING_MODE=1` brings
+  compositing back, which the patch honours.
+- All five compiled as written, in 4 to 6 minutes each from the stock tree. The redraw patch
+  was wrong on screen at first (`shots/2.52.6-patched-bar-strip-*.png`): WebKitGTK's own paint
+  of a shared-memory buffer adds the clip rectangle to the path after flipping the y axis
+  (`AcceleratedBackingStore.cpp:273-281`, read), which is harmless while the clip is the whole
+  view and fills the mirror image of anything smaller. The patch now puts the rectangle on the
+  path first.
+
 ## Candidates still to measure
 
 | candidate | where it acts | expected (assumed) |
@@ -357,7 +389,8 @@ shown on demand alone, the crash only moves to the first playback.
   tarballs, question by question.
 - `notes/wry-tauri.md`: what wry, tao and Tauri set on Linux, and what the app can reach.
 - `notes/upstream-research.md`: WebKit bugs, Igalia's posts, release notes, Mesa's knobs.
-- `patch-drafts/2.52.6/`: changes to WebKitGTK that the reading suggests, as diffs against the
-  release tarball. Not compiled yet: drafts until a build has measured them.
+- `patch-drafts/2.52.6/`: changes to WebKitGTK that the reading suggested, as diffs against the
+  release tarball; compiled and measured since (above). The build picks them up from
+  `dev/bench/webkit-patches/2.52.6` on the harness branch.
 - `profiles/`: the captures the tables above come from (`*.threads.txt` from `threads.py`, the
   others from `report.sh`).

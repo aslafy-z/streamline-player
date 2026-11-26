@@ -2,7 +2,7 @@ Subject: [GTK][WPE] Read back only the changed area of a shared memory render ta
 
 Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
 tarball root, AFTER 0002 (the context of one hunk comes from it). Independent
-of 0001 and 0004. Not compiled.
+of 0001 and 0004. Compiled and measured (dev/bench/RESULTS.md).
 
 What it does
   RenderTargetSHMImage::didRenderFrame() called glReadPixels() on the whole

@@ -35,7 +35,8 @@ n'avait pas cette zone.
 | application, 28 lignes | pas de VA-API par Wayland quand OpenGL est logiciel | l'application ne plante plus au démarrage sous Wayland sans GPU | inchangé | PR en draft, fork #7 |
 | application, page | fond fixe et barre par pas quand le rendu est logiciel | accueil au repos : 279 % → 69 % (2.52), 224 % → 49 % (2.54) | neutre | PR amont #8, existante |
 | wry | pouvoir régler la webview avant son premier chargement | condition du chemin tout CPU en 2.54 | | brouillon de demande |
-| WebKitGTK | composition, relecture et redessin limités à la zone modifiée ; repli sans GPU | 84 % → 20 % pour une petite animation (drapeau existant) ; le reste à mesurer | | patchs consignés, compilation en cours |
+| WebKitGTK, 5 patchs | composition, relecture et redessin limités à la zone modifiée | petite animation : 82 % → 14 %, en restant composité | | compilés et mesurés, à proposer en amont |
+| WebKitGTK, 1 patch | repli automatique sur le chemin tout CPU sans GPU | accueil : 285 % → 106 %, sans rien régler | sans effet | compilé et mesuré ; inadapté à une fenêtre avec vidéo |
 
 **Ce qui ne marche pas, et pourquoi il fallait le vérifier.** Couper le compositing de WebKit
 quand le rendu est logiciel divise le coût par 2,5 à 7 dans une fenêtre simple. Dans le player,
@@ -217,6 +218,32 @@ Sans compositing, le temps est dans Skia sur le thread principal : sur l'accueil
 dégradé prennent environ 45 % des échantillons, l'image de fond redimensionnée environ 8 %. Dans
 ce mode la page paie ce qu'elle peint, et les dégradés du billboard coûtent plus que sa photo.
 
+### WebKitGTK 2.52.6 recompilé avec les patchs (mesuré)
+
+WebKitGTK 2.52.6 a été compilé depuis les sources, sans patch (témoin, égal au paquet Ubuntu)
+puis avec chaque jeu de patchs. Deux répétitions, sans GPU. Le coût de l'application, plus la
+part du serveur X.
+
+| build | barre de 44 px | zoom plein écran | accueil au repos | accueil, défilement |
+|---|---|---|---|---|
+| sans patch | 82 % + 15 % | 147 % + 15 % | 285 % + 10 % | 274 %, 28 images/s |
+| composition limitée à la zone modifiée | 22 % + 18 % | 141 % + 16 % | 271 % + 11 % | 274 %, 31 images/s |
+| + relecture limitée | 17 % + 16 % | 141 % + 16 % | 271 % + 11 % | 274 %, 30 images/s |
+| + redessin GTK 3 limité | 14 % + 2 % | 136 % + 15 % | 274 % + 8 % | 276 %, 31 images/s |
+| repli automatique sans GPU | 15 % + 1 % | 65 % + 9 % | 106 % + 5 % | 105 %, 54 images/s |
+
+- Quand peu de choses bougent, les trois patchs « zone modifiée » rendent le mode composité
+  aussi bon marché que le chemin tout CPU (14 + 2 contre 15 + 1), tout en gardant le
+  compositing dont une fenêtre avec vidéo a besoin.
+- Quand tout l'écran bouge, ils n'apportent rien : seul quitter OpenGL aide, et le patch de
+  repli le fait sans aucun réglage.
+- Le patch de repli cache la page d'une fenêtre qui contient une zone OpenGL, comme les
+  variables équivalentes. `WEBKIT_FORCE_COMPOSITING_MODE=1` rétablit le compositing.
+- Les cinq patchs ont compilé tels qu'écrits. Celui du redessin laissait une bande blanche : le
+  code de WebKitGTK applique le rectangle de découpe après un retournement vertical, ce qui ne
+  se voit que si la découpe est plus petite que la vue. Corrigé dans le patch, vérifié à
+  l'écran.
+
 ## 4. Recommandations
 
 1. **Fusionner la PR « zone à la demande »** (fork #6, amont #9) après un essai de lecture sur
@@ -229,7 +256,10 @@ ce mode la page paie ce qu'elle peint, et les dégradés du billboard coûtent p
 4. **Ne pas couper le compositing dans le player.** Dans une application Tauri sans zone
    OpenGL, c'est au contraire le bon réglage sans GPU : `WEBKIT_DISABLE_DMABUF_RENDERER=1`
    avant la première webview.
-5. **Remonter en amont** les trois brouillons de `upstream-drafts/` : le coût du compositing
+5. **Proposer en amont les patchs WebKit « zone modifiée »** (relecture et redessin) : ce sont
+   eux qui profitent au player, puisqu'ils gardent le compositing. Le patch de repli est le
+   bon défaut pour une application sans vidéo, à proposer avec sa limite.
+6. **Remonter en amont** les trois brouillons de `upstream-drafts/` : le coût du compositing
    logiciel et l'absence de repli (WebKit), la page blanche avec `NEVER` en 2.54 (WebKit), la
    documentation inversée et le crochet manquant (Tauri, wry).
 
@@ -241,8 +271,8 @@ ce mode la page paie ce qu'elle peint, et les dégradés du billboard coûtent p
   Weston, avec ou sans les correctifs). Jamais avec le GPU.
 - Si libva plante aussi sous un compositeur de bureau sans GPU (mutter, KWin) : seul Weston sans
   écran a été essayé.
-- Ce que rapportent les patchs WebKit sur la relecture et le redessin : la compilation de
-  WebKitGTK 2.52.6 depuis les sources est en cours.
+- Si les patchs WebKit s'appliquent tels quels à la 2.54, dont le compositeur a changé : ils
+  sont écrits et mesurés pour la 2.52.6.
 - WebKitGTK 2.54 sous Wayland sans GPU : mesuré sous X11 seulement.
 - La régression de 5 points de la PR #7 en `wry-nocomp` sous Wayland : non reprise.
 

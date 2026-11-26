@@ -2,7 +2,7 @@ Subject: [CoordinatedGraphics] Do not invalidate every render target on a frame 
 
 Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
 tarball root. Independent of 0001 (it only matters when
-UseDamagingInformationForCompositing is on). Required by 0003. Not compiled.
+UseDamagingInformationForCompositing is on). Required by 0003. Compiled and measured (dev/bench/RESULTS.md).
 
 What it does
   AcceleratedSurface::setFrameDamage() stores an empty frame damage as

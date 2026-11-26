@@ -55,10 +55,22 @@ Per thread, 2.52.6, the application page (15 s, `perf` and `/proc`): 256 % in th
 
 `GLFence::create()`, which bug 276580 points at, is where the compositor thread waits for llvmpipe's rasterizer threads; the time itself is in those threads.
 
-## What would help
+## What would help, measured
 
-1. Not using accelerated compositing when the GL renderer is a software rasterizer, unless it is forced (`WEBKIT_FORCE_COMPOSITING_MODE`). The non-composited path is the cheaper one there on every page measured. A draft against 2.52.6 is in `../patch-drafts/2.52.6/0005-disable-compositing-on-software-gl.patch` (not compiled). One thing to settle first: an application that puts a `GtkGLArea` under a transparent web view relies on accelerated compositing to see through it (see the note below).
-2. On the shared-memory path, reading back and redrawing the damaged region only (`0003` and `0004` in the same directory, not compiled). With damage-limited composition the small animation above is at 20 to 22 % in the web process and the X server still at 17 to 25 %: what is left is the whole-view readback and redraw.
+WebKitGTK 2.52.6 built from the release tarball with Ubuntu's configuration, unpatched and with the patches of `../patch-drafts/2.52.6/`. Same setup, 2 reps; the application's processes, with the X server's share after the plus sign. The unpatched build lands on the package's numbers.
+
+| build | the bar page | full-window zoom | application page, idle | scrolling |
+|---|---|---|---|---|
+| unpatched | 82 % + 15 % | 147 % + 15 % | 285 % + 10 % | 274 %, 28 fps |
+| 0001, 0002: composition limited to the damage | 22 % + 18 % | 141 % + 16 % | 271 % + 11 % | 274 %, 31 fps |
+| + 0003: `glReadPixels` of the damaged rows only | 17 % + 16 % | 141 % + 16 % | 271 % + 11 % | 274 %, 30 fps |
+| + 0004: `gtk_widget_queue_draw_region` | 14 % + 2 % | 136 % + 15 % | 274 % + 8 % | 276 %, 31 fps |
+| 0005 alone: no compositing on a software rasterizer | 15 % + 1 % | 65 % + 9 % | 106 % + 5 % | 105 %, 54 fps |
+
+1. **Carrying the damage through the readback and the GTK 3 redraw** (0003, 0004) makes the composited path cost what the non-composited one costs when little changes, and keeps compositing. 0004 needs a correction to `AcceleratedBackingStore::Buffer::paint()`, included: for a shared-memory buffer the clip rectangle is added to the path after the y flip (`AcceleratedBackingStore.cpp:273-281`), so a clip smaller than the view is filled at its mirror position. That is invisible today only because the clip is always the whole view.
+2. **Not using accelerated compositing when the GL renderer is a software rasterizer**, unless `WEBKIT_FORCE_COMPOSITING_MODE` asks for it (0005), is the only thing that helps when the whole view changes. One limit, checked: an application that puts a `GtkGLArea` under a web view (video under a transparent page) loses its page with it, because a non-composited view is not drawn in a GTK 3 window that paints through OpenGL, and could not be seen through anyway (`BackingStoreCairo.cpp:82-90` paints with `CAIRO_OPERATOR_SOURCE`). The override brings compositing back for such an application.
+
+The patches are against 2.52.6. 2.54 already has the first step by default and a different compositor; they have not been ported.
 
 ## Note: related reports
 

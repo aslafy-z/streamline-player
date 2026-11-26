@@ -1,7 +1,7 @@
 Subject: [GTK] Use damage for compositing by default
 
 Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
-tarball root. Independent of the other drafts. Not compiled.
+tarball root. Independent of the other drafts. Compiled and measured (dev/bench/RESULTS.md).
 
 What it does
   Makes UseDamagingInformationForCompositing default to true for the WebKit
