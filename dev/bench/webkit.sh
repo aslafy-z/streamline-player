@@ -203,10 +203,11 @@ configure() {
 	fi
 	mkdir -p $wk/build
 	# A build tree copied from another label still caches that label's install directories:
-	# without them CMake derives them again from the new prefix.
+	# they move to the new prefix. (Deleting the entries leaves their comment lines alone in
+	# the cache, which CMake refuses to parse.)
 	old=$(sed -n 's/^CMAKE_INSTALL_PREFIX:[A-Z]*=//p' $wk/build/CMakeCache.txt 2>/dev/null || true)
 	if [ -n "$old" ] && [ "$old" != "$prefix" ]; then
-		sed -i "\|=$old\(/.*\)\?\$|d" $wk/build/CMakeCache.txt
+		sed -i "s|=$old\(/.*\)\?\$|=$prefix\1|" $wk/build/CMakeCache.txt
 	fi
 	cmake -S $wk/src -B $wk/build "${args[@]}"
 	if [ -n "$old" ] && [ "$old" != "$prefix" ] \
