@@ -9,6 +9,7 @@
 #                (binary wry): attached, playing, stopped
 #   player-next  the same with the binary wry-next, when runtimes.sh built one (another
 #                checkout's plugin, BENCH_WRY=wry-next BENCH_PLAYER_PLUGIN=… runtimes.sh wry)
+# REPLAY_SERIES narrows the series ("window player player-next" by default).
 # Results go to $BENCH_CACHE/out/replay/<stamp>/<distro>/<series>/x11, one summary per series
 # beside them. Needs the images (container.sh build) and the binaries (runtimes.sh wry, in the
 # noble container): it measures, it does not build.
@@ -20,6 +21,7 @@ distros=${*:-noble arch}
 front=$(cd "${REPLAY_FRONT:-$here/../..}" && pwd)
 cache=${BENCH_CACHE:-$HOME/.cache/streamline-bench}
 stamp=$(date +%Y%m%d-%H%M)
+series_wanted=${REPLAY_SERIES:-window player player-next}
 
 # The variants that draw the page differently; each WebKitGTK version ignores the ones that are
 # its default (damage: on in 2.54; nodamage: off in 2.52).
@@ -35,10 +37,13 @@ for distro in $distros; do
 	inside dev/bench/stack.sh up
 	inside dev/bench/display.sh x11
 	results=/bench/out/replay/$stamp/$distro
-	echo "## $distro: window"
-	inside BENCH_RESULTS="$results/window" SCENARIOS=home dev/bench/matrix.sh x11 "$reps" "$WAYS"
-	inside BENCH_RESULTS="$results/window" SCENARIOS="anim-still anim-bar anim-zoom" dev/bench/matrix.sh x11 "$reps" "$DAMAGE"
+	if [[ " $series_wanted " == *" window "* ]]; then
+		echo "## $distro: window"
+		inside BENCH_RESULTS="$results/window" SCENARIOS=home dev/bench/matrix.sh x11 "$reps" "$WAYS"
+		inside BENCH_RESULTS="$results/window" SCENARIOS="anim-still anim-bar anim-zoom" dev/bench/matrix.sh x11 "$reps" "$DAMAGE"
+	fi
 	for series in player player-next; do
+		[[ " $series_wanted " == *" $series "* ]] || continue
 		binary=wry
 		[ "$series" = player-next ] && binary=wry-next
 		[ -e "$cache/out/bin/$binary" ] || continue
