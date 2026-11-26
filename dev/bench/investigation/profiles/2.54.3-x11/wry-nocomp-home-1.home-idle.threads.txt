@@ -1,0 +1,21 @@
+# per process
+ 244.8%  user  231.7%  sys   13.1%  pid 833 [WebKitWebProces] 
+   4.0%  user    3.4%  sys    0.6%  pid 797 [wry] 
+# per thread pool (threads of one process named alike)
+ 216.1%  user  205.8%  sys   10.3%  pid 833 [WebKitWebProces] llvmpipe* x4
+  27.9%  user   25.4%  sys    2.5%  pid 833 [WebKitWebProces] WebKitWebProces* x8
+   3.1%  user    2.9%  sys    0.2%  pid 797 [wry] wry* x8
+   0.8%  user    0.4%  sys    0.4%  pid 833 [WebKitWebProces] ReceiveQueue* x2
+   0.7%  user    0.4%  sys    0.3%  pid 797 [wry] ReceiveQueue* x2
+# per thread
+  61.5%  user   58.9%  sys    2.5%  pid 833 [WebKitWebProces] thread llvmpipe-0
+  58.9%  user   56.3%  sys    2.6%  pid 833 [WebKitWebProces] thread llvmpipe-1
+  50.7%  user   47.8%  sys    2.9%  pid 833 [WebKitWebProces] thread llvmpipe-2
+  45.0%  user   42.7%  sys    2.3%  pid 833 [WebKitWebProces] thread llvmpipe-3
+  27.8%  user   25.3%  sys    2.5%  pid 833 [WebKitWebProces] thread WebKitWebProces
+   3.1%  user    2.9%  sys    0.2%  pid 797 [wry] thread wry
+   0.8%  user    0.4%  sys    0.4%  pid 833 [WebKitWebProces] thread ReceiveQueue
+   0.7%  user    0.4%  sys    0.3%  pid 797 [wry] thread ReceiveQueue
+   0.2%  user    0.1%  sys    0.1%  pid 797 [wry] thread VBlankMonitor
+   0.1%  user    0.1%  sys    0.0%  pid 833 [WebKitWebProces] thread WebKitWebProces
+   0.1%  user    0.1%  sys    0.0%  pid 833 [WebKitWebProces] thread JITWorker

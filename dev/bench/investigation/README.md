@@ -28,7 +28,7 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | What wry and Tauri set, what the app can reach | done, `notes/wry-tauri.md` |
 | What upstream knows | done, `notes/upstream-research.md` |
 | Candidate settings measured on 2.52 | done but for the damage flag (first run invalid, see below) |
-| The same on WebKitGTK 2.54.3 (Arch image) | running |
+| The same on WebKitGTK 2.54.3 (Arch image) | first series done |
 | WebKitGTK 2.52.6 built from source, to try patches | building |
 | Patch drafts for WebKitGTK | written, not compiled: `patch-drafts/2.52.6/` |
 | Fix in the app | pending |
@@ -110,8 +110,8 @@ core for the app's process tree.
 | `wry-lp1` | `LP_NUM_THREADS=1` | 105 % | 107 %, 12 fps | 674 |
 
 - **Policy `NEVER` set by the application is the environment variable**, to the point: same CPU,
-  same frame rate, same memory. It does not have to be set before the web view is created, so the
-  app needs neither an early environment variable nor a restart.
+  same frame rate, same memory. In 2.52 it does not have to be set before the web view is
+  created. That does not hold in 2.54 (below).
 - **The damage flag is not measured yet.** A first run showed no change with
   `UseDamagingInformationForCompositing` on, and was wrong: the web process reads that feature
   once, when it creates the page (`LayerTreeHost.cpp:100-110`, read), and a feature set after
@@ -157,6 +157,41 @@ And the zoom: 48 %, 148 %, 230 % composited; 27 %, 70 %, 104 % not.
   heavier to composite; here the per-frame floor is elsewhere (profile pending).
 - `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` is worse here (97 %), `WEBKIT_SKIA_GPU_PAINTING_THREADS=0`
   no different (84 %).
+
+## WebKitGTK 2.54.3
+
+The newest release (Arch's package, Mesa 26.3.1, GTK 3.24.52; `BENCH_DISTRO=arch`), same
+hardware, same bench app binary, X11, one rep (`profiles/2.54.3-x11/`). Ubuntu ships 2.52.6 in
+every release up to 26.10.
+
+| variant | Home idle | Home scroll | bar | zoom |
+|---|---|---|---|---|
+| `wry` | 217 % | 192 %, 35 fps | 22 % | 115 % |
+| `wry-texmap` (`WEBKIT_USE_SKIA_FOR_COMPOSITION=0`) | 262 % | 250 %, 27 fps | 19 % | 153 % |
+| `wry-nocomp` (`WEBKIT_DISABLE_COMPOSITING_MODE=1`) | 252 % | 234 %, 16 fps | 26 % | 66 % |
+| `wry-nodmabuf` (`WEBKIT_DISABLE_DMABUF_RENDERER=1`) | 103 % | 107 %, 45 fps | 14 % | 40 % |
+| `wry-lp1` | 107 % | 108 %, 18 fps | | |
+| `wry-never` (policy set once the view exists) | blank page | blank page | blank | blank |
+
+The X server adds 13 to 25 % in every row that draws, the non-composited ones included: GTK 3
+still redraws the whole widget for each frame.
+
+- **2.54 makes a small animation cheap while composited**: 22 % for the bar where 2.52 takes
+  84 %. Damage now limits composition by default. It does nothing for the home page (217 %),
+  whose animation covers the window and whose layer tree is heavy: 174 % in the four llvmpipe
+  threads, 28 % in the compositor thread.
+- **`WEBKIT_DISABLE_COMPOSITING_MODE=1` no longer helps, it hurts**: 252 % and 16 fps while
+  scrolling, worse than doing nothing. As read in the source, in 2.54 it turns compositing off
+  and keeps OpenGL: the page is still drawn through llvmpipe (216 % in its threads) and read
+  back. The workaround Tauri's documentation gives is the wrong one from 2.54 on.
+- **`WEBKIT_DISABLE_DMABUF_RENDERER=1` is the CPU path in 2.54**: 103 % idle, 45 fps scrolling,
+  half the memory. No llvmpipe thread runs.
+- **Policy `NEVER` set after the view exists gives a blank window in 2.54**
+  (`shots/2.54.3-wry-never-home-idle.png`, against `shots/2.54.3-wry-nodmabuf-home-idle.png`);
+  the 8 % the bench reported for it measured nothing. In 2.52 the same call works. The policy
+  has to be in place before the page's web process is created, and wry loads the page before an
+  application can reach the settings. Being measured: restarting the web process once the
+  policy is set.
 
 ## Candidates still to measure
 

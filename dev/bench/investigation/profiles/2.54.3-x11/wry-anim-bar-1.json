@@ -1,0 +1,74 @@
+{
+  "name": "wry",
+  "scenario": "hold",
+  "reduce": false,
+  "phases": [
+    {
+      "phase": "anim-bar",
+      "wall_s": 20,
+      "cpu_pct": 22.4,
+      "x_pct": 24.7,
+      "by_process": {
+        "wry": 6.3,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 16
+      },
+      "pss_mb": 379,
+      "procs": 3,
+      "ms": 20000
+    },
+    {
+      "phase": "anim-bar-frames",
+      "wall_s": 10,
+      "cpu_pct": 24.8,
+      "x_pct": 24.8,
+      "by_process": {
+        "wry": 6.6,
+        "WebKitNetworkPr": 0,
+        "WebKitWebProces": 18.2
+      },
+      "pss_mb": 381,
+      "procs": 3,
+      "ms": 10000,
+      "frames": 620,
+      "long": 0,
+      "worst": 20,
+      "fps": 62
+    }
+  ],
+  "errors": [],
+  "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+  "ready": {
+    "ev": "ready",
+    "gl": "Apple GPU",
+    "dpr": 1,
+    "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+    "url": "http://127.0.0.1:1440/_bench/anim.html?kind=bar",
+    "shimActive": true,
+    "internals": [
+      "plugins"
+    ]
+  },
+  "dom": {
+    "anim-bar": {
+      "path": "/_bench/anim.html",
+      "hero": false,
+      "imgs": 0,
+      "hidden": false,
+      "focus": true,
+      "vis": "visible",
+      "text": "One animation on a still page. The rest of this window never changes: a webview "
+    },
+    "anim-bar-frames": {
+      "path": "/_bench/anim.html",
+      "hero": false,
+      "imgs": 0,
+      "hidden": false,
+      "focus": true,
+      "vis": "visible",
+      "text": "One animation on a still page. The rest of this window never changes: a webview "
+    }
+  },
+  "end": "done",
+  "app_log": "MESA-EGL: warning: DRI3 error: Could not get DRI3 device\nMESA-EGL: warning: Ensure your X server supports DRI3 to get accelerated rendering\n"
+}

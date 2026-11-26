@@ -1,0 +1,22 @@
+# per process
+ 103.7%  user  101.6%  sys    2.1%  pid 1951 [WebKitWebProces] 
+   3.4%  user    2.6%  sys    0.8%  pid 1921 [wry] 
+# per thread pool (threads of one process named alike)
+  13.1%  user   12.6%  sys    0.5%  pid 1951 [WebKitWebProces] eadedCompositor* x4
+   6.0%  user    5.1%  sys    0.9%  pid 1951 [WebKitWebProces] WebKitWebProces* x4
+   2.5%  user    2.2%  sys    0.3%  pid 1921 [wry] wry* x5
+   0.8%  user    0.4%  sys    0.4%  pid 1951 [WebKitWebProces] ReceiveQueue* x2
+   0.7%  user    0.4%  sys    0.3%  pid 1921 [wry] ReceiveQueue* x2
+   0.1%  user    0.1%  sys    0.0%  pid 1951 [WebKitWebProces] SkiaCPUWorker* x8
+   0.1%  user    0.1%  sys    0.0%  pid 1951 [WebKitWebProces] JITWorker* x2
+# per thread
+  83.7%  user   83.3%  sys    0.3%  pid 1951 [WebKitWebProces] thread llvmpipe-0
+  13.1%  user   12.6%  sys    0.5%  pid 1951 [WebKitWebProces] thread eadedCompositor
+   5.9%  user    5.1%  sys    0.7%  pid 1951 [WebKitWebProces] thread WebKitWebProces
+   2.5%  user    2.2%  sys    0.3%  pid 1921 [wry] thread wry
+   0.8%  user    0.4%  sys    0.4%  pid 1951 [WebKitWebProces] thread ReceiveQueue
+   0.7%  user    0.4%  sys    0.3%  pid 1921 [wry] thread ReceiveQueue
+   0.1%  user    0.0%  sys    0.1%  pid 1951 [WebKitWebProces] thread WebKitWebProces
+   0.1%  user    0.0%  sys    0.1%  pid 1921 [wry] thread VBlankMonitor
+   0.1%  user    0.1%  sys    0.0%  pid 1951 [WebKitWebProces] thread SkiaCPUWorker
+   0.1%  user    0.1%  sys    0.0%  pid 1951 [WebKitWebProces] thread JITWorker
