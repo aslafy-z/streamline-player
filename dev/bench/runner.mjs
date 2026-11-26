@@ -8,7 +8,7 @@
 // phase start, from the X server or from Weston (started with --debug, display.sh). --hook runs `command <app pid> <out without .json>.<phase>` when that phase
 // starts (profile.sh: threads and perf over the phase).
 import { spawn } from "node:child_process";
-import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 
@@ -41,7 +41,13 @@ const REDUCE = `(() => {
 // Tauri defines __TAURI_INTERNALS__ non-writable and frozen, so the shim cannot replace it. The
 // served build has every __TAURI_ renamed __BENCHT_ (stack.sh), and so does the shim here: the
 // page talks to the shim only, whatever runtime hosts it.
-const shim = readFileSync(new URL("../compare/shim.js", import.meta.url), "utf8").replaceAll(
+// The shim goes with the pages: stack.sh front leaves the one of the checkout it built beside
+// them, and a build made before it did that gets this checkout's.
+const shimOfTheBuild = `${OUT}/desktop-build/_bench/shim.js`;
+const shim = readFileSync(
+	existsSync(shimOfTheBuild) ? shimOfTheBuild : new URL("../compare/shim.js", import.meta.url),
+	"utf8",
+).replaceAll(
 	"__TAURI_",
 	"__BENCHT_",
 );

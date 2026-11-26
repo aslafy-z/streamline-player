@@ -55,12 +55,16 @@ front() {
 		mkdir -p "$out/fronts"
 		cp -r "$src/build" "$built"
 	fi
+	# The pages' own shim: it answers the commands those pages send.
+	cp "$src/dev/compare/shim.js" "$built.shim.js"
 	rm -rf "$out/desktop-build"
 	cp -r "$built" "$out/desktop-build"
 	# The single-animation pages, served beside the build: runner.mjs --url …/_bench/anim.html
 	cp -r dev/bench/pages "$out/desktop-build/_bench"
 	# Tauri's __TAURI_INTERNALS__ is frozen: the page must look for the shim's under another name.
 	grep -rl "__TAURI_" "$out/desktop-build" | xargs -r sed -i 's/__TAURI_/__BENCHT_/g'
+	# After the rename, which the runner does itself on the shim.
+	[ ! -f "$built.shim.js" ] || cp "$built.shim.js" "$out/desktop-build/_bench/shim.js"
 	echo "$rev" >"$out/desktop-build/_bench/front"
 	echo "front: $rev ($src)"
 }
