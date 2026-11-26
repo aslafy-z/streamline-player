@@ -12,6 +12,8 @@ Measured without a GPU (Mesa llvmpipe, X11, 4 CPUs, a 1440×900 window), CPU of 
 | `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 106 % | 252 % |
 | `WEBKIT_DISABLE_DMABUF_RENDERER=1` | 106 % | 103 % |
 
+On Wayland (headless Weston) with 2.54.3: 237 %, 274 % and 106 %.
+
 Scrolling the same page: 26, 52 and 50 fps on 2.52.6; 35, 16 and 45 fps on 2.54.3.
 
 In 2.54 the first variable turns compositing off and keeps OpenGL for painting, so on a software rasterizer the page is still drawn through llvmpipe and read back; the second leaves no buffer type to hand to the UI process and lands on the path that paints with Skia on the CPU, in both versions. On a machine without a GPU, `WEBKIT_DISABLE_DMABUF_RENDERER=1` is the one that is safe on both. With a GPU neither should be set: compositing is the cheaper path there (measured on a Radeon 780M with 2.54.2: 24 % composited, 36 % with compositing off).

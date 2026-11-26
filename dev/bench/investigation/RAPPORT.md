@@ -210,6 +210,11 @@ clip de test (capture à 6,3 s du clip).
 Au défilement de l'accueil : 270 % et 26 images/s composité contre 107 % et 47 à 51 images/s en
 tout CPU (2.52) ; 214 % et 39 images/s contre 107 % et 46 images/s (2.54).
 
+Sous Wayland sans GPU, en 2.54.3, le classement est le même (237 % par défaut, 274 % avec
+`WEBKIT_DISABLE_COMPOSITING_MODE=1`, 106 % avec `WEBKIT_DISABLE_DMABUF_RENDERER=1` ou `NEVER`).
+S'y ajoute le serveur d'affichage : Weston redessine toute sa sortie par llvmpipe à chaque
+image de n'importe quel client, 70 % d'un cœur pour une barre de 44 px, quel que soit le mode.
+
 Sans effet mesurable : `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` (pire sur une petite animation,
 97 % contre 84 %), `WEBKIT_SKIA_GPU_PAINTING_THREADS=0`, et les variables déjà écartées dans
 `RESULTS.md`.
@@ -273,7 +278,6 @@ part du serveur X.
   écran a été essayé.
 - Si les patchs WebKit s'appliquent tels quels à la 2.54, dont le compositeur a changé : ils
   sont écrits et mesurés pour la 2.52.6.
-- WebKitGTK 2.54 sous Wayland sans GPU : mesuré sous X11 seulement.
 - La régression de 5 points de la PR #7 en `wry-nocomp` sous Wayland : non reprise.
 
 ## Relecture

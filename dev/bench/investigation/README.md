@@ -37,7 +37,7 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | WebKitGTK 2.52.6 built from source, patches as labels | done: five builds measured, one patch corrected |
 | Report (French) | `RAPPORT.md` |
 | Upstream report drafts | `upstream-drafts/`, not posted |
-| WebKitGTK 2.54 on Wayland without a GPU | not done |
+| WebKitGTK 2.54 on Wayland without a GPU | done: same ranking as X11 (`profiles/2.54.3-wayland/`, `dev/bench/RESULTS.md`) |
 
 The numbers under "Findings so far" are the ones taken along the way, one rep each unless said;
 the replay confirmed them within 5 points wherever it covers them.

@@ -76,4 +76,4 @@ The patches are against 2.52.6. 2.54 already has the first step by default and a
 
 Bug 276580 and bug 271201 describe the same cost from the outside (100 % and 260 % CPU for a CSS-only animation) without a profile.
 
-Not verified, to check before posting: whether the default EGL platform path on Wayland behaves the same in 2.54 (measured on X11 only for 2.54.3; 2.52.6 was measured on both with the same result).
+On Wayland (headless Weston on llvmpipe) 2.54.3 ranks the same way: 237 % by default, 106 % not composited, for the application page.
