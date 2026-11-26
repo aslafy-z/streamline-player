@@ -46,7 +46,8 @@ for distro in $distros; do
 		[[ " $series_wanted " == *" $series "* ]] || continue
 		binary=wry
 		[ "$series" = player-next ] && binary=wry-next
-		[ -e "$cache/out/bin/$binary" ] || continue
+		# A link into the container's paths: it dangles here.
+		[ -e "$cache/out/bin/$binary" ] || [ -L "$cache/out/bin/$binary" ] || continue
 		echo "## $distro: $series"
 		inside BENCH_RESULTS="$results/$series" BENCH_WRY=$binary BENCH_PLAYER=1 SCENARIOS=home dev/bench/matrix.sh x11 "$reps" '^wry(-soft)?$'
 		inside BENCH_RESULTS="$results/$series" BENCH_WRY=$binary SCENARIOS="attached-bar play-bar played-bar" dev/bench/matrix.sh x11 "$reps" '^wry$'

@@ -19,6 +19,10 @@ only=${3:-.}
 bin=$out/bin
 # BENCH_WRY: the wry binary to run, when runtimes.sh built more than one.
 wry=${BENCH_WRY:-wry}
+# BENCH_WEBKIT: a WebKitGTK built by webkit.sh, "<version>-<label>", for wry to load in place of
+# the distribution's (it lives beside BENCH_OUT, where the container mounts the cache).
+webkit=""
+[ -z "${BENCH_WEBKIT:-}" ] || webkit="LD_LIBRARY_PATH=$(dirname "$out")/webkit/install/$BENCH_WEBKIT/lib"
 res=${BENCH_RESULTS:-$out/results}/$display
 mkdir -p "$res"
 
@@ -158,7 +162,7 @@ for rep in $(seq 1 "$reps"); do
 			cef*)
 				env -u DISPLAY $DISP_CEF ${ENVS[$name]} $shot dbus-run-session -- node $args --bin "$bin/cef" ;;
 			*)
-				env -u DISPLAY $DISP $SILENT ${ENVS[$name]} $player $shot dbus-run-session -- node $args --bin "$bin/$wry" ;;
+				env -u DISPLAY $DISP $SILENT $webkit ${ENVS[$name]} $player $shot dbus-run-session -- node $args --bin "$bin/$wry" ;;
 			esac 2>&1 | grep -E "^ |: (done|timeout|app)"
 			sleep 3
 		done
