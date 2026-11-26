@@ -28,12 +28,18 @@ dev/bench/webkit.sh build 2.52.6 damage-readback --from damage
 
 ## 2.52.6
 
-Drafts written from reading the source; a label is only worth what its measurements say
-(`dev/bench/RESULTS.md`).
+Written from reading the source, then compiled and measured (`dev/bench/RESULTS.md`, "WebKitGTK
+2.52.6 built from source"). Each is a draft for upstream, not a finished change.
 
-| label | from | what it changes |
-|---|---|---|
-| `damage` | `stock` | composition limited to the damaged region by default, as in 2.54, and a frame without damage no longer resets every buffer's record |
-| `damage-readback` | `damage` | the shared-memory path reads back the damaged region only |
-| `damage-readback-redraw` | `damage-readback` | the GTK 3 widget redraws the damaged region only |
-| `fallback` | `stock` | no accelerated compositing when OpenGL is a software rasterizer |
+| label | from | what it changes | the 44 px bar, app + X server |
+|---|---|---|---|
+| `stock` | | nothing: the witness, equal to Ubuntu's package | 82 % + 15 % |
+| `damage` | `stock` | composition limited to the damaged region by default, as in 2.54, and a frame without damage no longer resets every buffer's record | 22 % + 18 % |
+| `damage-readback` | `damage` | the shared-memory path reads back the damaged region only | 17 % + 16 % |
+| `damage-readback-redraw` | `damage-readback` | the GTK 3 widget redraws the damaged region only, and paints a clip smaller than the view where it belongs | 14 % + 2 % |
+| `fallback` | `stock` | no accelerated compositing when OpenGL is a software rasterizer, unless `WEBKIT_FORCE_COMPOSITING_MODE` asks for it | 15 % + 1 % |
+
+All five compiled as written. One was wrong on screen: the redraw patch left the damaged strip
+blank, because WebKitGTK's own paint of a shared-memory buffer adds the clip rectangle to the
+path after flipping the y axis, which only shows once the clip is not the whole view. The patch
+now carries that correction.

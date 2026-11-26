@@ -317,3 +317,34 @@ A web view that is not composited is not drawn at all in a window that shows a G
 (2.52.6, X11), and with `GDK_GL=software-draw`, which brings it back, it shows black where its
 page is transparent, not what is under it: the CPU path of the first table is for windows
 without a video layer.
+
+## WebKitGTK 2.52.6 built from source: what patches to it would give
+
+`webkit.sh` builds the release tarball as Ubuntu configures it (`stock`), then the patch sets of
+`webkit-patches/2.52.6` on top, each from a copy of the tree before it. Measured 2026-11-26 in
+the same container, X11, no GPU, 2 reps, `BENCH_WEBKIT=2.52.6-<label>`. `stock` is the witness:
+it lands on the package's numbers (286 against 279 % for the home page, 82 against 86 % for the
+bar).
+
+The app's processes, with the X server's own share after the plus sign:
+
+| build | the 44 px bar | full-window zoom | Home idle | Home scroll |
+|---|---|---|---|---|
+| `stock` | 82 % + 15 % | 147 % + 15 % | 285 % + 10 % | 274 % + 8 %, 28 fps |
+| `damage`: composition limited to the damaged region | 22 % + 18 % | 141 % + 16 % | 271 % + 11 % | 274 % + 9 %, 31 fps |
+| `damage-readback`: and the readback | 17 % + 16 % | 141 % + 16 % | 271 % + 11 % | 274 % + 9 %, 30 fps |
+| `damage-readback-redraw`: and the GTK 3 redraw | 14 % + 2 % | 136 % + 15 % | 274 % + 8 % | 276 % + 8 %, 31 fps |
+| `fallback`: no compositing on a software rasterizer | 15 % + 1 % | 65 % + 9 % | 106 % + 5 % | 105 % + 8 %, 54 fps |
+
+- **With damage carried to the end, composited costs what not composited costs when little
+  changes**: 14 % + 2 % for the bar, against 15 % + 1 % for the CPU path, and 82 % + 15 % as
+  shipped. The three steps each take their part: composition (the web process, 76 → 15 %), the
+  readback (15 → 10 %), the redraw (the X server, 16 → 2 %).
+- **Nothing of it helps when the whole window changes**: the zoom and the home page stay where
+  they were. There only leaving OpenGL does, and the fallback does it by itself: 285 → 106 %
+  with no variable set and no change in the application.
+- **The fallback is not for a window with a video layer**: with a `GtkGLArea` under the web view
+  the page is no longer drawn (checked, as with the variables that do the same);
+  `WEBKIT_FORCE_COMPOSITING_MODE=1` brings compositing back, as the patch intends.
+- The patched builds took 4 to 6 minutes each on four build jobs, once `stock` was built
+  (about two hours on the same four jobs).

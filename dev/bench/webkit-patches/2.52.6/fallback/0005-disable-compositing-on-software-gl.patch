@@ -2,7 +2,7 @@ Subject: [GTK] Do not use accelerated compositing when GL is a software rasteriz
 
 Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
 tarball root. Independent of the other drafts (applies with an offset of one
-line after 0004). Not compiled.
+line after 0004). Compiled and measured (dev/bench/RESULTS.md).
 
 What it does
   In the UI process, where WEBKIT_DISABLE_COMPOSITING_MODE is resolved
