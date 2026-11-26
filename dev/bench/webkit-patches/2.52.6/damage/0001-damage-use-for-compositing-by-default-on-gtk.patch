@@ -1,0 +1,38 @@
+Subject: [GTK] Use damage for compositing by default
+
+Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
+tarball root. Independent of the other drafts. Not compiled.
+
+What it does
+  Makes UseDamagingInformationForCompositing default to true for the WebKit
+  frontend on GTK, as 2.54 does (2.54 yaml: "PLATFORM(GTK) || PLATFORM(WPE)").
+  With the flag on, ThreadedCompositor::paintToCurrentGLContext() scissors the
+  clear and the layer tree paint to the bounding box of the damage accumulated
+  for the current render target (ThreadedCompositor.cpp:293-303).
+
+Why a default and not the public API
+  The flag is sampled once, in the LayerTreeHost constructor
+  (LayerTreeHost.cpp:100-110), which runs inside the WebPage constructor
+  (WebPage.cpp:958 then :980). A value set with
+  webkit_settings_set_feature_enabled() after the first load reaches the web
+  process in a PreferencesDidChange message, after the LayerTreeHost exists,
+  and is never read again.
+
+What it does not handle
+  - The flag is still not re-read at runtime.
+  - Composition is restricted to ONE bounding box (the per-target record is
+    Damage::Mode::BoundingBox, AcceleratedSurface.cpp:1079). Two small
+    animations far apart damage the box that contains both.
+  - glReadPixels and the UI process redraw stay full size (see 0003, 0004).
+  - WPE is left unchanged.
+
+--- a/Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml
++++ b/Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml
+@@ -8561,6 +8561,7 @@
+     WebKitLegacy:
+       default: false
+     WebKit:
++      "PLATFORM(GTK)": true
+       default: false
+     WebCore:
+       default: false

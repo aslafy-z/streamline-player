@@ -1,0 +1,116 @@
+Subject: [GTK3] Redraw only the damaged region of the web view in accelerated compositing mode
+
+Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
+tarball root. Independent of the other drafts (0005 touches the same files in
+other places and applies with or without it). Not compiled.
+
+What it does
+  The web process already sends the damage rects of each frame in the Frame
+  message (damage propagation is on by default on GTK), but the GTK 3 path
+  ignored them and called gtk_widget_queue_draw() on the whole widget. The
+  fence monitor callback now invalidates only those rects, converted from
+  device pixels to widget coordinates, with gtk_widget_queue_draw_region().
+  AcceleratedBackingStore::Buffer::paint() already limits itself to the GTK
+  clip rectangle.
+
+  A full redraw is kept when: there is no committed buffer yet, the pending
+  buffer has another size, the frame carries no rects, the surface changed
+  (update()), the widget was unrealized, a navigation gesture snapshot is
+  showing, or the region does not intersect the widget allocation.
+
+What it does not handle
+  - GTK 4 (no region invalidation there; the DMA-BUF path already uses the
+    rects through the texture builder).
+  - A frame without damage arrives with an empty rect list, which is not
+    distinguishable from "damage unknown": it is redrawn in full.
+  - If GTK clips the whole region away for a reason other than the allocation
+    (an ancestor clip), no draw happens and FrameDone is not sent, exactly as
+    with gtk_widget_queue_draw() on a widget that is not drawable.
+  - The cost of GDK presenting the invalidated area, and of GDK compositing
+    the toplevel through GL when the window contains a GtkGLArea.
+
+--- a/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.cpp
++++ b/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.cpp
+@@ -41,6 +41,7 @@
+ #include <WebCore/PlatformDisplay.h>
+ #include <WebCore/ShareableBitmap.h>
+ #include <WebCore/SharedMemory.h>
++#include <cmath>
+ #include <epoxy/egl.h>
+ #include <gtk/gtk.h>
+ #include <wtf/TZoneMallocInlines.h>
+@@ -203,8 +204,38 @@
+ AcceleratedBackingStore::AcceleratedBackingStore(WebPageProxy& webPage)
+     : m_webPage(webPage)
+     , m_fenceMonitor([this] {
+-        if (m_webPage)
+-            gtk_widget_queue_draw(m_webPage->viewWidget());
++        RefPtr webPage = m_webPage.get();
++        if (!webPage)
++            return;
++
++        auto* widget = webPage->viewWidget();
++#if !USE(GTK4)
++        // The pending buffer differs from the committed one only inside the frame damage, so that is all
++        // the widget has to redraw. An empty list of rects means the damage is unknown.
++        bool needsFullRedraw = std::exchange(m_needsFullRedraw, false);
++        if (!needsFullRedraw && m_pendingBuffer && m_committedBuffer && m_pendingBuffer->size() == m_committedBuffer->size()
++            && !m_pendingDamageRects.isEmpty() && !webPage->isShowingNavigationGestureSnapshot()) {
++            const float scale = webPage->deviceScaleFactor();
++            auto* region = cairo_region_create();
++            for (const auto& rect : m_pendingDamageRects) {
++                int x = static_cast<int>(std::floor(rect.x() / scale));
++                int y = static_cast<int>(std::floor(rect.y() / scale));
++                int maxX = static_cast<int>(std::ceil(rect.maxX() / scale));
++                int maxY = static_cast<int>(std::ceil(rect.maxY() / scale));
++                cairo_rectangle_int_t widgetRect = { x, y, maxX - x, maxY - y };
++                cairo_region_union_rectangle(region, &widgetRect);
++            }
++            cairo_rectangle_int_t allocation = { 0, 0, gtk_widget_get_allocated_width(widget), gtk_widget_get_allocated_height(widget) };
++            cairo_region_intersect_rectangle(region, &allocation);
++            bool hasRegion = !cairo_region_is_empty(region);
++            if (hasRegion)
++                gtk_widget_queue_draw_region(widget, region);
++            cairo_region_destroy(region);
++            if (hasRegion)
++                return;
++        }
++#endif
++        gtk_widget_queue_draw(widget);
+     })
+     , m_legacyMainFrameProcess(webPage.legacyMainFrameProcess())
+ {
+@@ -722,6 +753,7 @@
+ void AcceleratedBackingStore::unrealize()
+ {
+     m_committedBuffer = nullptr;
++    m_needsFullRedraw = true;
+ 
+     if (m_gdkGLContext && m_gdkGLContext.get() == gdk_gl_context_get_current())
+         gdk_gl_context_clear_current();
+@@ -771,6 +803,7 @@
+     }
+ 
+     m_surfaceID = context.contextID;
++    m_needsFullRedraw = true;
+     if (m_surfaceID && m_webPage) {
+         m_legacyMainFrameProcess = m_webPage->legacyMainFrameProcess();
+         Ref { *m_legacyMainFrameProcess }->addMessageReceiver(Messages::AcceleratedBackingStore::messageReceiverName(), m_surfaceID, *this);
+--- a/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.h
++++ b/Source/WebKit/UIProcess/gtk/AcceleratedBackingStore.h
+@@ -129,6 +129,7 @@
+         virtual void release() = 0;
+ 
+         uint64_t id() const { return m_id; }
++        const WebCore::IntSize& size() const { return m_size; }
+         float deviceScaleFactor() const;
+         void setSurfaceID(uint64_t surfaceID) { m_surfaceID = surfaceID; }
+ #if USE(GTK4)
+@@ -249,6 +250,7 @@
+     RefPtr<Buffer> m_pendingBuffer;
+     RefPtr<Buffer> m_committedBuffer;
+     Rects m_pendingDamageRects;
++    bool m_needsFullRedraw { true };
+     HashMap<uint64_t, RefPtr<Buffer>> m_buffers;
+ };
+ 
