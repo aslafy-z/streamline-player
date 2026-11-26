@@ -25,7 +25,9 @@ checkout() { # url rev dir
 }
 
 app_into() { # dir
-	rm -rf "$1"
+	# Everything but target/: a rebuild compiles the app, not Tauri again.
+	mkdir -p "$1"
+	find "$1" -mindepth 1 -maxdepth 1 ! -name target -exec rm -rf {} +
 	mkdir -p "$1/icons"
 	cp -r "$here/app/src" "$here/app/build.rs" "$here/app/tauri.conf.json" "$1/"
 	cp "$here/../../src-tauri/icons/128x128.png" "$1/icons/icon.png"
@@ -35,9 +37,25 @@ member() { # workspace Cargo.toml, member path
 	grep -q "\"$2\"" "$1" || sed -i "0,/members = \[/s//members = [\n  \"$2\",/" "$1"
 }
 
+# BENCH_WRY names the binary (default wry) and BENCH_PLAYER_PLUGIN the player plugin it links
+# (default this checkout's): a second build measures another checkout's plugin beside the first,
+#   BENCH_WRY=wry-next BENCH_PLAYER_PLUGIN=/path/to/plugins/tauri-plugin-player runtimes.sh wry
 wry() {
-	app_into "$src/bench-wry"
-	cat >"$src/bench-wry/Cargo.toml" <<-'EOF'
+	local name=${BENCH_WRY:-wry}
+	local plugin
+	plugin=$(cd "${BENCH_PLAYER_PLUGIN:-$here/../../plugins/tauri-plugin-player}" && pwd)
+	app_into "$src/bench-$name"
+	# The page is served over HTTP: Tauri answers its commands only if a capability says so.
+	mkdir -p "$src/bench-$name/capabilities"
+	cat >"$src/bench-$name/capabilities/bench.json" <<-'EOF'
+		{
+		  "identifier": "bench",
+		  "windows": ["main"],
+		  "remote": { "urls": ["http://127.0.0.1:1440/*"] },
+		  "permissions": ["core:default", "player:default"]
+		}
+	EOF
+	cat >"$src/bench-$name/Cargo.toml" <<-'EOF'
 		[package]
 		name = "bench-wry"
 		version = "0.1.0"
@@ -56,13 +74,16 @@ wry() {
 		# own dependencies lock.
 		webkit2gtk = { version = "2.0.2", features = ["v2_34"] }
 		gtk = "0.18.2"
+		# The player's own video layer, libmpv under the web view (BENCH_PLAYER).
+		tauri-plugin-player = { path = "@PLUGIN@" }
 
 		[features]
 		default = ["wry"]
 		wry = []
 	EOF
-	cargo build --release --manifest-path "$src/bench-wry/Cargo.toml"
-	ln -sf "$src/bench-wry/target/release/bench-wry" "$out/bin/wry"
+	sed -i "s|@PLUGIN@|$plugin|" "$src/bench-$name/Cargo.toml"
+	cargo build --release --manifest-path "$src/bench-$name/Cargo.toml"
+	ln -sf "$src/bench-$name/target/release/bench-wry" "$out/bin/$name"
 }
 
 cef() {

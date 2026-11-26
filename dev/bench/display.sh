@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Starts the display server the bench draws on: dev/bench/display.sh x11|wayland
 #   x11      Xvfb :99, 1920x1080, GLX (Mesa llvmpipe)
-#   wayland  headless Weston, GL renderer (llvmpipe), kiosk shell, socket wayland-bench in
-#            $BENCH_OUT/xdg, with XWayland: Tauri's CEF runtime is X11 only (it forces
-#            --ozone-platform=x11 and GDK_BACKEND=x11), so on a Wayland session it runs there
-# Neither has a GPU behind it: every pixel is drawn by the CPU (README, "What it measures").
+#   wayland  headless Weston, GL renderer, kiosk shell, socket wayland-bench in $BENCH_OUT/xdg,
+#            with XWayland: Tauri's CEF runtime is X11 only (it forces --ozone-platform=x11 and
+#            GDK_BACKEND=x11), so on a Wayland session it runs there. --debug is what lets
+#            weston-screenshooter take the runner's screenshots.
+# Without a render node (the default container) every pixel is drawn by the CPU (README, "What
+# it measures"); with one (container.sh, BENCH_GPU=1) Weston and its clients draw on the GPU,
+# Xvfb still does not.
 set -eu
 out=${BENCH_OUT:-/tmp/streamline-bench}
 mkdir -p "$out/logs"
@@ -21,8 +24,10 @@ wayland)
 	pkill -x Xwayland || true
 	sleep 0.5
 	rm -f "$XDG_RUNTIME_DIR/wayland-bench" "$XDG_RUNTIME_DIR/wayland-bench.lock"
+	# XWayland's socket directory: Weston dies without it where no X server ran before.
+	mkdir -p /tmp/.X11-unix
 	weston --backend=headless --renderer=gl --width=1920 --height=1080 --socket=wayland-bench \
-		--idle-time=0 --shell=kiosk --xwayland >"$out/logs/weston.log" 2>&1 &
+		--idle-time=0 --shell=kiosk --xwayland --debug >"$out/logs/weston.log" 2>&1 &
 	for _ in $(seq 1 50); do [ -S "$XDG_RUNTIME_DIR/wayland-bench" ] && break; sleep 0.2; done
 	# XWayland starts on the first X client; the display number is in Weston's log.
 	for _ in $(seq 1 50); do grep -q "xserver listening on display" "$out/logs/weston.log" && break; sleep 0.2; done

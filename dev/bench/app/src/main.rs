@@ -9,12 +9,17 @@
 // time an application sees the web view: the bench ends that web process and loads the page
 // again, so the next one starts with the features set. BENCH_RELOAD=1 does the same without
 // features, for a policy the page has to start with (WebKitGTK 2.54 picks its renderer once).
+// BENCH_PLAYER (wry): loads the player plugin, libmpv in a GtkGLArea under the web view; a page
+// then plays a file through its commands (pages/anim.html?play=). Not with BENCH_UNDERLAY, which
+// stands in for it.
 // BENCH_UNDERLAY (wry): opaque|seethrough puts a GtkGLArea under the web view, as the player
 // does for mpv's picture; seethrough also makes the web view's background transparent, as the
 // player does while it plays; hidden adds the area without ever showing it.
 // BENCH_UNDERLAY_FPS redraws the area that often, as a video would. BENCH_UNDERLAY_THEN=hide|drop
 // hides the area, or takes it out of the window, 1.5 s after the start: what is left of its
-// cost once nothing plays.
+// cost once nothing plays. BENCH_UNDERLAY_THEN=show|cycle starts with the area hidden and shows
+// it then (cycle: shows, hides and shows it again): an area that only exists while something
+// plays.
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(feature = "qt")]
@@ -136,19 +141,27 @@ mod underlay {
         if kind == "seethrough" {
             webview.set_background_color(&gtk::gdk::RGBA::new(0.0, 0.0, 0.0, 0.0));
         }
-        if kind == "hidden" {
+        if kind == "hidden" || matches!(then.as_deref(), Some("show" | "cycle")) {
             area.set_no_show_all(true);
         }
         overlay.show_all();
-        if let Some(then) = then {
-            let (area, overlay) = (area.clone(), overlay.clone());
-            gtk::glib::timeout_add_local_once(std::time::Duration::from_millis(1500), move || {
-                match then.as_str() {
-                    "hide" => area.hide(),
-                    "drop" => overlay.remove(&area),
-                    _ => {}
-                }
-            });
+        let after = |ms, f: Box<dyn FnOnce()>| {
+            gtk::glib::timeout_add_local_once(std::time::Duration::from_millis(ms), f);
+        };
+        let (shown, hidden, last) = (area.clone(), area.clone(), area.clone());
+        match then.as_deref() {
+            Some("hide") => after(1500, Box::new(move || shown.hide())),
+            Some("drop") => {
+                let overlay = overlay.clone();
+                after(1500, Box::new(move || overlay.remove(&shown)));
+            }
+            Some("show") => after(1500, Box::new(move || shown.show())),
+            Some("cycle") => {
+                after(1500, Box::new(move || shown.show()));
+                after(2000, Box::new(move || hidden.hide()));
+                after(2500, Box::new(move || last.show()));
+            }
+            _ => {}
         }
         if let Some(fps) = fps.filter(|fps| *fps > 0) {
             let period = std::time::Duration::from_micros(1_000_000 / u64::from(fps));
@@ -236,6 +249,12 @@ fn main() {
     let builder = tauri::Builder::<AppRuntime>::new();
     #[cfg(feature = "qt")]
     let builder = builder.invoke_system(tauri_runtime_qt::INVOKE_SYSTEM_SCRIPT);
+    #[cfg(feature = "wry")]
+    let builder = if std::env::var_os("BENCH_PLAYER").is_some() {
+        builder.plugin(tauri_plugin_player::init())
+    } else {
+        builder
+    };
     builder
         .setup(move |app| {
             let window =

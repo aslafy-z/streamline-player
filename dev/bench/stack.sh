@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# The page side of the bench: dev/bench/stack.sh prepare|up|down
-#   prepare  release engine, fixtures (art and a clip), the desktop build with __TAURI_ renamed
+# The page side of the bench: dev/bench/stack.sh prepare|front|up|down
+#   prepare  release engine, fixtures (art and a clip), then front
+#   front    the desktop build with __TAURI_ renamed, from this checkout or from BENCH_FRONT
+#            (another checkout: a branch's pages on this harness); kept per commit under
+#            $BENCH_OUT/fronts, so going back to one does not build it again. Run up after it.
 #   up       engine :8097, mock :8081, contract proxy :8098, bridge :8099, build on :1440
 #   down     stops them
 # Everything lands under BENCH_OUT (default /tmp/streamline-bench).
@@ -39,18 +42,35 @@ fixtures() {
 		-c:v libx264 -preset veryfast -pix_fmt yuv420p -g 48 -c:a aac "$media/h.mkv"
 }
 
-prepare() {
-	cargo build --release -p engine
-	[ -f "$media/h.mkv" ] || fixtures
-	TAURI_ENV_PLATFORM=linux pnpm build
+front() {
+	local src rev built
+	src=$(cd "${BENCH_FRONT:-.}" && pwd)
+	rev=$(git -C "$src" rev-parse --short HEAD)
+	# Uncommitted pages have no commit to be kept under: they are built every time.
+	[ -z "$(git -C "$src" status --porcelain -- src static package.json vite.config.ts)" ] || rev=$rev-dirty
+	built=$out/fronts/$rev
+	if [ ! -d "$built" ] || [[ $rev == *-dirty ]]; then
+		(cd "$src" && pnpm install --frozen-lockfile && TAURI_ENV_PLATFORM=linux pnpm build)
+		rm -rf "$built"
+		mkdir -p "$out/fronts"
+		cp -r "$src/build" "$built"
+	fi
 	rm -rf "$out/desktop-build"
-	cp -r build "$out/desktop-build"
+	cp -r "$built" "$out/desktop-build"
 	# The single-animation pages, served beside the build: runner.mjs --url …/_bench/anim.html
 	cp -r dev/bench/pages "$out/desktop-build/_bench"
 	# Tauri's __TAURI_INTERNALS__ is frozen: the page must look for the shim's under another name.
 	grep -rl "__TAURI_" "$out/desktop-build" | xargs -r sed -i 's/__TAURI_/__BENCHT_/g'
+	echo "$rev" >"$out/desktop-build/_bench/front"
+	echo "front: $rev ($src)"
+}
+
+prepare() {
+	cargo build --release -p engine
+	[ -f "$media/h.mkv" ] || fixtures
 	sed "s|/tmp/streamline-player|$media|g" dev/engine.yaml >"$out/engine.yaml"
 	mkdir -p "$media/live" "$media/jobs"
+	front
 }
 
 up() {

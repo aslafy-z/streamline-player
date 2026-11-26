@@ -7,7 +7,8 @@
        width  the 44 px bar animated through its width: no layer, repainted by the main thread
        still  nothing moves
      &bg=none leaves the page transparent but for the moving part, as the player's page is over
-     the video. -->
+     the video. &play=<url> has the player plugin play that file under the page (BENCH_PLAYER),
+     and &stop=<ms> has it stop after that long. -->
 <meta charset="utf-8" />
 <title>bench: one animation</title>
 <style>
@@ -37,4 +38,19 @@ tracks what changed has only the moving part to draw.</p>
 <script>
 	const query = new URLSearchParams(location.search);
 	document.documentElement.className = `kind-${query.get("kind") ?? "bar"} bg-${query.get("bg") ?? "page"}`;
+	// Spelled in two halves: the bench renames the name in the pages it serves (stack.sh).
+	const tauri = window["__TAURI" + "_INTERNALS__"];
+	if (query.get("play") && tauri) {
+		// A second in: the plugin puts its video layer under the web view once the view is ready,
+		// and a load that comes before that leaves the page opaque.
+		setTimeout(async () => {
+			try {
+				await tauri.invoke("plugin:player|load", { url: query.get("play") });
+				await tauri.invoke("plugin:player|play");
+			} catch (error) {
+				document.querySelector(".text").append(` player: ${error}`);
+			}
+			if (query.get("stop")) setTimeout(() => tauri.invoke("plugin:player|stop"), +query.get("stop"));
+		}, 1000);
+	}
 </script>

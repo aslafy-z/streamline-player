@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Runs variants × scenarios × reps: dev/bench/matrix.sh x11|wayland [reps] [variant-regex]
 # SCENARIOS="nav player" (the default) narrows the scenarios: nav, home (its two home phases
-# alone), player, and anim-bar|zoom|spin|width|still (one page of pages/anim.html, held).
+# alone), player, anim-bar|zoom|spin|width|still (one page of pages/anim.html, held), and
+# attached-bar|still, play-bar|still and played-bar|still: that page with the player plugin's
+# real video layer under it, nothing played yet, playing the bench's clip (the page see-through),
+# or stopped again after a second of it.
 # HOOK=<phase>:dev/bench/profile.sh captures that phase of every run (README).
 # Needs stack.sh up, display.sh <same display> started and runtimes.sh built. Results go to
 # $BENCH_RESULTS/<display>/<variant>-<scenario>-<rep>.json (BENCH_RESULTS: $BENCH_OUT/results by
@@ -14,6 +17,8 @@ display=${1:?x11|wayland}
 reps=${2:-1}
 only=${3:-.}
 bin=$out/bin
+# BENCH_WRY: the wry binary to run, when runtimes.sh built more than one.
+wry=${BENCH_WRY:-wry}
 res=${BENCH_RESULTS:-$out/results}/$display
 mkdir -p "$res"
 
@@ -25,7 +30,8 @@ mkdir -p "$res"
 # rasterizer thread count, BENCH_SIZE the window. reload: the web process is restarted once the
 # settings are in, so the page starts with them (the damage variants always do). underlay: a
 # GtkGLArea under the web view, as in the player; see: the web view's background transparent;
-# hidden: the area never shown; hide and drop: shown, then hidden or removed before the measure. texmap: WebKitGTK 2.54 composites with Skia,
+# hidden: the area never shown; hide and drop: shown, then hidden or removed before the measure;
+# late and cycle: hidden at first, shown before the measure (cycle: shown, hidden, shown). texmap: WebKitGTK 2.54 composites with Skia,
 # this takes it back to the TextureMapper compositor of 2.52.
 declare -A ENVS=(
 	[wry]=""
@@ -37,6 +43,7 @@ declare -A ENVS=(
 	[wry-nocomp-soft]="WEBKIT_DISABLE_COMPOSITING_MODE=1"
 	[wry-nocomp-t4-reduce]="WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_SKIA_CPU_PAINTING_THREADS=4"
 	[wry-nodmabuf]="WEBKIT_DISABLE_DMABUF_RENDERER=1"
+	[wry-nodmabuf-soft]="WEBKIT_DISABLE_DMABUF_RENDERER=1"
 	[wry-skiacpu]="WEBKIT_SKIA_ENABLE_CPU_RENDERING=1"
 	[wry-skiacpu-t1]="WEBKIT_SKIA_ENABLE_CPU_RENDERING=1 WEBKIT_SKIA_CPU_PAINTING_THREADS=1"
 	[wry-skiacpu-t4]="WEBKIT_SKIA_ENABLE_CPU_RENDERING=1 WEBKIT_SKIA_CPU_PAINTING_THREADS=4"
@@ -50,6 +57,8 @@ declare -A ENVS=(
 	[wry-underlay]="BENCH_UNDERLAY=opaque"
 	[wry-underlay-see]="BENCH_UNDERLAY=seethrough"
 	[wry-underlay-hidden]="BENCH_UNDERLAY=hidden"
+	[wry-underlay-see-late]="BENCH_UNDERLAY=seethrough BENCH_UNDERLAY_THEN=show"
+	[wry-underlay-see-cycle]="BENCH_UNDERLAY=seethrough BENCH_UNDERLAY_THEN=cycle"
 	[wry-underlay-hide]="BENCH_UNDERLAY=opaque BENCH_UNDERLAY_THEN=hide"
 	[wry-underlay-drop]="BENCH_UNDERLAY=opaque BENCH_UNDERLAY_THEN=drop"
 	[wry-underlay-hidden-nodmabuf]="BENCH_UNDERLAY=hidden WEBKIT_DISABLE_DMABUF_RENDERER=1"
@@ -83,11 +92,11 @@ declare -A ENVS=(
 	[qt]=""
 	[qt-reduce]=""
 )
-ORDER="wry wry-reduce wry-soft wry-nocomp wry-nocomp-soft wry-nocomp-t4 wry-nocomp-reduce wry-nocomp-t4-reduce wry-nodmabuf
+ORDER="wry wry-reduce wry-soft wry-nocomp wry-nocomp-soft wry-nocomp-t4 wry-nocomp-reduce wry-nocomp-t4-reduce wry-nodmabuf wry-nodmabuf-soft
 wry-skiacpu wry-skiacpu-t1 wry-skiacpu-t4 wry-fps30 wry-vblank wry-shm wry-msaa0
 wry-never wry-never-reload wry-nocomp-nodmabuf wry-damage wry-damage-skiacpu wry-damage-lp1 wry-nodamage wry-texmap wry-lp0 wry-lp1 wry-lp2 wry-gpupaint0
 wry-s720 wry-s1920 wry-nocomp-s720 wry-nocomp-s1920
-wry-underlay-hidden wry-underlay-hide wry-underlay-drop wry-underlay-hidden-nodmabuf wry-underlay-hide-nodmabuf wry-underlay-drop-nodmabuf
+wry-underlay-hidden wry-underlay-see-late wry-underlay-see-cycle wry-underlay-hide wry-underlay-drop wry-underlay-hidden-nodmabuf wry-underlay-hide-nodmabuf wry-underlay-drop-nodmabuf
 wry-underlay wry-underlay-see wry-underlay-never-reload wry-underlay-see-never-reload wry-underlay-see-nodmabuf wry-underlay-see-nocomp
 cef cef-reduce cef-swiftshader cef-raster1 cef-raster4 cef-1proc cef-lowend cef-nosmooth qt qt-reduce"
 
@@ -121,9 +130,17 @@ for rep in $(seq 1 "$reps"); do
 			[[ $name == *-reduce ]] && red="--reduce"
 			[[ $name == *-soft ]] && red="--soft"
 			shot=""
-			[ "$display" = x11 ] && [ "$rep" = 1 ] && shot="SHOT=$res-shots"
+			[ "$rep" = 1 ] && shot="SHOT=$res-shots"
 			scenario="--scenario $sc"
 			[[ $sc == anim-* ]] && scenario="--scenario hold --label $sc --url http://127.0.0.1:1440/_bench/anim.html?kind=${sc#anim-}"
+			player=""
+			if [[ $sc == attached-* || $sc == play-* || $sc == played-* ]]; then
+				page="http://127.0.0.1:1440/_bench/anim.html?kind=${sc#*-}"
+				[[ $sc == play-* ]] && page="$page&bg=none&play=file://$out/media/h.mkv"
+				[[ $sc == played-* ]] && page="$page&play=file://$out/media/h.mkv&stop=1000"
+				scenario="--scenario hold --label $sc --url $page"
+				player="BENCH_PLAYER=1"
+			fi
 			# Over the underlay the page is the player's: transparent but for what moves.
 			[[ $sc == anim-* && $name == *-underlay-see* ]] && scenario="$scenario&bg=none"
 			hook=""
@@ -141,7 +158,7 @@ for rep in $(seq 1 "$reps"); do
 			cef*)
 				env -u DISPLAY $DISP_CEF ${ENVS[$name]} $shot dbus-run-session -- node $args --bin "$bin/cef" ;;
 			*)
-				env -u DISPLAY $DISP $SILENT ${ENVS[$name]} $shot dbus-run-session -- node $args --bin "$bin/wry" ;;
+				env -u DISPLAY $DISP $SILENT ${ENVS[$name]} $player $shot dbus-run-session -- node $args --bin "$bin/$wry" ;;
 			esac 2>&1 | grep -E "^ |: (done|timeout|app)"
 			sleep 3
 		done

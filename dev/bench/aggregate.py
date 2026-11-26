@@ -23,6 +23,7 @@ PHASES = [
     "player-watching",
     "player-scrub",
     *(f"anim-{kind}{frames}" for kind in ("still", "spin", "bar", "width", "zoom") for frames in ("", "-frames")),
+    *(f"{state}-{kind}{frames}" for state in ("attached", "play", "played") for kind in ("still", "bar") for frames in ("", "-frames")),
 ]
 
 
@@ -55,6 +56,7 @@ def row(phases):
         "cpu_min": min(cpu),
         "cpu_max": max(cpu),
         "display": median([p["x_pct"] for p in phases]),
+        "gpu": median([p["gpu_pct"] for p in phases if p.get("gpu_pct") is not None]),
         "fps": median([p["fps"] for p in phases if p.get("fps") is not None]),
         "long": median([p["long"] for p in phases if p.get("long") is not None]),
         "pss": median([p["pss_mb"] for p in phases]),
@@ -68,8 +70,8 @@ def main():
     summary = {}
     for phase in PHASES:
         print(f"\n### {phase}\n")
-        print("| variant | n | CPU % (min–max) | display % | fps | long frames | PSS MB |")
-        print("|---|---|---|---|---|---|---|")
+        print("| variant | n | CPU % (min–max) | display % | GPU % | fps | long frames | PSS MB |")
+        print("|---|---|---|---|---|---|---|---|")
         for variant in variants:
             phases = runs.get((variant, phase))
             if not phases:
@@ -78,7 +80,7 @@ def main():
             summary.setdefault(phase, {})[variant] = r
             print(
                 f"| {variant} | {r['n']} | {fmt(r['cpu'])} ({fmt(r['cpu_min'])}–{fmt(r['cpu_max'])})"
-                f" | {fmt(r['display'])} | {fmt(r['fps'], 1)} | {fmt(r['long'])} | {fmt(r['pss'])} |"
+                f" | {fmt(r['display'])} | {fmt(r['gpu'])} | {fmt(r['fps'], 1)} | {fmt(r['long'])} | {fmt(r['pss'])} |"
             )
     with open(directory.rstrip("/") + "-summary.json", "w") as f:
         json.dump(summary, f, indent=1)

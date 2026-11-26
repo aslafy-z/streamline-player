@@ -10,6 +10,9 @@
 #   noble  (default) Ubuntu 24.04 with its own WebKitGTK and Mesa, the toolchains, perf and the
 #          debug symbols: the machine RESULTS.md was measured on, and the one that builds
 #   arch   Arch Linux, for newer WebKitGTK and Mesa; it runs what noble built
+# BENCH_GPU=1 is a second container of the same image that does get the host's /dev/dri: under
+# Weston (display.sh wayland) the page is then drawn on the GPU, for the same run on both sides.
+# Its results go to results-<distro>-gpu.
 # Inside, BENCH_OUT is /bench/out and HOME is /bench/home, so builds and results outlive the
 # container and stay off /tmp. Each distro writes its results to its own directory
 # (BENCH_RESULTS: /bench/out/results for noble, /bench/out/results-<distro> for the others).
@@ -25,6 +28,14 @@ image=${BENCH_IMAGE:-streamline-bench:$distro}
 engine=${BENCH_ENGINE:-docker}
 results=/bench/out/results
 [ "$distro" = noble ] || results=/bench/out/results-$distro
+gpu=()
+if [ -n "${BENCH_GPU:-}" ]; then
+	name=$name-gpu
+	results=/bench/out/results-$distro-gpu
+	gpu=(--device /dev/dri)
+	# The device nodes belong to groups the image does not know by name.
+	for node in /dev/dri/renderD* /dev/dri/card*; do gpu+=(--group-add "$(stat -c %g "$node")"); done
+fi
 
 case ${1:-sh} in
 build)
@@ -36,7 +47,7 @@ up)
 	# seccomp and the two capabilities are what perf_event_open and ptrace need.
 	"$engine" run -d --name "$name" --init \
 		--cpuset-cpus "${BENCH_CPUS:-0,2,4,6}" --shm-size 2g \
-		--security-opt seccomp=unconfined --cap-add SYS_PTRACE --cap-add PERFMON \
+		--security-opt seccomp=unconfined --cap-add SYS_PTRACE --cap-add PERFMON "${gpu[@]}" \
 		--user "$(id -u):$(id -g)" -e HOME=/bench/home -e BENCH_OUT=/bench/out \
 		-e BENCH_RESULTS="$results" -e CARGO_HOME=/bench/home/.cargo \
 		-v "$common:$common" -v "$cache:/bench" -w "$top" "$image" sleep infinity

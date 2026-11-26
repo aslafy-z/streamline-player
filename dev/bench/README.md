@@ -79,6 +79,23 @@ dev/bench/container.sh build && dev/bench/container.sh up
 dev/bench/container.sh run dev/bench/runtimes.sh wry          # then stack.sh, display.sh, matrix.sh the same way
 ```
 
+`BENCH_GPU=1` is the same image in a second container that does get the host's `/dev/dri`:
+under Weston (`display.sh wayland`) the page is drawn on the GPU, so one machine gives both
+sides of a comparison. Xvfb draws on the CPU either way. Where the kernel reports it (amdgpu),
+the runner adds the GPU's load over each phase.
+
+```sh
+BENCH_GPU=1 dev/bench/container.sh up
+BENCH_GPU=1 dev/bench/container.sh run dev/bench/matrix.sh wayland 2 '^wry$'
+```
+
+### The page of another checkout
+
+`stack.sh front` builds and serves the pages of `BENCH_FRONT` (a checkout, this one by default):
+a branch's pages measured with this harness. Builds are kept per commit, so going back and
+forth costs nothing. `replay.sh` runs the whole "without a GPU" comparison of `RESULTS.md` in
+one go, on each image, the same way each time.
+
 ### Where a phase spends its CPU
 
 `runner.mjs --hook <phase>:dev/bench/profile.sh` captures that phase: CPU per thread, user and
@@ -112,7 +129,15 @@ mpv's picture (`plugins/tauri-plugin-player/src/view.rs`); `seethrough` also mak
 view's background transparent, as the player does while it plays, and `anim.html?…&bg=none` is
 the page to put over it. `BENCH_UNDERLAY_FPS` redraws the area that often, as a video would.
 
-Check a screenshot (`<results>/x11-shots`) before trusting a variant that changes how the page
+`BENCH_PLAYER=1` loads the player plugin itself: libmpv in its `GtkGLArea` under the web view,
+as in the app. The scenarios `attached-<kind>`, `play-<kind>` and `played-<kind>` hold a page of
+`anim.html` over it with nothing played yet, with the bench's clip playing (the page
+see-through) and with playback stopped again. `runtimes.sh` links this checkout's plugin;
+`BENCH_WRY=wry-next BENCH_PLAYER_PLUGIN=<other checkout>/plugins/tauri-plugin-player
+dev/bench/runtimes.sh wry` builds a second binary with another checkout's, and `BENCH_WRY`
+picks the binary in `matrix.sh`.
+
+Check a screenshot (`<results>/<display>-shots`) before trusting a variant that changes how the page
 is drawn: a blank window costs nothing and measures nothing.
 
 Variants are the table at the top of `matrix.sh`: WebKitGTK environment variables (the names
@@ -128,6 +153,9 @@ tree, busiest first, split into user and system time.
 ## Known traps
 
 - CEF refuses to run as root with its sandbox: the bench app turns it off.
+- On Xvfb with llvmpipe, mpv's picture stays black in most `play-*` runs, with this checkout's
+  plugin as with any other: the load never completes. The CPU of such a run is not a playing
+  player's. Under Weston, with or without a GPU, check the screenshot the same way.
 - A nix-built Qt finds no GL driver outside NixOS and aborts in `QGLXContext`: `qt-env.sh` points
   it at nixpkgs' Mesa.
 - CEF on Linux burns about one core on its main thread at all times, rendering or not: the thread

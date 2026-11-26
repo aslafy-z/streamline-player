@@ -3,11 +3,12 @@
 //   [--hook phase:command]
 // Starts the bench app on the served desktop build with the compare shim and driver.js as its
 // init script, and samples the CPU and PSS of the app's whole process tree (and of the display
-// server, COMPOSITOR) at each mark the driver posts. SHOT=<dir> also grabs an X11 screenshot at
-// each phase start. --hook runs `command <app pid> <out without .json>.<phase>` when that phase
+// server, COMPOSITOR) at each mark the driver posts, and how busy the GPU was over the phase
+// where the kernel says (amdgpu's gpu_busy_percent). SHOT=<dir> also grabs a screenshot at each
+// phase start, from the X server or from Weston (started with --debug, display.sh). --hook runs `command <app pid> <out without .json>.<phase>` when that phase
 // starts (profile.sh: threads and perf over the phase).
 import { spawn } from "node:child_process";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 
@@ -139,7 +140,7 @@ const finish = (why) => {
 	console.log(`${name} ${scenario}: ${why}`);
 	for (const p of result.phases)
 		console.log(
-			`  ${p.phase.padEnd(16)} cpu ${String(p.cpu_pct).padStart(6)}%  x ${String(p.x_pct).padStart(5)}%  fps ${p.fps ?? "-"}  long ${p.long ?? "-"}  pss ${p.pss_mb}MB`,
+			`  ${p.phase.padEnd(16)} cpu ${String(p.cpu_pct).padStart(6)}%  x ${String(p.x_pct).padStart(5)}%  gpu ${p.gpu_pct ?? "-"}%  fps ${p.fps ?? "-"}  long ${p.long ?? "-"}  pss ${p.pss_mb}MB`,
 		);
 	try {
 		process.kill(-child.pid, "SIGKILL");
@@ -147,13 +148,49 @@ const finish = (why) => {
 	server.close();
 	setTimeout(() => process.exit(0), 300);
 };
+// The GPU's load, sampled while the run lasts: the mean over a phase is what it reports.
+const busyFile = (() => {
+	try {
+		for (const card of readdirSync("/sys/class/drm")) {
+			const file = `/sys/class/drm/${card}/device/gpu_busy_percent`;
+			try {
+				readFileSync(file);
+				return file;
+			} catch {}
+		}
+	} catch {}
+	return null;
+})();
+const busy = [];
+if (busyFile)
+	setInterval(() => {
+		try {
+			busy.push([performance.now(), +readFileSync(busyFile, "utf8")]);
+		} catch {}
+	}, 250).unref();
+const gpu = (from, to) => {
+	const over = busy.filter(([at]) => at >= from && at <= to).map(([, pct]) => pct);
+	return over.length ? +(over.reduce((a, b) => a + b, 0) / over.length).toFixed(1) : undefined;
+};
 const shot = (phase) => {
-	if (!process.env.SHOT || !process.env.DISPLAY) return;
+	if (!process.env.SHOT) return;
 	mkdirSync(process.env.SHOT, { recursive: true });
+	const file = `${process.env.SHOT}/${name}-${scenario}-${phase}.png`;
+	if (!process.env.DISPLAY && process.env.WAYLAND_DISPLAY) {
+		// weston-screenshooter names its file itself, in its working directory.
+		const dir = `${process.env.SHOT}/.${name}-${scenario}-${phase}`;
+		mkdirSync(dir, { recursive: true });
+		spawn("weston-screenshooter", [], { cwd: dir, stdio: "ignore" }).on("exit", () => {
+			const made = readdirSync(dir).find((f) => f.endsWith(".png"));
+			if (made) renameSync(`${dir}/${made}`, file);
+		});
+		return;
+	}
+	if (!process.env.DISPLAY) return;
 	spawn("ffmpeg", [
 		...["-y", "-v", "error", "-f", "x11grab", "-video_size", "1920x1080"],
 		...["-i", process.env.DISPLAY, "-frames:v", "1"],
-		`${process.env.SHOT}/${name}-${scenario}-${phase}.png`,
+		file,
 	]);
 };
 const onMark = (m) => {
@@ -179,6 +216,7 @@ const onMark = (m) => {
 			wall_s: +wall.toFixed(1),
 			cpu_pct: pct(b.cpu - a.cpu, wall),
 			x_pct: pct(b.x - a.x, wall),
+			gpu_pct: gpu(a.at, b.at),
 			by_process: byProcess,
 			pss_mb: Math.round(b.pss / 1024),
 			procs: b.procs,
