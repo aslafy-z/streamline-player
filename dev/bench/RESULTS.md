@@ -347,4 +347,4 @@ The app's processes, with the X server's own share after the plus sign:
   the page is no longer drawn (checked, as with the variables that do the same);
   `WEBKIT_FORCE_COMPOSITING_MODE=1` brings compositing back, as the patch intends.
 - The patched builds took 4 to 6 minutes each on four build jobs, once `stock` was built
-  (about two hours on the same four jobs).
+  (two and three quarter hours on the same four jobs).
