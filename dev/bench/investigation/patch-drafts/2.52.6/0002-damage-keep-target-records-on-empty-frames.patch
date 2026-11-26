@@ -1,0 +1,60 @@
+Subject: [CoordinatedGraphics] Do not invalidate every render target on a frame without damage
+
+Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
+tarball root. Independent of 0001 (it only matters when
+UseDamagingInformationForCompositing is on). Required by 0003. Not compiled.
+
+What it does
+  AcceleratedSurface::setFrameDamage() stores an empty frame damage as
+  std::nullopt. renderTargetDamage() then handed that nullopt to
+  SwapChain::addDamage(), and RenderTarget::addDamage(std::nullopt) resets the
+  record of every target to "unknown". One composited frame without damage
+  therefore cost a full repaint of the current target and of the next frame on
+  every other target. With this change an empty frame leaves the records alone.
+
+  A target whose record is empty is up to date. The empty bounds would send
+  TextureMapper::beginClip() down the stencil path (beginScissorClip() refuses
+  empty rects), so the compositor clips to a single pixel instead. The layer
+  tree is still walked, nothing else is rasterized.
+
+What it does not handle
+  - A visual change that damage tracking does not report and that happens
+    alone in a frame was hidden by the full repaint before, and would now be
+    presented one frame late or not at all. 2.54 has the same behaviour
+    (ThreadedCompositor::recordFrameDamage() returns early on empty damage).
+  - The frame is still read back and sent to the UI process.
+
+--- a/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/AcceleratedSurface.cpp
++++ b/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/AcceleratedSurface.cpp
+@@ -1097,7 +1097,10 @@
+ 
+ const std::optional<Damage>& AcceleratedSurface::renderTargetDamage()
+ {
+-    m_swapChain.addDamage(m_frameDamage);
++    // setFrameDamage() stores an empty frame damage as std::nullopt. Passing that on would reset the
++    // damage record of every target to "unknown" and make each of them repaint in full.
++    if (m_frameDamage)
++        m_swapChain.addDamage(m_frameDamage);
+     static std::optional<Damage> nulloptDamage;
+     return m_target ? m_target->damage() : nulloptDamage;
+ }
+--- a/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/ThreadedCompositor.cpp
++++ b/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/ThreadedCompositor.cpp
+@@ -292,8 +292,15 @@
+ 
+         if (m_damage.flags->contains(DamagePropagationFlags::UseForCompositing)) {
+             const auto& damageSinceLastSurfaceUse = m_surface->renderTargetDamage();
+-            if (damageSinceLastSurfaceUse && !FloatRect(damageSinceLastSurfaceUse->bounds()).contains(clipRect))
+-                rectContainingRegionThatActuallyChanged = FloatRoundedRect(damageSinceLastSurfaceUse->bounds());
++            if (damageSinceLastSurfaceUse) {
++                // A target with an empty damage record is up to date. TextureMapper::beginClip() takes
++                // the stencil path for an empty rect, so clip to one pixel to stay on the scissor path.
++                auto damageBounds = damageSinceLastSurfaceUse->bounds();
++                if (damageBounds.isEmpty())
++                    damageBounds = IntRect(0, 0, 1, 1);
++                if (!FloatRect(damageBounds).contains(clipRect))
++                    rectContainingRegionThatActuallyChanged = FloatRoundedRect(FloatRect(damageBounds));
++            }
+ 
+             m_textureMapper->setDamage(damageSinceLastSurfaceUse);
+         }

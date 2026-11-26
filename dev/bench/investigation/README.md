@@ -27,8 +27,10 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | WebKitGTK 2.52 and 2.54 render path, read from source | done, `notes/webkit-render-path.md` |
 | What wry and Tauri set, what the app can reach | done, `notes/wry-tauri.md` |
 | What upstream knows | done, `notes/upstream-research.md` |
-| Candidate settings measured on 2.52 | home page done, single-animation pages running |
-| The same on WebKitGTK 2.54 | pending |
+| Candidate settings measured on 2.52 | done but for the damage flag (first run invalid, see below) |
+| The same on WebKitGTK 2.54.3 (Arch image) | running |
+| WebKitGTK 2.52.6 built from source, to try patches | building |
+| Patch drafts for WebKitGTK | written, not compiled: `patch-drafts/2.52.6/` |
 | Fix in the app | pending |
 | Report (French) and upstream bug draft | pending |
 
@@ -104,20 +106,57 @@ core for the app's process tree.
 | `wry` | nothing | 269 % | 264 %, 26 fps | 693 |
 | `wry-nocomp` | `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 106 % | 107 %, 52 fps | 370 |
 | `wry-never` | policy `NEVER` set by the app through `with_webview`, after the view exists | 107 % | 106 %, 53 fps | 395 |
-| `wry-damage` | `UseDamagingInformationForCompositing` on | 259 % | 263 %, 27 fps | 679 |
 | `wry-lp2` | `LP_NUM_THREADS=2` | 187 % | 184 %, 18 fps | 673 |
 | `wry-lp1` | `LP_NUM_THREADS=1` | 105 % | 107 %, 12 fps | 674 |
 
 - **Policy `NEVER` set by the application is the environment variable**, to the point: same CPU,
   same frame rate, same memory. It does not have to be set before the web view is created, so the
   app needs neither an early environment variable nor a restart.
-- **Limiting composition to the damaged region does nothing for this page**: its animation is a
-  full-window zoom, so the damaged region is the window. The single-animation pages say what it
-  does when little changes.
+- **The damage flag is not measured yet.** A first run showed no change with
+  `UseDamagingInformationForCompositing` on, and was wrong: the web process reads that feature
+  once, when it creates the page (`LayerTreeHost.cpp:100-110`, read), and a feature set after
+  wry's first `load_uri` arrives too late, so the run compared off with off
+  (`notes/webkit-render-path.md`, section 10). The bench now restarts the web process after
+  setting features; the numbers come with the next series.
 - **Fewer llvmpipe threads buy CPU with frames**: one thread costs what compositing off costs
   (105 %) and scrolls at 12 fps where compositing off scrolls at 52. The work per frame is the
   same, there is only less of the machine to do it on. Composited mode takes whatever cores it is
   given: it is bound by the work, not by a frame clock.
+
+## One animation on a still page
+
+`pages/anim.html`: a full-window gradient, a paragraph, and one moving element. WebKitGTK 2.52.6,
+X11, one rep, 60 fps reached in every cell. CPU of the app's process tree, in % of one core; the
+X server's own share comes on top (26 % composited, under 1 % not, 9 % for the zoom).
+
+| page | `wry` | `wry-never` | `wry-nocomp` |
+|---|---|---|---|
+| nothing moves | 0 % | 0 % | 0 % |
+| 32 px spinner (`transform`) | 85 % | 14 % | 11 % |
+| 44 px bar (`transform`) | 84 % | 11 % | 14 % |
+| 44 px bar (`width`, repainted by the main thread) | 91 % | 10 % | 14 % |
+| full-window zoom (`transform`) | 148 % | 65 % | 70 % |
+
+The bar at three window sizes:
+
+| window | `wry` | `wry-nocomp` |
+|---|---|---|
+| 720×450 | 32 % | 12 % |
+| 1440×900 | 84 % | 14 % |
+| 1920×1080 | 123 % | 12 % |
+
+And the zoom: 48 %, 148 %, 230 % composited; 27 %, 70 %, 104 % not.
+
+- **Composited, any animation costs about 85 % of one core on a trivial page**, and the cost
+  grows with the window: about 60 % per megapixel at 60 fps, plus the X server. What moves does
+  not matter, a spinner costs what a bar costs.
+- **Not composited, the cost is what is repainted**: 10 to 14 % for the small ones whatever the
+  window, and the full-window zoom costs half of what it costs composited.
+- **On this page llvmpipe's thread count changes nothing**: `LP_NUM_THREADS=1` gives 82 % at
+  60 fps (84 % with four). The home page needs the four threads because its layer tree is much
+  heavier to composite; here the per-frame floor is elsewhere (profile pending).
+- `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` is worse here (97 %), `WEBKIT_SKIA_GPU_PAINTING_THREADS=0`
+  no different (84 %).
 
 ## Candidates still to measure
 
@@ -133,5 +172,7 @@ core for the app's process tree.
   tarballs, question by question.
 - `notes/wry-tauri.md`: what wry, tao and Tauri set on Linux, and what the app can reach.
 - `notes/upstream-research.md`: WebKit bugs, Igalia's posts, release notes, Mesa's knobs.
+- `patch-drafts/2.52.6/`: changes to WebKitGTK that the reading suggests, as diffs against the
+  release tarball. Not compiled yet: drafts until a build has measured them.
 - `profiles/`: the captures the tables above come from (`*.threads.txt` from `threads.py`, the
   others from `report.sh`).

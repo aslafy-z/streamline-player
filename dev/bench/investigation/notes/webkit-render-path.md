@@ -761,3 +761,197 @@ Ranking for this application (transparent view over a `GtkGLArea`, llvmpipe):
   looks like a full-size self copy; its real cost was not determined.
 - `NEVER` at runtime in 2.52 (section 3.5) is a reading of the code path, not
   a tested behaviour.
+
+## 10. Why the damage flag changes nothing in 2.52.6
+
+Follow-up to measurements: `UseDamagingInformationForCompositing` set through
+`webkit_settings_set_feature_enabled()` right after wry created the view and
+called `load_uri` gives the same web process cost as with the flag off (bar
+84 % / 85 %, spinner 85 % / 88 %, `width` animation 91 % / 92 %, zoom 148 % /
+140 %), and the cost follows the window area. All references are 2.52.6.
+
+### 10.1 The flag never reached the compositor (timing)
+
+- `[READ]` The flag has exactly one reader on GTK: the `LayerTreeHost`
+  constructor (`LTH.cpp:100-110`; the only other hits in the tree are the
+  PlayStation host and the WPE-only `NCFR.cpp:135`). It is copied into
+  `ThreadedCompositor::m_damage.flags` (`TC.cpp:234-242`) and never refreshed.
+- `[READ]` It is read from the right object: `webPage.corePage()->settings()`,
+  filled from the preference store sent by the UI process
+  (`Source/WebKit/WebProcess/WebPage/WebPage.cpp:4801-4807`). No other cache.
+- `[READ]` The `LayerTreeHost` is created inside the `WebPage` constructor:
+  `updatePreferences(parameters.store)` at `WebPage.cpp:958`, then
+  `enterAcceleratedCompositingModeIfNeeded()` at `WebPage.cpp:980`, which
+  creates it at once when compositing is forced (`DACG.cpp:264-276`,
+  `:564-578`), the GTK default. So the only store that counts is the one inside
+  `WebPageCreationParameters`.
+- `[READ]` That store is captured when the UI process sends `CreateWebPage`
+  (`Source/WebKit/UIProcess/WebPageProxy.cpp:1810`, `:12500`
+  `parameters.store = preferencesStore()`). On GTK the web process launch is
+  delayed until the first load (`Source/WebKit/UIProcess/WebProcessPool.cpp:217-225`,
+  `:1353-1361`), so this happens **inside the first `load_uri`**
+  (`WebPageProxy.cpp:2155-2156` -> `launchProcess` `:1378-1420` ->
+  `initializeWebPage` `:1768-1810`). The message is encoded at that moment and
+  queued while the process launches
+  (`Source/WebKit/UIProcess/AuxiliaryProcessProxy.cpp:271-273`).
+- `[READ]` A feature set afterwards goes through `WebPreferences::update()`
+  (`Source/WebKit/UIProcess/WebPreferences.cpp:140-149`) to
+  `WebPageProxy::preferencesDidChange()` (`WebPageProxy.cpp:6913-6939`), which
+  sends `PreferencesDidChange`. It is queued behind `CreateWebPage`, so the web
+  process applies it after the `LayerTreeHost` exists. `WebCore::Settings` then
+  holds `true`, and nothing looks at it again.
+- `[READ]` Before the first load `preferencesDidChange()` returns early
+  (`!hasRunningProcess()`, `WebPageProxy.cpp:6915`), but the store itself is
+  already updated, so a feature set **between view creation and the first
+  load** does end up in the creation parameters.
+- `[INFERRED]` Conclusion: with "create view, `load_uri`, then set the feature"
+  the compositor ran with the flag off in every measured run. The numbers
+  compare off with off.
+- `[READ]` Why the hardware acceleration policy set at the same place works:
+  it is dynamic. `DACG.cpp:230-242` re-reads it on every preference update and
+  WebCore tears the layer tree down (section 3.5). The damage flags have no
+  such path.
+- `[INFERRED]` The X server share dropping from 27 % to 16 % in the `width`
+  case has no explanation in the WebKit source: no UI process code reads the
+  flag, and GTK 3 ignores damage rects (section 1.4). Worth checking the frame
+  rate of that run before reading anything into it.
+
+Ways to get the flag in without rebuilding WebKit:
+
+1. `[READ]` Set it before the first `load_uri` of the view (any call that
+   launches the web process counts as the first load).
+2. `[INFERRED, untested]` If the embedder loads during construction: set the
+   flag, call `webkit_web_view_terminate_web_process()`, then load again. The
+   relaunch goes through `launchProcess` and a new `CreateWebPage` with the
+   current store.
+3. `[INFERRED, untested]` Set the flag, switch the policy to `NEVER`, wait for
+   the page to leave compositing (a later main loop turn, the exit is driven by
+   a style update and a zero-delay timer, `DACG.cpp:332-341`, `:518-529`), then
+   back to `ALWAYS`. The new `LayerTreeHost` samples the flag. Doing both in
+   the same turn does not exit compositing.
+
+### 10.2 With the flag on, when is the full frame still repainted
+
+Mechanics first, all `[READ]`:
+
+- The SHM swap chain starts with 2 render targets and may grow to 4
+  (`AcceleratedSurface.h:362-363`, `AS.cpp:831-860`). In steady state the two
+  alternate: the UI process releases the previous buffer when it commits the
+  new one (`ABS.cpp:792-795`, `AS.cpp:863-877`).
+- Buffer age is emulated: each target keeps a damage record
+  (`AcceleratedSurface.h:178`), `std::nullopt` meaning "unknown, repaint
+  everything". `renderTargetDamage()` adds the frame damage to every target
+  (`AS.cpp:1098-1103`, `:922-930`, `:156-165`) and `didRenderFrame()` resets
+  the record of the target just rendered to empty (`AS.cpp:1079`). With two
+  targets the record of the current target is the union of the last two frames.
+- The scissor comes from `bounds()` of that record (`TC.cpp:293-303`), applied
+  through `beginScissorClip()` (`TM.cpp:1348-1365`, identity matrix, so always
+  the scissor path for a non-empty rect). The clear runs inside it
+  (`TC.cpp:306`). A non-opaque root does not force a full repaint.
+- There is no `SharedMemoryWithoutGL` target in 2.52.6. The types are
+  `EGLImage`, `SharedMemory`, `Texture`, `WPEBackend`
+  (`AcceleratedSurface.h:325-337`); the SHM target is always GL. The CPU-only
+  SHM surface is 2.54 (`usesGL() == false`).
+
+Conditions that still give a full-frame repaint:
+
+| # | Condition | Where | Tag |
+| --- | --- | --- | --- |
+| 1 | Flag not sampled as on when the `LayerTreeHost` was built (10.1) | `LTH.cpp:100-110` | READ |
+| 2 | Unknown target record: first use of each target (the first 2 frames), any target created later, after a resize (`SwapChain::resize` resets the chain), after the view was hidden 10 s (`releaseUnusedBuffers`), after the GL context is destroyed | `AcceleratedSurface.h:178`, `AS.cpp:771-785`, `:890-901`, `:1013-1016` | READ |
+| 3 | **A composited frame with empty damage.** `setFrameDamage()` stores it as `std::nullopt`, `renderTargetDamage()` passes that to every target, and `RenderTarget::addDamage(std::nullopt)` resets every record to unknown. That frame and the next frame on each other target are full | `AS.cpp:1090-1096`, `:1098-1103`, `:156-165` | READ |
+| 4 | Frame damage is the whole surface: any added rect that contains the damage rect switches it to `Mode::Full`; a layer covering the window whose transform, size or opacity changes (the zoom case), a full-viewport tile repaint | `Source/WebCore/platform/graphics/Damage.h:309-317`, `TextureMapperLayer.cpp:306-308`, `:1348-1350`, `:1430-1431`, `:1507-1508` | READ |
+| 5 | Bounding box only. The per-target record is always `Mode::BoundingBox` and the compositor only uses `bounds()`; `UnifyDamagedRegions` (on by default) does the same to the frame damage. Two small changes far apart repaint the box containing both | `AS.cpp:1076-1079`, `TC.cpp:282`, `:295-296` | READ |
+| 6 | Layers with a contents layer are damaged entirely on every composited frame unless they carry explicit damage, changed or not (video, canvas, WebGL; directly composited images are INFERRED to be in this group) | `TextureMapperLayer.cpp:493-497` | READ |
+| 7 | Layers with filters or masks add their overlap region on every frame, and that region is accumulated in a member that is never cleared | `TextureMapperLayer.cpp:534-550`, `TextureMapperLayer.h:295` | READ |
+| 8 | Intermediate surfaces (group opacity, filters, masks, flattened 3D) are repainted in full into their own texture; only the final blit is scissored. No damage logic in `paintIntoSurface` / `paintUsingOverlapRegions` | `TextureMapperLayer.cpp:979`, `:1082`, `:1136`, `:1177-1178` | READ |
+| 9 | `WEBKIT_SHOW_DAMAGE` set: the visualizer removes `UseForCompositing` | `TC.cpp:234-242` | READ |
+
+Not a cause of full repaint: a running accelerated animation (it damages the
+layer's old and new rect, `TextureMapperLayer.cpp:560-571`), rotated or
+non-integral transforms (the damage is the enclosing rect of the mapped quad,
+`TextureMapperLayer.cpp:456-465`, `:499-512`), the transparent background.
+
+`[INFERRED]` For the measured page (one full-window gradient layer, one small
+animated layer, continuous transform animation) none of 2 to 9 applies after
+the first two frames. Once the flag is really on, clear and composite should
+shrink to the animated strip. Condition 3 matters for real pages: an animation
+with a delay, a hold between keyframes or `steps()` keeps the compositor
+running (`TC.cpp:329-330`) with frames that carry no damage, and each of them
+costs full repaints.
+
+`[INFERRED]` What the flag cannot change: `glReadPixels` of the whole surface
+(`AS.cpp:514-518`), the fence wait before it, and the whole-widget redraw in
+the UI process. A web process at 78 % of one core at 60 fps is about 13 ms of
+CPU per frame over all threads; if the profile shows most of it under
+`glReadPixels` on the compositor thread rather than in llvmpipe rasterizer
+threads, the flag alone will bring little and patch 0003 below is the one that
+matters. This split is not knowable from the source.
+
+### 10.3 Seeing the damage at runtime without rebuilding
+
+- `[READ]` `WEBKIT_SHOW_DAMAGE=N` (N > 0, web process environment) draws this
+  frame's damage as translucent red rects, inflated by N-1 pixels
+  (`Source/WebCore/platform/graphics/texmap/TextureMapperDamageVisualizer.cpp:39-57`,
+  `TC.cpp:318-323`). It only needs propagation (default on), so it shows what
+  the compositor computes whatever the compositing flag. Caveat: it turns
+  `UseForCompositing` off and reports full damage to the UI process, so it
+  shows the damage, not the scissor, and it changes the cost being measured.
+- `[READ]` Sysprof marks, if the build has `USE_SYSPROF_CAPTURE` (default ON,
+  `Source/cmake/OptionsGTK.cmake:74`) and the app runs under sysprof (the
+  control fd is forwarded to the web process,
+  `Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp:204`):
+  `CollectDamage` (`TC.cpp:284`), `FlushCompositingState`, `PaintToGLContext`,
+  `PaintTextureMapperLayerTree` (`TC.cpp:405-411`, `:308-310`), the trace
+  scopes `RenderLayerTree` (`TC.cpp:351`) and `WaitForCompositionCompletion`
+  (`AS.cpp:1066`, fence wait plus readback), and the `DidRenderFrame` mark with
+  the composition reasons (`TC.cpp:418`). None carries the damage rect or the
+  scissor. On a deferred software rasterizer the paint marks only time command
+  submission; `WaitForCompositionCompletion` is where the frame is paid.
+- `[READ]` No release log channel prints damage (no `RELEASE_LOG` in the damage
+  code). The damage history API (`FrameDamageForTesting.h`,
+  `foreachRegionInDamageHistoryForTesting`) is reachable only from the
+  `internals` test object.
+- `[READ]` Nothing reports whether the web process sampled the flag as on.
+  `webkit_settings_get_feature_enabled()` answers from the UI process store.
+- `[INFERRED]` Practical check: `WEBKIT_SHOW_DAMAGE=1` to confirm the frame
+  damage is the expected strip, then a perf comparison of the llvmpipe
+  rasterizer share with the flag set before and after the first load.
+
+### 10.4 Patch drafts
+
+Unified diffs against the 2.52.6 tarball, `-p1`, generated with `diff -u` from
+scratch copies and checked with `patch` against the pristine files (series
+1 to 5 in order, each independent one alone, 0002+0003, 0004 and 0005 in both
+orders). **None was compiled.** They live in
+`dev/bench/investigation/patch-drafts/2.52.6/`:
+
+| File | Maps to | Touches | Depends on |
+| --- | --- | --- | --- |
+| `0001-damage-use-for-compositing-by-default-on-gtk.patch` | (a) the flag is on from the first frame, no timing issue | `UnifiedWebPreferences.yaml` (1 line, same change as 2.54) | none |
+| `0002-damage-keep-target-records-on-empty-frames.patch` | (a) condition 3 of 10.2; a target with an empty record is clipped to one pixel instead of taking the stencil path | `AcceleratedSurface.cpp` (`renderTargetDamage`), `ThreadedCompositor.cpp` (`paintToCurrentGLContext`) | none |
+| `0003-shm-read-back-changed-area-only.patch` | (b) `glReadPixels` limited to the bounds of the target's record, with `GL_PACK_ROW_LENGTH`; records maintained even with the compositing flag off | `AcceleratedSurface.{h,cpp}` (`didRenderFrame`, `setFrameDamage`, new `addFrameDamageToTargets`, `RenderTargetSHMImage::didRenderFrame`) | 0002 |
+| `0004-gtk3-redraw-damaged-region-only.patch` | (c) `gtk_widget_queue_draw_region` with the frame's damage rects | `UIProcess/gtk/AcceleratedBackingStore.{h,cpp}` (fence monitor callback, `update`, `unrealize`) | none |
+| `0005-disable-compositing-on-software-gl.patch` | software GL fallback, with `WEBKIT_FORCE_COMPOSITING_MODE` (any value but 0) as the override | `UIProcess/gtk/HardwareAccelerationManager.cpp`, `AcceleratedBackingStore.{h,cpp}` (new `isSoftwareRendered`) | none |
+
+Points to verify when compiling and measuring (`[INFERRED]`):
+
+- 0003 relies on the Y mapping "GTK 3 SHM target: buffer row = height - maxY".
+  It follows from the compositor using `FlipY::No` there (`TC.cpp:71`,
+  `:99-100`), the projection matrix (`TM.cpp:1303-1311`) and the inverted
+  scissor (`Source/WebCore/platform/graphics/texmap/ClipStack.cpp:98-105`).
+  A wrong mapping shows at once as a stale band mirrored vertically.
+- 0003 and 0004 trust the damage to be exact; anything drawn outside it stays
+  stale. An animated element with antialiased or rotated edges is the case to
+  look at.
+- 0004 can only help what GTK and the X server do with the invalidated area.
+  With a `GtkGLArea` in the toplevel the GDK GL path may still present more
+  than the region.
+- 0005 detects the software device through `EGL_EXT_device_query` on the UI
+  process display. That Mesa attaches a device with `EGL_MESA_device_software`
+  to an X11 or Wayland llvmpipe display was not read (Mesa is out of scope);
+  the 2.52 code already relies on the same query returning a device there
+  (`DRMMainDevice.cpp:216-229`).
+- With 0001 to 0004 the per-frame cost left on the SHM path is the fence
+  creation and wait, the layer tree walk, and the IPC round trip, none of which
+  depends on the window area.

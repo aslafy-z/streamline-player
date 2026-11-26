@@ -1,0 +1,178 @@
+Subject: [GTK][WPE] Read back only the changed area of a shared memory render target
+
+Draft against the webkitgtk-2.52.6 release tarball. Apply with -p1 from the
+tarball root, AFTER 0002 (the context of one hunk comes from it). Independent
+of 0001 and 0004. Not compiled.
+
+What it does
+  RenderTargetSHMImage::didRenderFrame() called glReadPixels() on the whole
+  surface for every frame. The damage record of a render target already says
+  what changed since that target was last presented, and the shared bitmap of
+  the target still holds the pixels of that presentation, so only the bounds
+  of the record have to be read back.
+
+  - The record is now maintained on every frame that has frame damage, whether
+    or not UseDamagingInformationForCompositing is on (before, targets only
+    accumulated damage through renderTargetDamage(), which only the
+    compositing flag calls).
+  - AcceleratedSurface::didRenderFrame() converts the bounds to buffer
+    coordinates (Y flipped when shouldPaintMirrored(), which is the GTK 3
+    case) and hands them to the target before resetting the record.
+  - The sub-rectangle is read in place with GL_PACK_ROW_LENGTH. On a context
+    older than OpenGL (ES) 3.0 it falls back to full-width rows, which need no
+    row length.
+  - No frame damage for the frame (damage propagation off) or an unknown
+    record (new target, resize) still reads the whole surface.
+
+What it does not handle
+  - It trusts the frame damage to be exact. Anything drawn outside the
+    reported damage (antialiased layer edges, a debug overlay) would stay
+    stale in the shared bitmap. WEBKIT_SHOW_DAMAGE reports full damage, so it
+    is safe.
+  - The bounds are one rectangle: scattered damage reads their bounding box.
+  - It assumes 4 bytes per pixel, as the previous call did.
+  - The fence wait before the readback (GLFence::create + clientWait) is
+    unchanged.
+  - NonCompositedFrameRenderer (WPE only in 2.52) shares this target and gets
+    the same treatment; its damage is in the same space as its surface.
+
+--- a/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/AcceleratedSurface.cpp
++++ b/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/AcceleratedSurface.cpp
+@@ -54,6 +54,10 @@
+ #include <GLES2/gl2.h>
+ #endif
+ 
++#ifndef GL_PACK_ROW_LENGTH
++#define GL_PACK_ROW_LENGTH 0x0D02
++#endif
++
+ #if USE(GBM)
+ #include <WebCore/DRMDeviceManager.h>
+ #include <WebCore/GBMVersioning.h>
+@@ -513,7 +517,32 @@
+ 
+ void AcceleratedSurface::RenderTargetSHMImage::didRenderFrame(Vector<IntRect, 1>&& damageRects)
+ {
+-    glReadPixels(0, 0, m_bitmap->size().width(), m_bitmap->size().height(), GL_BGRA, GL_UNSIGNED_BYTE, m_bitmap->mutableSpan().data());
++    const IntRect bitmapRect({ }, m_bitmap->size());
++    auto rect = m_changedRect ? intersection(*m_changedRect, bitmapRect) : bitmapRect;
++
++    // Reading a rectangle narrower than the bitmap needs GL_PACK_ROW_LENGTH, which OpenGL ES 2 lacks.
++    // Full rows can always be read in place.
++    bool needsRowLength = rect.width() != bitmapRect.width();
++    if (needsRowLength) {
++        auto* context = GLContextWrapper::currentContext();
++        if (!context || context->glVersion() < 300) {
++            rect.setX(0);
++            rect.setWidth(bitmapRect.width());
++            needsRowLength = false;
++        }
++    }
++
++    if (!rect.isEmpty()) {
++        static constexpr size_t bytesPerPixel = 4;
++        const size_t bytesPerRow = m_bitmap->bytesPerRow();
++        auto pixels = m_bitmap->mutableSpan().subspan(rect.y() * bytesPerRow + rect.x() * bytesPerPixel);
++        if (needsRowLength)
++            glPixelStorei(GL_PACK_ROW_LENGTH, static_cast<GLint>(bytesPerRow / bytesPerPixel));
++        glReadPixels(rect.x(), rect.y(), rect.width(), rect.height(), GL_BGRA, GL_UNSIGNED_BYTE, pixels.data());
++        if (needsRowLength)
++            glPixelStorei(GL_PACK_ROW_LENGTH, 0);
++    }
++
+     RenderTargetShareableBuffer::didRenderFrame(WTF::move(damageRects));
+ }
+ 
+@@ -1073,6 +1102,22 @@
+ 
+     Vector<IntRect, 1> damageRects;
+ #if ENABLE(DAMAGE_TRACKING)
++    // The damage record of the target covers everything that changed since the target was last
++    // presented. Without frame damage for this frame the records are not maintained, and the whole
++    // target counts as changed.
++    std::optional<IntRect> changedRect;
++    if (std::exchange(m_hasFrameDamage, false)) {
++        addFrameDamageToTargets();
++        if (const auto& targetDamage = m_target->damage()) {
++            const auto& size = m_swapChain.size();
++            auto rect = intersection(targetDamage->bounds(), IntRect({ }, size));
++            if (shouldPaintMirrored())
++                rect.setY(size.height() - rect.maxY());
++            changedRect = rect;
++        }
++    }
++    m_target->setChangedRect(WTF::move(changedRect));
++
+     // For now, we use bounding box damage for render target damage, as its only 2 consumers so far
+     // (CoordinatedBackingStore & ThreadedCompositor) only fetch bounds. Thus having damage with
+     // better resolution is pointless as the bounds are the same in such case.
+@@ -1089,18 +1134,28 @@
+ #if ENABLE(DAMAGE_TRACKING)
+ void AcceleratedSurface::setFrameDamage(Damage&& damage)
+ {
++    m_hasFrameDamage = true;
++    m_frameDamageAddedToTargets = false;
+     if (!damage.isEmpty())
+         m_frameDamage = WTF::move(damage);
+     else
+         m_frameDamage = std::nullopt;
+ }
+ 
+-const std::optional<Damage>& AcceleratedSurface::renderTargetDamage()
++void AcceleratedSurface::addFrameDamageToTargets()
+ {
++    if (std::exchange(m_frameDamageAddedToTargets, true))
++        return;
++
+     // setFrameDamage() stores an empty frame damage as std::nullopt. Passing that on would reset the
+     // damage record of every target to "unknown" and make each of them repaint in full.
+     if (m_frameDamage)
+         m_swapChain.addDamage(m_frameDamage);
++}
++
++const std::optional<Damage>& AcceleratedSurface::renderTargetDamage()
++{
++    addFrameDamageToTargets();
+     static std::optional<Damage> nulloptDamage;
+     return m_target ? m_target->damage() : nulloptDamage;
+ }
+--- a/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/AcceleratedSurface.h
++++ b/Source/WebKit/WebProcess/WebPage/CoordinatedGraphics/AcceleratedSurface.h
+@@ -147,6 +147,9 @@
+ #endif
+     void frameDone();
+     void releaseUnusedBuffersTimerFired();
++#if ENABLE(DAMAGE_TRACKING)
++    void addFrameDamageToTargets();
++#endif
+ 
+     class RenderTarget {
+         WTF_MAKE_TZONE_ALLOCATED(RenderTarget);
+@@ -163,6 +166,10 @@
+         virtual void sync(bool) { }
+         virtual void setReleaseFenceFD(UnixFileDescriptor&&) { }
+ 
++        // Area of the target, in buffer coordinates, whose pixels changed since the target was last
++        // presented. std::nullopt means the whole target.
++        void setChangedRect(std::optional<WebCore::IntRect>&& rect) { m_changedRect = WTF::move(rect); }
++
+ #if ENABLE(DAMAGE_TRACKING)
+         void setDamage(WebCore::Damage&& damage) { m_damage = WTF::move(damage); }
+         const std::optional<WebCore::Damage>& damage() { return m_damage; }
+@@ -174,6 +181,7 @@
+ 
+         uint64_t m_id { 0 };
+         uint64_t m_surfaceID { 0 };
++        std::optional<WebCore::IntRect> m_changedRect;
+ #if ENABLE(DAMAGE_TRACKING)
+         std::optional<WebCore::Damage> m_damage;
+ #endif
+@@ -395,6 +403,8 @@
+     std::unique_ptr<RunLoop::Timer> m_releaseUnusedBuffersTimer;
+ #if ENABLE(DAMAGE_TRACKING)
+     std::optional<WebCore::Damage> m_frameDamage;
++    bool m_hasFrameDamage { false };
++    bool m_frameDamageAddedToTargets { false };
+ #endif
+ };
+ 
