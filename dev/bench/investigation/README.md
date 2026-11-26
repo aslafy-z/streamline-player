@@ -1,6 +1,8 @@
 # Why WebKitGTK is expensive without a GPU
 
-An investigation log, kept up to date as the work goes. Question: on a machine that draws with
+The report, in French, is [`RAPPORT.md`](RAPPORT.md): it is the one file here not in English,
+because it was asked for in French. This file is the investigation log it draws on, kept up to
+date as the work goes. Question: on a machine that draws with
 Mesa llvmpipe, any animation that runs on every frame costs the desktop app close to three cores.
 Which code spends that time, and how far down can it be brought?
 
@@ -33,7 +35,8 @@ of the cloud container `RESULTS.md` was measured in, on other hardware; the home
 | WebKitGTK 2.52.6 built from source, to try patches | building |
 | Patch drafts for WebKitGTK | written, not compiled: `patch-drafts/2.52.6/` |
 | Fix in the app | first attempt withdrawn (it hides the page once video shows); second one measured with the real plugin, with and without a GPU |
-| Report (French) and upstream bug draft | pending |
+| Report (French) and upstream bug drafts | written: `RAPPORT.md`, `upstream-drafts/`; tables to be replaced by the replay |
+| Replay of every "without a GPU" number, two reps, both images | running (`dev/bench/replay.sh`) |
 
 ## Findings so far
 
@@ -325,6 +328,16 @@ rows with each other only; `shots/2.52.6-gdk-software-draw-grid.png`):
   `CAIRO_OPERATOR_SOURCE` (`UIProcess/cairo/BackingStoreCairo.cpp:82-90`), which replaces what
   is under it. Seeing through a web view takes accelerated compositing.
 - Why the non-composited view is not drawn at all without that variable is not explained.
+
+### Wayland without a GPU: the app dies at start
+
+Under headless Weston with llvmpipe the bench app with the player plugin gets a segmentation
+fault before its first frame, every time. gdb: `vaInitialize` in `libva-wayland.so.2`, under
+`mpv_render_context_create`, under `view::create_render_context`. The plugin hands mpv the
+Wayland display for VA-API; libva 2.20 crashes on a compositor with no DRM device to offer.
+`fix/player-software-wayland` leaves the display out when `GL_RENDERER` is a CPU rasterizer:
+the app starts and plays the clip (frame 152 at 6.3 s in the screenshot taken). With the area
+shown on demand alone, the crash only moves to the first playback.
 
 ## Candidates still to measure
 
