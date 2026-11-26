@@ -1,0 +1,31 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 20K of event 'cycles'
+# Event count (approx.): 178705587862
+#
+# Overhead  Command          Shared Object                        
+# ........  ...............  .....................................
+#
+    24.68%  llvmpipe-0       [JIT] tid 492                        
+    22.96%  llvmpipe-1       [JIT] tid 492                        
+    19.60%  llvmpipe-2       [JIT] tid 492                        
+    18.36%  llvmpipe-3       [JIT] tid 492                        
+     1.94%  WebKitWebProces  libwebkit2gtk-4.1.so.0.21.10         
+     1.76%  eadedCompositor  libgallium-25.2.8-0ubuntu0.24.04.5.so
+     1.23%  llvmpipe-0       libgallium-25.2.8-0ubuntu0.24.04.5.so
+     1.20%  llvmpipe-3       libgallium-25.2.8-0ubuntu0.24.04.5.so
+     1.20%  eadedCompositor  libwebkit2gtk-4.1.so.0.21.10         
+     1.04%  llvmpipe-2       libgallium-25.2.8-0ubuntu0.24.04.5.so
+     1.01%  llvmpipe-1       libgallium-25.2.8-0ubuntu0.24.04.5.so
+     0.59%  eadedCompositor  [unknown]                            
+     0.54%  llvmpipe-2       [unknown]                            
+     0.53%  llvmpipe-1       [unknown]                            
+     0.52%  wry              libpixman-1.so.0.42.2                
+     0.50%  llvmpipe-0       [unknown]                            
+     0.46%  llvmpipe-3       [unknown]                            
+#
+# (Cannot load tips.txt file, please install perf!)
+#
