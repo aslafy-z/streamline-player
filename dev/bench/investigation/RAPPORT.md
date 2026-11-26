@@ -31,9 +31,9 @@ n'avait pas cette zone.
 
 | niveau | changement | effet mesuré sans GPU | avec GPU | état |
 |---|---|---|---|---|
-| application, 14 lignes | la zone OpenGL de mpv n'est affichée que pendant la lecture | 196 % → 87 % tant que rien n'a été lu | 12 % → 10 % | PR en draft, fork #6 et amont #9 |
+| application, 14 lignes | la zone OpenGL de mpv n'est affichée que pendant la lecture | 197 % → 84 % tant que rien n'a été lu | 12 % → 10 % | PR en draft, fork #6 et amont #9 |
 | application, 28 lignes | pas de VA-API par Wayland quand OpenGL est logiciel | l'application ne plante plus au démarrage sous Wayland sans GPU | inchangé | PR en draft, fork #7 |
-| application, page | fond fixe et barre par pas quand le rendu est logiciel | voir « Relecture » | neutre | PR amont #8, existante |
+| application, page | fond fixe et barre par pas quand le rendu est logiciel | accueil au repos : 279 % → 69 % (2.52), 224 % → 49 % (2.54) | neutre | PR amont #8, existante |
 | wry | pouvoir régler la webview avant son premier chargement | condition du chemin tout CPU en 2.54 | | brouillon de demande |
 | WebKitGTK | composition, relecture et redessin limités à la zone modifiée ; repli sans GPU | 84 % → 20 % pour une petite animation (drapeau existant) ; le reste à mesurer | | patchs consignés, compilation en cours |
 
@@ -45,9 +45,9 @@ correctif a été écrit, essayé sur la vraie application, et retiré.
 
 **Deux pièges de version.**
 
-- `WEBKIT_DISABLE_COMPOSITING_MODE=1`, le contournement connu, aide en 2.52 (269 % → 106 %) et
-  **aggrave** en 2.54 (217 % → 252 %). `WEBKIT_DISABLE_DMABUF_RENDERER=1` donne le chemin tout
-  CPU sur les deux (106 % et 103 %).
+- `WEBKIT_DISABLE_COMPOSITING_MODE=1`, le contournement connu, aide en 2.52 (279 % → 106 %) et
+  **aggrave** en 2.54 (224 % → 257 %). `WEBKIT_DISABLE_DMABUF_RENDERER=1` donne le chemin tout
+  CPU sur les deux (106 % et 106 %).
 - Poser la politique d'accélération `NEVER` après la création de la webview, comme le conseille
   l'équipe Tauri, marche en 2.52 et donne une **page blanche** en 2.54.
 
@@ -151,15 +151,29 @@ de tampon connu, toute la fenêtre est redessinée (`gdk/x11/gdkglcontext-x11.c:
 | affichée | 203 % (132, 71) | 139 %, **page invisible** |
 | affichée puis cachée | 143 % (65, 79) | 76 %, **page invisible** |
 
-**Mesuré avec le vrai plugin et mpv** (avant, après la PR « zone à la demande ») :
+**Mesuré avec le vrai plugin et mpv**, avant et après la PR « zone à la demande », deux
+répétitions. Entre parenthèses, la part du processus de l'interface.
 
-| | sans GPU, avant | sans GPU, après | avec GPU, avant | avec GPU, après |
-|---|---|---|---|---|
-| attaché, rien lu | 196 % | 87 % | 12 % | 10 % |
-| en lecture | 224 % | 225 % | 38 % | 38 % |
-| arrêté après lecture | 181 % | 141 % | 12 % | 10 % |
-| accueil au repos | | | 29 % | 28 % |
-| accueil, défilement | | | 45 %, 60 images/s | 44 %, 60 images/s |
+| sans GPU, 2.52.6 | avant | après |
+|---|---|---|
+| page « barre », rien lu | 197 % (126) | 84 % (6) |
+| page « barre », zone affichée (lecture) | 323 % (305) | 323 % (304) |
+| page « barre », arrêt après lecture | 199 % (127) | 148 % (66) |
+| accueil au repos | 287 % (62) | 288 % (3) |
+| accueil, défilement | 280 %, 24 images/s (56) | 275 %, 27 images/s (3) |
+| accueil au repos, page informée | 75 % (19) | 71 % (1) |
+
+Sur l'accueil les quatre cœurs sont pris dans les deux cas : ce que l'interface rend va aux
+images. En lecture sur llvmpipe, l'interface prend trois cœurs à elle seule : ce n'est pas un
+player utilisable, avec ou sans le changement.
+
+| avec GPU (Weston, Radeon 780M) | avant | après |
+|---|---|---|
+| page « barre », rien lu | 12 % | 10 % |
+| page « barre », en lecture | 38 % | 38 % |
+| page « barre », arrêt après lecture | 12 % | 10 % |
+| accueil au repos | 29 % | 28 % |
+| accueil, défilement | 45 %, 60 images/s | 44 %, 60 images/s |
 
 Avec le GPU, la vidéo s'affiche et avance à chaque essai, la page par-dessus, charge GPU
 identique des deux côtés (4 % au repos, 19 % en lecture).
@@ -179,16 +193,21 @@ clip de test (capture à 6,3 s du clip).
 
 ## 3. Ce qui a été essayé
 
-| réglage | 2.52.6, accueil | 2.54.3, accueil | remarque |
+| réglage | 2.52.6, accueil au repos | 2.54.3, accueil au repos | remarque |
 |---|---|---|---|
-| rien | 269 % | 217 % | |
-| `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 106 % | 252 % | s'inverse en 2.54 |
-| `WEBKIT_DISABLE_DMABUF_RENDERER=1` | 106 % | 103 % | le seul sûr sur les deux |
-| politique `NEVER` posée après la création | 107 % | page blanche | |
-| politique `NEVER`, puis processus web relancé | 106 % | 105 % | |
-| composition limitée à la zone modifiée | 271 % | par défaut | sans effet quand tout l'écran bouge |
-| `LP_NUM_THREADS=1` | 105 %, 12 images/s au défilement | 107 %, 18 images/s | échange du CPU contre des images |
-| `WEBKIT_USE_SKIA_FOR_COMPOSITION=0` | | 262 % | l'ancien compositeur, pire |
+| rien | 279 % | 224 % | |
+| page informée du rendu logiciel (PR #8) | 69 % | 49 % | rien au défilement |
+| `WEBKIT_DISABLE_COMPOSITING_MODE=1` | 106 % | 257 % | s'inverse en 2.54 |
+| `WEBKIT_DISABLE_DMABUF_RENDERER=1` | 106 % | 106 % | le seul sûr sur les deux |
+| le même, page informée | 14 % | 16 % | le plancher |
+| politique `NEVER` posée après la création | 107 % | page blanche | une répétition |
+| politique `NEVER`, puis processus web relancé | 106 % | 106 % | |
+| composition limitée à la zone modifiée | 271 % | par défaut | sans effet quand tout l'écran bouge ; une répétition |
+| `LP_NUM_THREADS=1` | 105 %, 12 images/s au défilement | 107 %, 18 images/s | échange du CPU contre des images ; une répétition |
+| `WEBKIT_USE_SKIA_FOR_COMPOSITION=0` | | 262 % | l'ancien compositeur, pire ; une répétition |
+
+Au défilement de l'accueil : 270 % et 26 images/s composité contre 107 % et 47 à 51 images/s en
+tout CPU (2.52) ; 214 % et 39 images/s contre 107 % et 46 images/s (2.54).
 
 Sans effet mesurable : `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` (pire sur une petite animation,
 97 % contre 84 %), `WEBKIT_SKIA_GPU_PAINTING_THREADS=0`, et les variables déjà écartées dans
@@ -229,7 +248,15 @@ ce mode la page paie ce qu'elle peint, et les dégradés du billboard coûtent p
 
 ## Relecture
 
-Tous les chiffres « sans GPU » ci-dessus viennent de séries faites au fil de l'enquête, une
-répétition le plus souvent. Une relecture complète (`dev/bench/replay.sh`), sur la page de la
-PR #8, deux répétitions, les deux images, est en cours ; ses tableaux remplaceront cette
-section et `dev/bench/RESULTS.md`.
+Les tableaux des sections 2 et 3 viennent d'une relecture complète (`dev/bench/replay.sh`) :
+même conteneur, page de la PR #8 (`af4eb1c`), deux répétitions, les deux images. Entre deux
+répétitions une case bouge de 10 points au plus, de moins de 5 presque partout. Les résultats
+bruts sont dans `replay/`, les tableaux dans `dev/bench/RESULTS.md`. Les lignes marquées « une
+répétition » et les tableaux de la section 1 viennent des séries faites pendant l'enquête ; la
+relecture a redonné les mêmes valeurs partout où elle les recouvre (accueil, barre, zoom, à 5
+points près).
+
+Un écart a été trouvé et corrigé en la faisant : le harnais utilisait sa propre copie de la
+fausse couche native, qui ignorait la commande ajoutée par la PR #8, si bien que la variante
+« page informée » ne changeait rien. Avec la couche de la branche mesurée, le gain annoncé par
+la session précédente (282 % → 81 %) se retrouve ici : 279 % → 69 %.
